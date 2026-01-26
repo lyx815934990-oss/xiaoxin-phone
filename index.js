@@ -297,6 +297,29 @@ function registerExtensionSettings() {
                         <i class="fa-solid fa-chevron-up menu-section-chevron"></i>
                     </summary>
                     <div class="menu-section-content">
+                        <!-- 更新提醒区域 -->
+                        <div id="xiaoxin-update-notice" style="display: none; margin-bottom: 16px; padding: 12px; background: rgba(74, 158, 255, 0.15); border: 1px solid rgba(74, 158, 255, 0.3); border-radius: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <i class="fa-solid fa-circle-exclamation" style="color: #4a9eff;"></i>
+                                <strong style="color: #4a9eff;">发现新版本</strong>
+                            </div>
+                            <div style="color: rgba(255, 255, 255, 0.8); font-size: 0.9em; margin-bottom: 10px;">
+                                当前版本：<span id="xiaoxin-current-version">-</span> | 
+                                最新版本：<span id="xiaoxin-latest-version">-</span>
+                            </div>
+                            <button id="xiaoxin-update-btn" class="menu_button" style="width: 100%;">
+                                <i class="fa-solid fa-download"></i> 立即更新
+                            </button>
+                            <small style="display: block; margin-top: 8px; color: rgba(255, 255, 255, 0.6);">
+                                更新将自动从 GitHub 下载最新版本
+                            </small>
+                        </div>
+                        <!-- 版本信息（无更新时显示） -->
+                        <div id="xiaoxin-version-info" style="margin-bottom: 16px; padding: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 4px;">
+                            <div style="color: rgba(255, 255, 255, 0.7); font-size: 0.9em;">
+                                当前版本：<span id="xiaoxin-version-display">-</span>
+                            </div>
+                        </div>
                         <div class="form_group">
                             <label>
                                 <input type="checkbox" id="xiaoxin_plugin_enabled" />
@@ -459,9 +482,208 @@ function initExtensionSettingsPanel() {
                 }
             );
 
+            // 初始化版本检查和更新功能
+            initVersionCheck();
+
             console.log("[小馨手机] 扩展设置面板逻辑已初始化");
         }
     }, 100);
+}
+
+// 版本检查和更新功能
+function initVersionCheck() {
+    // 获取当前版本（从 manifest.json 读取）
+    fetch("./scripts/extensions/third-party/xiaoxin-phone/manifest.json")
+        .then(response => {
+            if (!response.ok) {
+                throw new Error("无法读取 manifest.json");
+            }
+            return response.json();
+        })
+        .then(manifest => {
+            const currentVersion = manifest.version || "0.1.0";
+            
+            // 显示当前版本
+            const versionDisplay = document.getElementById("xiaoxin-version-display");
+            if (versionDisplay) {
+                versionDisplay.textContent = "v" + currentVersion;
+            }
+
+            // 检查更新
+            checkForUpdates(currentVersion);
+        })
+        .catch(error => {
+            console.warn("[小馨手机] 无法读取版本号:", error);
+            // 使用默认版本号
+            const currentVersion = "0.1.0";
+            const versionDisplay = document.getElementById("xiaoxin-version-display");
+            if (versionDisplay) {
+                versionDisplay.textContent = "v" + currentVersion;
+            }
+            // 仍然尝试检查更新
+            checkForUpdates(currentVersion);
+        });
+}
+
+// 检查是否有新版本
+function checkForUpdates(currentVersion) {
+    const repoUrl = "https://github.com/lyx815934990-oss/xiaoxin-phone";
+    
+    // 从 GitHub API 获取最新 release 或 tag
+    // 使用 GitHub API: https://api.github.com/repos/{owner}/{repo}/releases/latest
+    // 或者获取 tags: https://api.github.com/repos/{owner}/{repo}/tags
+    fetch("https://api.github.com/repos/lyx815934990-oss/xiaoxin-phone/releases/latest")
+        .then(response => {
+            if (!response.ok) {
+                // 如果没有 release，尝试获取 tags
+                return fetch("https://api.github.com/repos/lyx815934990-oss/xiaoxin-phone/tags")
+                    .then(tagsResponse => tagsResponse.json())
+                    .then(tags => {
+                        if (tags && tags.length > 0) {
+                            // 获取最新的 tag（去掉 'v' 前缀）
+                            const latestTag = tags[0].name.replace(/^v/, "");
+                            return { tag_name: latestTag, name: latestTag };
+                        }
+                        throw new Error("No releases or tags found");
+                    });
+            }
+            return response.json();
+        })
+        .then(data => {
+            const latestVersion = data.tag_name ? data.tag_name.replace(/^v/, "") : data.name.replace(/^v/, "");
+            const currentVersionNum = parseVersion(currentVersion);
+            const latestVersionNum = parseVersion(latestVersion);
+
+            console.log("[小馨手机] 版本检查:", {
+                current: currentVersion,
+                latest: latestVersion,
+                needsUpdate: compareVersions(latestVersionNum, currentVersionNum) > 0
+            });
+
+            // 显示版本信息
+            const versionDisplay = document.getElementById("xiaoxin-version-display");
+            if (versionDisplay) {
+                versionDisplay.textContent = "v" + currentVersion;
+            }
+
+            // 如果有新版本，显示更新提醒
+            if (compareVersions(latestVersionNum, currentVersionNum) > 0) {
+                showUpdateNotice(currentVersion, latestVersion);
+            } else {
+                // 隐藏更新提醒，显示版本信息
+                const updateNotice = document.getElementById("xiaoxin-update-notice");
+                const versionInfo = document.getElementById("xiaoxin-version-info");
+                if (updateNotice) updateNotice.style.display = "none";
+                if (versionInfo) versionInfo.style.display = "block";
+            }
+        })
+        .catch(error => {
+            console.warn("[小馨手机] 版本检查失败:", error);
+            // 检查失败时，至少显示当前版本
+            const versionDisplay = document.getElementById("xiaoxin-version-display");
+            if (versionDisplay) {
+                versionDisplay.textContent = "v" + currentVersion;
+            }
+        });
+}
+
+// 显示更新提醒
+function showUpdateNotice(currentVersion, latestVersion) {
+    const updateNotice = document.getElementById("xiaoxin-update-notice");
+    const versionInfo = document.getElementById("xiaoxin-version-info");
+    const currentVersionSpan = document.getElementById("xiaoxin-current-version");
+    const latestVersionSpan = document.getElementById("xiaoxin-latest-version");
+    const updateBtn = document.getElementById("xiaoxin-update-btn");
+
+    if (updateNotice && currentVersionSpan && latestVersionSpan) {
+        currentVersionSpan.textContent = "v" + currentVersion;
+        latestVersionSpan.textContent = "v" + latestVersion;
+        updateNotice.style.display = "block";
+        if (versionInfo) versionInfo.style.display = "none";
+
+        // 绑定更新按钮事件
+        if (updateBtn) {
+            updateBtn.onclick = function() {
+                performUpdate();
+            };
+        }
+    }
+}
+
+// 执行更新
+function performUpdate() {
+    const updateBtn = document.getElementById("xiaoxin-update-btn");
+    if (updateBtn) {
+        updateBtn.disabled = true;
+        updateBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 更新中...';
+    }
+
+    const repoUrl = "https://github.com/lyx815934990-oss/xiaoxin-phone";
+    
+    // 尝试调用酒馆的扩展安装 API
+    // 使用 fetch 调用本地 API
+    fetch("http://127.0.0.1:8000/api/extensions/install", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            url: repoUrl
+        })
+    })
+    .then(response => {
+        if (response.ok) {
+            if (typeof toastr !== "undefined") {
+                toastr.success("更新成功！页面即将刷新...", "小馨手机", { timeOut: 2000 });
+            }
+            // 2秒后刷新页面
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+        } else {
+            throw new Error("更新失败: " + response.status);
+        }
+    })
+    .catch(error => {
+        console.error("[小馨手机] 自动更新失败:", error);
+        handleUpdateError();
+    });
+}
+
+// 处理更新错误（提示手动更新）
+function handleUpdateError() {
+    const updateBtn = document.getElementById("xiaoxin-update-btn");
+    if (updateBtn) {
+        updateBtn.disabled = false;
+        updateBtn.innerHTML = '<i class="fa-solid fa-download"></i> 立即更新';
+    }
+
+    if (typeof toastr !== "undefined") {
+        toastr.warning(
+            "自动更新失败，请手动更新：<br>1. 打开扩展设置 → 第三方扩展<br>2. 找到「小馨手机插件」<br>3. 点击「从 GitHub 导入」<br>4. 输入: https://github.com/lyx815934990-oss/xiaoxin-phone",
+            "小馨手机",
+            { timeOut: 8000, escapeHtml: false }
+        );
+    } else {
+        alert("自动更新失败，请手动更新：\n1. 打开扩展设置 → 第三方扩展\n2. 找到「小馨手机插件」\n3. 点击「从 GitHub 导入」\n4. 输入: https://github.com/lyx815934990-oss/xiaoxin-phone");
+    }
+}
+
+// 解析版本号为数字数组（用于比较）
+function parseVersion(version) {
+    return version.split(".").map(num => parseInt(num, 10) || 0);
+}
+
+// 比较两个版本号
+// 返回: 1 表示 version1 > version2, -1 表示 version1 < version2, 0 表示相等
+function compareVersions(version1, version2) {
+    for (let i = 0; i < Math.max(version1.length, version2.length); i++) {
+        const v1 = version1[i] || 0;
+        const v2 = version2[i] || 0;
+        if (v1 > v2) return 1;
+        if (v1 < v2) return -1;
+    }
+    return 0;
 }
 
 // 动态加载脚本的辅助函数
