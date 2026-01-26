@@ -462,7 +462,7 @@ MobilePhone.prototype.initPhoneContainer = function () {
     // 注意：在酒馆插件目录下建议使用相对当前脚本的路径；这里用与其它图标一致的 ./image/...
     $topWidgetDeco.attr(
         "src",
-        "/scripts/extensions/third-party/小馨手机/image/icon/显示横条装饰.gif"
+        "/scripts/extensions/third-party/xiaoxin-phone/image/icon/显示横条装饰.gif"
     );
     $topWidgetDeco.on("error", function () {
         console.warn("[小馨手机] 横条装饰动图加载失败:", this.src);
@@ -476,7 +476,7 @@ MobilePhone.prototype.initPhoneContainer = function () {
     // 默认头像（用户未自定义时显示）
     $topWidgetAvatar.css(
         "background-image",
-        "url(/scripts/extensions/third-party/小馨手机/image/icon/主页横条默认显示头像.gif)"
+        "url(/scripts/extensions/third-party/xiaoxin-phone/image/icon/主页横条默认显示头像.gif)"
     );
     // 保存头像元素引用，用于后续更新
     this.$topWidgetAvatar = $topWidgetAvatar;
@@ -554,35 +554,35 @@ MobilePhone.prototype.initPhoneContainer = function () {
     var apps = [
         {
             name: "微信",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/微信图标.jpg",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信图标.jpg",
         },
         {
             name: "微博",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/微博图标.png",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微博图标.png",
         },
         {
             name: "情侣空间",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/情侣空间图标.jpg",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/情侣空间图标.jpg",
         },
         {
             name: "备忘录",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/备忘录图标.jpg",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/备忘录图标.jpg",
         },
         {
             name: "支付宝",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/支付宝图标.jpg",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/支付宝图标.jpg",
         },
         {
             name: "淘宝",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/淘宝图标.jpg",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/淘宝图标.jpg",
         },
         {
             name: "外卖",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/外卖图标.png",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/外卖图标.png",
         },
         {
             name: "小红书",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/小红书图标.png",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/小红书图标.png",
         },
     ];
 
@@ -640,7 +640,7 @@ MobilePhone.prototype.initPhoneContainer = function () {
     );
     $deco1.css(
         "background-image",
-        "url(/scripts/extensions/third-party/小馨手机/image/background/手机主页图片1.jpg)"
+        "url(/scripts/extensions/third-party/xiaoxin-phone/image/background/手机主页图片1.jpg)"
     );
     $deco1.css("grid-area", "1 / 3 / 3 / 5"); // 占据第1-2行，第3-4列
     $appGrid.append($deco1);
@@ -651,7 +651,7 @@ MobilePhone.prototype.initPhoneContainer = function () {
     );
     $deco2.css(
         "background-image",
-        "url(/scripts/extensions/third-party/小馨手机/image/background/手机主页图片2.jpg)"
+        "url(/scripts/extensions/third-party/xiaoxin-phone/image/background/手机主页图片2.jpg)"
     );
     $deco2.css("grid-area", "3 / 1 / 5 / 3"); // 占据第3-4行，第1-2列
     $appGrid.append($deco2);
@@ -665,19 +665,19 @@ MobilePhone.prototype.initPhoneContainer = function () {
     var dockApps = [
         {
             name: "电话",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/电话图标.jpg",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/电话图标.jpg",
         },
         {
             name: "信息",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/信息图标.jpg",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/信息图标.jpg",
         },
         {
             name: "设置",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/设置图标.png",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/设置图标.png",
         },
         {
             name: "初始化",
-            icon: "/scripts/extensions/third-party/小馨手机/image/icon/初始化桌面图标.png",
+            icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/初始化桌面图标.png",
         },
     ];
 
