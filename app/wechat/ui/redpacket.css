@@ -1,0 +1,1703 @@
+/* 微信红包页面样式 */
+
+/* ========== 发红包页面主容器 ========== */
+.xiaoxin-wechat-redpacket-page {
+    width: 100%;
+    height: 100%;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+/* ========== 顶部标题栏（和微信主页一样，不留状态栏空隙） ========== */
+.xiaoxin-wechat-redpacket-header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #ededed;
+    z-index: 10;
+    padding-top: 0; /* 不留状态栏空隙 */
+    padding-bottom: 0;
+    box-sizing: border-box;
+}
+
+.xiaoxin-wechat-redpacket-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: #ededed;
+    min-height: 44px;
+    position: relative; /* 为绝对定位的标题提供定位上下文 */
+}
+
+.xiaoxin-wechat-redpacket-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+/* 返回按钮（深灰色） */
+.xiaoxin-wechat-redpacket-back {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 330;
+    color: #666; /* 深灰色 */
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+}
+
+.xiaoxin-wechat-redpacket-back:active {
+    opacity: 0.6;
+}
+
+.xiaoxin-wechat-redpacket-header-title {
+    font-size: 17px;
+    font-weight: 330;
+    color: #000;
+    text-align: center;
+    flex: 1;
+    margin: 0;
+    padding: 0 16px;
+    line-height: 1.2;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+}
+
+.xiaoxin-wechat-redpacket-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+/* 三个点按钮（横向排列，深灰色） */
+.xiaoxin-wechat-redpacket-more {
+    display: flex;
+    align-items: center;
+    gap: 0px; /* 紧凑排列 */
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: -4px; /* 负字符间距，让点更紧凑 */
+}
+
+.xiaoxin-wechat-redpacket-dot {
+    font-size: 18px;
+    color: #666; /* 深灰色 */
+    line-height: 1;
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+}
+
+/* 除了第一个点，其他点都添加负的左边距，让它们更紧凑 */
+.xiaoxin-wechat-redpacket-dot:not(:first-child) {
+    margin-left: -3px;
+}
+
+.xiaoxin-wechat-redpacket-more:active {
+    opacity: 0.6;
+}
+
+/* ========== 内容区域 ========== */
+.xiaoxin-wechat-redpacket-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 16px;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    text-align: center; /* 确保子元素居中 */
+}
+
+/* ========== 金额输入框容器 ========== */
+.xiaoxin-wechat-redpacket-amount-container {
+    margin-bottom: 12px;
+}
+
+/* 警告通知条（超出200时显示，悬浮显示） */
+.xiaoxin-wechat-redpacket-warning-banner {
+    position: absolute;
+    top: 0;
+    left: 16px;
+    right: 16px;
+    background: #fff3cd !important; /* 黄色背景 */
+    background-color: #fff3cd !important;
+    color: #d32f2f !important; /* 红色文字 */
+    -webkit-text-fill-color: #d32f2f !important;
+    font-size: 12px; /* 缩小字体 */
+    padding: 6px 12px; /* 缩小内边距 */
+    text-align: center;
+    border-radius: 6px; /* 缩小圆角 */
+    margin: 0;
+    z-index: 200;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); /* 缩小阴影 */
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    font-weight: 500;
+    pointer-events: none; /* 不阻挡点击事件 */
+    line-height: 1.4; /* 调整行高，让文字更紧凑 */
+}
+
+/* ========== 输入框行 ========== */
+.xiaoxin-wechat-redpacket-input-row {
+    display: flex;
+    align-items: center;
+    background: #fff;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    min-height: 48px;
+    box-sizing: border-box;
+}
+
+.xiaoxin-wechat-redpacket-label {
+    font-size: 16px;
+    color: #000;
+    flex: 0 0 auto;
+    margin-right: 16px;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+}
+
+/* 金额标签错误状态（超出200时） */
+.xiaoxin-wechat-redpacket-amount-label.xiaoxin-wechat-redpacket-amount-error {
+    color: #d32f2f !important;
+}
+
+/* ========== 输入框（浅灰色无边框） ========== */
+.xiaoxin-wechat-redpacket-input,
+.xiaoxin-wechat-redpacket-input *,
+input.xiaoxin-wechat-redpacket-input {
+    flex: 1;
+    border: none !important;
+    outline: none !important;
+    background: #f7f7f7 !important; /* 浅灰色 */
+    background-color: #f7f7f7 !important;
+    background-image: none !important;
+    color: #000 !important;
+    font-size: 16px !important;
+    padding: 8px 12px !important;
+    box-sizing: border-box !important;
+    border-radius: 4px !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    -webkit-text-fill-color: #000 !important;
+    caret-color: #000 !important;
+    /* 强制覆盖所有可能的主题样式 */
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+}
+
+.xiaoxin-wechat-redpacket-input::placeholder,
+input.xiaoxin-wechat-redpacket-input::placeholder {
+    color: #999 !important;
+    -webkit-text-fill-color: #999 !important;
+    opacity: 1 !important;
+}
+
+/* 金额输入框右对齐 */
+.xiaoxin-wechat-redpacket-amount-input {
+    text-align: right !important;
+}
+
+/* 金额输入框错误状态（超出200时） */
+.xiaoxin-wechat-redpacket-amount-input.xiaoxin-wechat-redpacket-amount-error {
+    color: #d32f2f !important;
+    -webkit-text-fill-color: #d32f2f !important;
+}
+
+/* 祝福语输入框placeholder浅灰色 */
+.xiaoxin-wechat-redpacket-greeting-input::placeholder {
+    color: #999 !important;
+    -webkit-text-fill-color: #999 !important;
+    opacity: 1 !important;
+}
+
+/* 默认值样式：浅灰色 */
+.xiaoxin-wechat-redpacket-greeting-input.xiaoxin-wechat-redpacket-greeting-default {
+    color: #999 !important;
+    -webkit-text-fill-color: #999 !important;
+}
+
+/* 当输入框有内容且不是默认值时，恢复黑色 */
+.xiaoxin-wechat-redpacket-greeting-input:not(
+        .xiaoxin-wechat-redpacket-greeting-default
+    ) {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+}
+
+.xiaoxin-wechat-redpacket-input:focus,
+input.xiaoxin-wechat-redpacket-input:focus {
+    background: #f7f7f7 !important;
+    background-color: #f7f7f7 !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+}
+
+/* 输入框包装器（用于祝福语输入框和表情按钮） */
+.xiaoxin-wechat-redpacket-input-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.xiaoxin-wechat-redpacket-emoji-btn {
+    font-size: 18px;
+    color: #999;
+    cursor: pointer;
+    flex-shrink: 0;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    overflow: hidden;
+    border-radius: 4px;
+}
+
+.xiaoxin-wechat-redpacket-emoji-btn svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.xiaoxin-wechat-redpacket-emoji-btn:active {
+    opacity: 0.6;
+}
+
+/* 选中的表情包显示在按钮上 */
+.xiaoxin-wechat-redpacket-emoji-selected {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+    display: block;
+}
+
+/* 红包封面选择 */
+.xiaoxin-wechat-redpacket-cover-select {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    cursor: pointer;
+}
+
+.xiaoxin-wechat-redpacket-arrow {
+    font-size: 20px;
+    color: #999;
+    line-height: 1;
+}
+
+/* ========== 总金额显示 ========== */
+.xiaoxin-wechat-redpacket-total {
+    font-size: 48px; /* 放大字号 */
+    font-weight: 500; /* 加粗 */
+    color: #000;
+    text-align: center;
+    margin: 24px auto; /* 上下24px，左右auto居中 */
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    position: relative;
+    display: inline-flex;
+    align-items: baseline;
+    justify-content: center;
+    width: auto;
+    max-width: 100%;
+}
+
+/* ¥符号显示在左上角 */
+.xiaoxin-wechat-redpacket-currency {
+    font-size: 24px; /* 比数字小 */
+    font-weight: 600;
+    line-height: 1;
+    margin-right: 4px; /* 与数字的间距 */
+    align-self: flex-start; /* 对齐到顶部 */
+    margin-top: 18px; /* 稍微下移，与数字对齐 */
+}
+
+/* 金额数字 */
+.xiaoxin-wechat-redpacket-amount {
+    font-size: 48px; /* 保持大字号 */
+    font-weight: 500;
+    display: inline-block;
+    text-align: center;
+    line-height: 1;
+}
+
+/* 总金额显示保持默认黑色，不因错误状态变红 */
+
+/* ========== 塞钱进红包按钮 ========== */
+.xiaoxin-wechat-redpacket-send-btn {
+    width: 50%; /* 缩短按钮长度 */
+    max-width: 300px; /* 设置最大宽度 */
+    margin: 0 auto; /* 居中显示 */
+    padding: 14px;
+    background: #f8654b !important; /* 橙红色 */
+    background-color: #f8654b !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-size: 16px !important;
+    font-weight: 330 !important;
+    text-align: center !important;
+    cursor: pointer !important;
+    user-select: none !important;
+    box-sizing: border-box !important;
+    transition: none !important;
+    /* 强制覆盖所有可能的主题样式 */
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+}
+
+.xiaoxin-wechat-redpacket-send-btn:hover,
+.xiaoxin-wechat-redpacket-send-btn:active,
+.xiaoxin-wechat-redpacket-send-btn:focus {
+    background: #ff6b35 !important;
+    background-color: #ff6b35 !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    opacity: 0.9 !important;
+    transform: none !important;
+}
+
+/* ========== 底部提示文字 ========== */
+.xiaoxin-wechat-redpacket-footer {
+    font-size: 12px;
+    color: #999;
+    text-align: center;
+    position: fixed;
+    bottom: 35px; /* home条上方 */
+    left: 0;
+    right: 0;
+    padding: 0 16px;
+    padding-bottom: 8px;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    z-index: 5;
+}
+
+/* ========== 数字键盘 ========== */
+.xiaoxin-wechat-redpacket-keyboard {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: #fff; /* 改为白色背景 */
+    border-top: 1px solid #ddd;
+    z-index: 100;
+    transform: translateY(100%);
+    transition: transform 0.3s ease;
+    box-sizing: border-box;
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.xiaoxin-wechat-redpacket-keyboard.show {
+    transform: translateY(0);
+}
+
+.xiaoxin-wechat-redpacket-keyboard-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: #ddd;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    padding-bottom: 35px; /* 为home条留出空间 */
+    position: relative;
+}
+
+/* 底部home条区域设置为白色 */
+.xiaoxin-wechat-redpacket-keyboard-grid::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 35px;
+    background: #fff;
+    z-index: 1;
+}
+
+.xiaoxin-wechat-redpacket-keyboard-key {
+    background: #fff;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: #000;
+    cursor: pointer;
+    user-select: none;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    transition: background-color 0.1s;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-width: 0;
+}
+
+.xiaoxin-wechat-redpacket-keyboard-key:active {
+    background: #e0e0e0;
+}
+
+/* 删除键（第一行右侧） */
+.xiaoxin-wechat-redpacket-keyboard-delete {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.xiaoxin-wechat-redpacket-keyboard-delete svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+
+/* 确定按钮（红色，跨第2-4行） */
+.xiaoxin-wechat-redpacket-keyboard-confirm {
+    background: #f8654b !important;
+    background-color: #f8654b !important;
+    color: #fff !important;
+    -webkit-text-fill-color: #fff !important;
+    font-size: 18px;
+    font-weight: 500;
+    grid-row: 2 / 5; /* 跨第2-4行 */
+    grid-column: 4; /* 第4列 */
+    height: auto; /* 自动高度，覆盖固定高度 */
+    min-height: 150px; /* 3行的高度 */
+}
+
+.xiaoxin-wechat-redpacket-keyboard-confirm:active {
+    background: #ff6b35 !important;
+    background-color: #ff6b35 !important;
+}
+
+/* 空白键（占位，不可点击） */
+.xiaoxin-wechat-redpacket-keyboard-blank {
+    background: #fff;
+    cursor: default;
+    pointer-events: none;
+}
+
+.xiaoxin-wechat-redpacket-keyboard-blank:active {
+    background: #fff;
+}
+
+/* 键盘打开时，调整页面布局 */
+.xiaoxin-wechat-redpacket-page.keyboard-open .xiaoxin-wechat-redpacket-content {
+    padding-bottom: 250px; /* 为键盘留出空间 */
+}
+
+.xiaoxin-wechat-redpacket-page.keyboard-open .xiaoxin-wechat-redpacket-footer {
+    bottom: 250px; /* 键盘高度 */
+}
+
+/* ========== 表情包栏 ========== */
+.xiaoxin-wechat-redpacket-sticker-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 240px;
+    background: #f2f2f2;
+    border-top: 0.5px solid #d1d1d6;
+    display: none;
+    flex-direction: column;
+    z-index: 150;
+    box-sizing: border-box;
+    padding-bottom: 35px; /* 为home条留出空间 */
+    overflow: hidden;
+    max-width: 100%;
+}
+
+.xiaoxin-wechat-redpacket-sticker-bar.show {
+    display: flex;
+}
+
+/* 表情包分组标签栏 */
+.xiaoxin-wechat-redpacket-sticker-tabs {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 8px 12px;
+    gap: 8px;
+    border-bottom: 0.5px solid #d1d1d6;
+    background: #f2f2f2;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
+    -webkit-overflow-scrolling: touch;
+}
+
+.xiaoxin-wechat-redpacket-sticker-tabs::-webkit-scrollbar {
+    display: none;
+}
+
+.xiaoxin-wechat-redpacket-sticker-tab {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    color: #8e8e93;
+    background: transparent;
+    overflow: hidden;
+    padding: 0;
+}
+
+.xiaoxin-wechat-redpacket-sticker-tab svg {
+    width: 24px;
+    height: 24px;
+    stroke: currentColor;
+    fill: none;
+}
+
+.xiaoxin-wechat-redpacket-sticker-tab img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 8px;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block;
+}
+
+.xiaoxin-wechat-redpacket-sticker-tab.active {
+    background: rgba(0, 0, 0, 0.08);
+    color: #000;
+}
+
+.xiaoxin-wechat-redpacket-sticker-tab.active svg {
+    stroke: #000;
+}
+
+/* 表情包内容区域 */
+.xiaoxin-wechat-redpacket-sticker-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 8px 12px;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 表情包网格 */
+.xiaoxin-wechat-redpacket-sticker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px 6px;
+    width: 100%;
+    padding: 2px 0;
+    box-sizing: border-box;
+}
+
+.xiaoxin-wechat-redpacket-sticker-item {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    cursor: pointer;
+    user-select: none;
+    background: transparent;
+    transition: background-color 0.2s ease;
+    padding: 0;
+    overflow: hidden;
+}
+
+.xiaoxin-wechat-redpacket-sticker-item:active {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.xiaoxin-wechat-redpacket-sticker-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+/* 选中的表情包显示在按钮上 */
+.xiaoxin-wechat-redpacket-emoji-selected {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+    display: block;
+}
+
+/* 表情包栏打开时，调整页面布局 */
+.xiaoxin-wechat-redpacket-page.sticker-open .xiaoxin-wechat-redpacket-content {
+    padding-bottom: 240px; /* 为表情包栏留出空间 */
+}
+
+.xiaoxin-wechat-redpacket-page.sticker-open .xiaoxin-wechat-redpacket-footer {
+    bottom: 240px; /* 表情包栏高度 */
+}
+
+/* ========== 红包详情页面容器（全屏显示） ========== */
+.xiaoxin-wechat-redpacket-detail-container {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 20000;
+    overflow: hidden;
+    background: transparent;
+}
+
+/* ========== 红包详情页面样式 ========== */
+.xiaoxin-wechat-redpacket-detail-page {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+}
+
+/* 顶部红色圆弧区域 */
+.xiaoxin-wechat-redpacket-detail-red-arc {
+    width: 100%;
+    background: #e64340;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+    z-index: 1;
+    min-height: calc(
+        54px + 52px + 40px
+    ); /* 状态栏高度 + 标题栏高度 + 底部曲线高度（减少20px，往上移动） */
+    border-radius: 0 0 50% 50% / 0 0 30% 30%; /* 底部圆弧效果 */
+    border-bottom: 3px solid #d4af37; /* 金色边框 */
+    box-sizing: border-box;
+}
+
+/* 红色圆弧的底部曲线（移除，改用border-radius实现） */
+
+/* 顶部标题栏（在红色圆弧内） */
+.xiaoxin-wechat-redpacket-detail-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    padding: 0;
+    margin: 0;
+}
+
+.xiaoxin-wechat-redpacket-detail-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    padding-top: 54px; /* 往下移动，给状态栏留出空间 */
+    min-height: 44px;
+    position: relative;
+}
+
+.xiaoxin-wechat-redpacket-detail-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+/* 返回按钮（白色） */
+.xiaoxin-wechat-redpacket-detail-back {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    font-weight: 330;
+    color: #fff;
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+}
+
+.xiaoxin-wechat-redpacket-detail-back:active {
+    opacity: 0.6;
+}
+
+.xiaoxin-wechat-redpacket-detail-header-title {
+    font-size: 17px;
+    font-weight: 330;
+    color: #fff;
+    text-align: center;
+    flex: 1;
+    margin: 0;
+    padding: 0 16px;
+    line-height: 1.2;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+}
+
+.xiaoxin-wechat-redpacket-detail-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+/* 三个点按钮（横向排列，白色） */
+.xiaoxin-wechat-redpacket-detail-more {
+    display: flex;
+    align-items: center;
+    gap: 0px;
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: -4px;
+}
+
+.xiaoxin-wechat-redpacket-detail-dot {
+    font-size: 18px;
+    color: #fff;
+    line-height: 1;
+}
+
+/* 内容区域 */
+.xiaoxin-wechat-redpacket-detail-content {
+    flex: 1;
+    margin: 0;
+    background: #fff; /* 白色背景 */
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* 居中显示 */
+    padding: 20px 16px;
+    overflow-y: auto;
+    box-sizing: border-box;
+    margin-top: calc(
+        54px + 52px + 40px
+    ); /* 为红色圆弧区域留出空间（状态栏 + 标题栏 + 底部曲线），往上移动20px */
+}
+
+/* 发送者信息 */
+.xiaoxin-wechat-redpacket-detail-sender-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px; /* 减少间距，往上移动 */
+    margin-top: -10px; /* 往上移动 */
+    width: 100%;
+    justify-content: center; /* 居中显示 */
+}
+
+.xiaoxin-wechat-redpacket-detail-sender-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+
+.xiaoxin-wechat-redpacket-detail-sender-name {
+    font-size: 16px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+}
+
+/* 红包备注 */
+.xiaoxin-wechat-redpacket-detail-note {
+    font-size: 15px;
+    color: #999;
+    font-weight: 400;
+    line-height: 1.4;
+    margin-bottom: 12px; /* 减少间距，往上移动 */
+    width: 100%;
+    text-align: center; /* 居中显示 */
+}
+
+/* 表情包 */
+.xiaoxin-wechat-redpacket-detail-sticker {
+    max-width: 100px;
+    max-height: 100px;
+    margin-bottom: 16px;
+    border-radius: 4px;
+    object-fit: contain;
+}
+
+/* 红包金额显示（大号） */
+.xiaoxin-wechat-redpacket-detail-amount-display {
+    width: 100%;
+    text-align: center;
+    margin: 16px 0; /* 减少间距，往上移动 */
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+}
+
+.xiaoxin-wechat-redpacket-detail-amount-number {
+    font-size: 48px;
+    font-weight: 600;
+    color: #d4af37;
+    line-height: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-detail-amount-unit {
+    font-size: 24px;
+    font-weight: 500;
+    color: #d4af37;
+    line-height: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+/* 已存入零钱提示 */
+.xiaoxin-wechat-redpacket-detail-saved-notice {
+    font-size: 14px;
+    color: #666;
+    font-weight: 400;
+    line-height: 1.4;
+    margin-bottom: 16px; /* 减少间距，往上移动 */
+    width: 100%;
+    text-align: center;
+    cursor: pointer;
+}
+
+.xiaoxin-wechat-redpacket-detail-saved-notice:hover {
+    color: #007aff;
+}
+
+/* ??????????? */
+.xiaoxin-wechat-redpacket-detail-divider {
+    width: calc(100% - 32px);
+    height: 1px;
+    background: #ededed;
+    margin: 8px 16px 12px;
+    border-radius: 1px;
+}
+
+/* 领取者信息 */
+.xiaoxin-wechat-redpacket-detail-claimer-info {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0; /* 减少间距，往上移动 */
+    padding: 12px 16px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.xiaoxin-wechat-redpacket-detail-claimer-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    object-fit: cover;
+}
+
+/* 左侧信息容器（名称和时间） */
+.xiaoxin-wechat-redpacket-detail-claimer-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.xiaoxin-wechat-redpacket-detail-claimer-name {
+    font-size: 16px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-detail-claimer-time {
+    font-size: 14px;
+    color: #999;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+/* 右侧金额显示 */
+.xiaoxin-wechat-redpacket-detail-claimer-amount {
+    font-size: 16px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    flex-shrink: 0;
+}
+
+/* ========== ???????? ========== */
+.xiaoxin-wechat-redpacket-summary-page {
+    width: 100%;
+    height: 100%;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+}
+
+.xiaoxin-wechat-redpacket-summary-header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #e64340;
+    z-index: 10;
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+}
+
+.xiaoxin-wechat-redpacket-summary-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    padding-top: 54px;
+    background: #e64340;
+    min-height: 44px;
+    position: relative;
+}
+
+.xiaoxin-wechat-redpacket-summary-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.xiaoxin-wechat-redpacket-summary-back {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 300;
+    color: #ffe08c;
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+}
+
+.xiaoxin-wechat-redpacket-summary-back:active {
+    opacity: 0.6;
+}
+
+.xiaoxin-wechat-redpacket-summary-header-title {
+    font-size: 17px;
+    font-weight: 330;
+    color: #ffe08c;
+    text-align: center;
+    flex: 1;
+    margin: 0;
+    padding: 0 16px;
+    line-height: 1.2;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+}
+
+.xiaoxin-wechat-redpacket-summary-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+/* ????? */
+.xiaoxin-wechat-redpacket-summary-more {
+    display: flex;
+    align-items: center;
+    gap: 0px;
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: -4px;
+}
+
+.xiaoxin-wechat-redpacket-summary-dot {
+    font-size: 18px;
+    color: #ffe08c;
+    line-height: 1;
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+}
+
+.xiaoxin-wechat-redpacket-summary-dot:not(:first-child) {
+    margin-left: -3px;
+}
+
+.xiaoxin-wechat-redpacket-summary-more:active {
+    opacity: 0.6;
+}
+
+/* ????????????? */
+.xiaoxin-wechat-redpacket-summary-year-select-bar {
+    background: #e64340;
+    padding: 8px 16px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.xiaoxin-wechat-redpacket-summary-year-select {
+    font-size: 15px;
+    color: #ffe08c;
+    font-weight: 400;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-summary-year-arrow {
+    font-size: 12px;
+    color: #ffe08c;
+}
+
+.xiaoxin-wechat-redpacket-summary-year-select:active {
+    opacity: 0.6;
+}
+
+.xiaoxin-wechat-redpacket-summary-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 16px;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+}
+
+.xiaoxin-wechat-redpacket-summary-player-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.xiaoxin-wechat-redpacket-summary-player-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    object-fit: cover;
+}
+
+.xiaoxin-wechat-redpacket-summary-player-text {
+    font-size: 16px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-summary-total-amount {
+    font-size: 48px;
+    font-weight: 600;
+    color: #000;
+    text-align: center;
+    margin-bottom: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+}
+
+.xiaoxin-wechat-redpacket-summary-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 16px;
+    padding: 0 20px;
+}
+
+.xiaoxin-wechat-redpacket-summary-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.xiaoxin-wechat-redpacket-summary-stat-number {
+    font-size: 24px;
+    font-weight: 600;
+    color: #000;
+    line-height: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-summary-stat-label {
+    font-size: 14px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-summary-divider {
+    height: 1px;
+    background: #e5e5e5;
+    margin: 16px 0;
+}
+
+.xiaoxin-wechat-redpacket-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.xiaoxin-wechat-redpacket-summary-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.xiaoxin-wechat-redpacket-summary-list-item:last-child {
+    border-bottom: none;
+}
+
+.xiaoxin-wechat-redpacket-summary-item-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.xiaoxin-wechat-redpacket-summary-item-name {
+    font-size: 16px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-summary-item-time {
+    font-size: 14px;
+    color: #999;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-summary-item-amount {
+    font-size: 16px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    flex-shrink: 0;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 30000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.xiaoxin-wechat-redpacket-year-picker {
+    width: 100%;
+    max-width: 100%;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    max-height: 25vh;
+    height: 25vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-cancel,
+.xiaoxin-wechat-redpacket-year-picker-done {
+    font-size: 16px;
+    color: #007aff;
+    font-weight: 400;
+    cursor: pointer;
+    user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-cancel:active,
+.xiaoxin-wechat-redpacket-year-picker-done:active {
+    opacity: 0.6;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-item {
+    padding: 12px 20px;
+    font-size: 17px;
+    color: #000;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-item:hover {
+    background: #f5f5f5;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-item.active {
+    background: #f0f0f0;
+    color: #007aff;
+    font-weight: 500;
+}
+/* 红包汇总页面样�?*/
+
+/* ========== 汇总页面主容器 ========== */
+.xiaoxin-wechat-redpacket-summary-page {
+    width: 100%;
+    height: 100%;
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    padding: 0;
+    margin: 0;
+}
+
+/* ========== 顶部标题�?========== */
+.xiaoxin-wechat-redpacket-summary-header {
+    position: sticky;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #e64340;
+    z-index: 10;
+    padding-top: 0;
+    padding-bottom: 0;
+    box-sizing: border-box;
+}
+
+.xiaoxin-wechat-redpacket-summary-header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    padding-top: 54px; /* 给状态栏留出空间 */
+    background: #e64340;
+    min-height: 44px;
+    position: relative;
+}
+
+.xiaoxin-wechat-redpacket-summary-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+.xiaoxin-wechat-redpacket-summary-back {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 300;
+    color: #ffe08c;
+    cursor: pointer;
+    user-select: none;
+    line-height: 1;
+}
+
+.xiaoxin-wechat-redpacket-summary-back:active {
+    opacity: 0.6;
+}
+
+.xiaoxin-wechat-redpacket-summary-header-title {
+    font-size: 17px;
+    font-weight: 330;
+    color: #ffe08c;
+    text-align: center;
+    flex: 1;
+    margin: 0;
+    padding: 0 16px;
+    line-height: 1.2;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+}
+
+.xiaoxin-wechat-redpacket-summary-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+}
+
+/* ????? */
+.xiaoxin-wechat-redpacket-summary-more {
+    display: flex;
+    align-items: center;
+    gap: 0px;
+    cursor: pointer;
+    user-select: none;
+    letter-spacing: -4px;
+}
+
+.xiaoxin-wechat-redpacket-summary-dot {
+    font-size: 18px;
+    color: #ffe08c;
+    line-height: 1;
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+}
+
+.xiaoxin-wechat-redpacket-summary-dot:not(:first-child) {
+    margin-left: -3px;
+}
+
+.xiaoxin-wechat-redpacket-summary-more:active {
+    opacity: 0.6;
+}
+
+/* ?????????????? */
+.xiaoxin-wechat-redpacket-summary-year-select {
+    position: absolute;
+    top: 20px;
+    right: 16px;
+    font-size: 15px;
+    color: #8b7355;
+    font-weight: 400;
+    cursor: pointer;
+    user-select: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    z-index: 100;
+    pointer-events: auto;
+}
+
+.xiaoxin-wechat-redpacket-summary-year-arrow {
+    font-size: 12px;
+    color: #8b7355;
+}
+
+.xiaoxin-wechat-redpacket-summary-year-select:active {
+    opacity: 0.6;
+}
+
+/* ========== 内容区域 ========== */
+.xiaoxin-wechat-redpacket-summary-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 20px 16px;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+}
+
+/* 玩家信息 */
+.xiaoxin-wechat-redpacket-summary-player-info {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.xiaoxin-wechat-redpacket-summary-player-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    object-fit: cover;
+}
+
+.xiaoxin-wechat-redpacket-summary-player-text {
+    font-size: 16px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+/* 总金�?*/
+.xiaoxin-wechat-redpacket-summary-total-amount {
+    font-size: 48px;
+    font-weight: 600;
+    color: #000;
+    text-align: center;
+    margin-bottom: 24px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+}
+
+/* 统计信息 */
+.xiaoxin-wechat-redpacket-summary-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 16px;
+    padding: 0 20px;
+}
+
+.xiaoxin-wechat-redpacket-summary-stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.xiaoxin-wechat-redpacket-summary-stat-number {
+    font-size: 24px;
+    font-weight: 600;
+    color: #000;
+    line-height: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-summary-stat-label {
+    font-size: 14px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+/* 分隔�?*/
+.xiaoxin-wechat-redpacket-summary-divider {
+    height: 1px;
+    background: #e5e5e5;
+    margin: 16px 0;
+}
+
+/* 红包列表 */
+.xiaoxin-wechat-redpacket-summary-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+.xiaoxin-wechat-redpacket-summary-list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.xiaoxin-wechat-redpacket-summary-list-item:last-child {
+    border-bottom: none;
+}
+
+.xiaoxin-wechat-redpacket-summary-item-left {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.xiaoxin-wechat-redpacket-summary-item-name {
+    font-size: 16px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-summary-item-time {
+    font-size: 14px;
+    color: #999;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-summary-item-amount {
+    font-size: 16px;
+    color: #000;
+    font-weight: 400;
+    line-height: 1.4;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    flex-shrink: 0;
+}
+
+/* ========== 年份选择�?========== */
+.xiaoxin-wechat-redpacket-year-picker-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 30000;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.xiaoxin-wechat-redpacket-year-picker {
+    width: 100%;
+    max-width: 100%;
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    max-height: 25vh;
+    height: 25vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-cancel,
+.xiaoxin-wechat-redpacket-year-picker-done {
+    font-size: 16px;
+    color: #007aff;
+    font-weight: 400;
+    cursor: pointer;
+    user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-cancel:active,
+.xiaoxin-wechat-redpacket-year-picker-done:active {
+    opacity: 0.6;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px 0;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-item {
+    padding: 12px 20px;
+    font-size: 17px;
+    color: #000;
+    text-align: center;
+    cursor: pointer;
+    user-select: none;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-item:hover {
+    background: #f5f5f5;
+}
+
+.xiaoxin-wechat-redpacket-year-picker-item.active {
+    background: #f0f0f0;
+    color: #007aff;
+    font-weight: 500;
+}

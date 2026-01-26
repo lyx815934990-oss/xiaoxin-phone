@@ -1,0 +1,980 @@
+/* ========== 来电弹窗 ========== */
+.xiaoxin-incoming-call-dialog {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20000;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 60px; /* 避开灵动岛（灵动岛top: 12px + height: 37px = 49px，60px安全） */
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    /* 确保弹窗在手机容器内 */
+    overflow: hidden;
+}
+
+.xiaoxin-incoming-call-dialog.show {
+    opacity: 1;
+    /* 弹窗容器不阻挡点击，允许页面切换 */
+    pointer-events: none;
+}
+
+.xiaoxin-incoming-call-content {
+    position: relative;
+    background: rgba(30, 30, 30, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 16px;
+    padding: 10px;
+    min-width: 320px;
+    max-width: 90%;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+    transform: translateY(-20px);
+    transition: transform 0.3s ease;
+    /* 只有弹窗内容区域可以点击 */
+    pointer-events: auto;
+    border: 0.5px solid rgba(255, 255, 255, 0.1);
+}
+
+.xiaoxin-incoming-call-dialog.show .xiaoxin-incoming-call-content {
+    transform: translateY(0);
+}
+
+.xiaoxin-incoming-call-avatar {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    overflow: hidden;
+    background: #f0f0f0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    flex-shrink: 0;
+}
+
+.xiaoxin-incoming-call-info {
+    margin-left: 56px; /* 头像宽度40px + 间距10px */
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+.xiaoxin-incoming-call-name {
+    font-size: 16px;
+    font-weight: 500;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+.xiaoxin-incoming-call-text {
+    min-height: 20px;
+}
+
+.xiaoxin-incoming-call-text-main {
+    color: #ffffff;
+    font-size: 14px;
+}
+
+.xiaoxin-incoming-call-text-dots {
+    color: #ffffff;
+    font-size: 14px;
+}
+
+.xiaoxin-incoming-call-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.xiaoxin-incoming-call-actions .xiaoxin-incoming-call-ignore-btn {
+    margin-right: auto;
+}
+
+.xiaoxin-incoming-call-actions .xiaoxin-incoming-call-reject,
+.xiaoxin-incoming-call-actions .xiaoxin-incoming-call-accept {
+    margin-left: 8px; /* 拒接和接听按钮之间的间距很小 */
+}
+
+.xiaoxin-incoming-call-ignore-btn {
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.15);
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: none !important;
+}
+
+.xiaoxin-incoming-call-ignore-btn:hover,
+.xiaoxin-incoming-call-ignore-btn:active,
+.xiaoxin-incoming-call-ignore-btn:focus {
+    background: rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-incoming-call-reject,
+.xiaoxin-incoming-call-accept {
+    width: 48px;
+    height: 48px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+    padding: 0;
+}
+
+.xiaoxin-incoming-call-reject {
+    background: #ff3b30 !important;
+    transition: none !important;
+}
+
+.xiaoxin-incoming-call-reject:hover,
+.xiaoxin-incoming-call-reject:active,
+.xiaoxin-incoming-call-reject:focus {
+    background: #ff3b30 !important;
+    transform: none !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-incoming-call-accept {
+    background: #34c759 !important;
+    transition: none !important;
+}
+
+.xiaoxin-incoming-call-accept:hover,
+.xiaoxin-incoming-call-accept:active,
+.xiaoxin-incoming-call-accept:focus {
+    background: #34c759 !important;
+    transform: none !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-incoming-call-reject svg,
+.xiaoxin-incoming-call-accept svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* 拒接按钮图标旋转（向下，与图2一致） */
+.xiaoxin-call-reject-icon {
+    transform: rotate(135deg);
+}
+
+/* ========== 全屏来电页面 ========== */
+.xiaoxin-incoming-call-fullscreen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    overflow: hidden;
+    /* 确保全屏页面覆盖整个手机容器，不露出其他内容 */
+    background: #000000;
+}
+
+.xiaoxin-incoming-call-fullscreen.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* 背景模糊头像 */
+.xiaoxin-incoming-call-fullscreen-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(20px);
+    -webkit-filter: blur(20px);
+    transform: scale(1.2); /* 放大更多，确保铺满整个容器 */
+    z-index: 1;
+    /* 确保背景覆盖整个区域 */
+    min-width: 100%;
+    min-height: 100%;
+    width: 100%;
+    height: 100%;
+}
+
+/* 暗色遮罩 */
+.xiaoxin-incoming-call-fullscreen-background::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 2;
+    /* 确保遮罩完全覆盖 */
+    min-width: 100%;
+    min-height: 100%;
+    width: 100%;
+    height: 100%;
+}
+
+/* 内容区域 */
+.xiaoxin-incoming-call-fullscreen-content {
+    position: relative;
+    z-index: 3;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    padding-top: 120px; /* 避开灵动岛，并进一步下移（灵动岛top: 12px + height: 37px = 49px，120px安全） */
+    box-sizing: border-box;
+}
+
+/* 忽略按钮（左上角） */
+.xiaoxin-incoming-call-fullscreen-ignore-btn {
+    position: absolute;
+    top: 60px; /* 往下调整，避开灵动岛 */
+    left: 20px;
+    min-width: 60px;
+    height: 36px;
+    padding: 0 12px;
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: none !important;
+    z-index: 10;
+}
+
+.xiaoxin-incoming-call-fullscreen-ignore-btn:hover,
+.xiaoxin-incoming-call-fullscreen-ignore-btn:active,
+.xiaoxin-incoming-call-fullscreen-ignore-btn:focus {
+    background: rgba(255, 255, 255, 0.2) !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-incoming-call-fullscreen-ignore-text {
+    font-size: 14px;
+    color: #ffffff;
+    font-weight: 400;
+}
+
+/* 头像（居中） */
+.xiaoxin-incoming-call-fullscreen-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f0f0f0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    margin-bottom: 24px;
+    margin-top: 40px; /* 额外向下移动，避开灵动岛 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* 角色名称 */
+.xiaoxin-incoming-call-fullscreen-name {
+    font-size: 24px;
+    font-weight: 500;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 16px;
+}
+
+/* 通话文字 */
+.xiaoxin-incoming-call-fullscreen-text {
+    font-size: 16px;
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 80px;
+    min-height: 24px;
+}
+
+.xiaoxin-incoming-call-fullscreen-text-main {
+    color: #ffffff;
+}
+
+.xiaoxin-incoming-call-fullscreen-text-dots {
+    color: #ffffff;
+}
+
+/* 底部按钮区域 */
+.xiaoxin-incoming-call-fullscreen-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 60px;
+    margin-top: auto;
+    margin-bottom: 40px;
+}
+
+.xiaoxin-incoming-call-fullscreen-reject,
+.xiaoxin-incoming-call-fullscreen-accept {
+    width: 64px;
+    height: 64px;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: none !important;
+    padding: 0;
+}
+
+.xiaoxin-incoming-call-fullscreen-reject {
+    background: #ff3b30 !important;
+}
+
+.xiaoxin-incoming-call-fullscreen-reject:hover,
+.xiaoxin-incoming-call-fullscreen-reject:active,
+.xiaoxin-incoming-call-fullscreen-reject:focus {
+    background: #ff3b30 !important;
+    transform: none !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-incoming-call-fullscreen-accept {
+    background: #34c759 !important;
+}
+
+.xiaoxin-incoming-call-fullscreen-accept:hover,
+.xiaoxin-incoming-call-fullscreen-accept:active,
+.xiaoxin-incoming-call-fullscreen-accept:focus {
+    background: #34c759 !important;
+    transform: none !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-incoming-call-fullscreen-reject svg,
+.xiaoxin-incoming-call-fullscreen-accept svg {
+    width: 28px;
+    height: 28px;
+}
+
+/* 全屏页面拒接按钮图标旋转 */
+.xiaoxin-call-fullscreen-reject-icon {
+    transform: rotate(135deg);
+}
+
+/* ========== 悬浮来电图标 ========== */
+.xiaoxin-floating-call-icon {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    z-index: 20002;
+    cursor: pointer; /* 默认显示为点击光标 */
+    opacity: 0;
+    transform: scale(0.8);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    /* 默认位置：右上角 */
+    top: 80px;
+    right: 20px;
+    pointer-events: auto;
+}
+
+.xiaoxin-floating-call-icon.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.xiaoxin-floating-call-icon.dragging {
+    cursor: move !important; /* 只有在拖动时才显示拖动光标 */
+    opacity: 0.8;
+    transform: scale(1.1);
+    z-index: 20003;
+}
+
+.xiaoxin-floating-call-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 4px; /* 和微信头像一样的圆角 */
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+}
+
+/* 通话中悬浮按钮不应用图片样式 */
+.xiaoxin-floating-call-icon-active img {
+    display: none;
+}
+
+.xiaoxin-floating-call-icon:not(.dragging):hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+}
+
+/* 通话中的悬浮按钮样式 */
+.xiaoxin-floating-call-icon-active {
+    width: 60px;
+    height: 60px;
+}
+
+.xiaoxin-floating-call-icon-container {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px; /* 与角色头像样式一致，使用圆角矩形 */
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    position: relative;
+    padding: 4px 2px 2px; /* 上边距4px，下边距2px，为计时器留空间 */
+    box-sizing: border-box;
+}
+
+.xiaoxin-floating-call-phone-icon {
+    width: 28px;
+    height: 20px; /* 减小高度，为计时器留出空间 */
+    flex-shrink: 0;
+}
+
+.xiaoxin-floating-call-duration {
+    color: #07c160;
+    font-size: 9px;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+    margin-top: 2px;
+    line-height: 1;
+}
+
+/* 等待接听文字样式 */
+.xiaoxin-floating-call-waiting-text {
+    color: #07c160;
+    font-size: 9px;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+    margin-top: 2px;
+    line-height: 1;
+}
+
+/* ========== 通话中界面 ========== */
+.xiaoxin-active-call-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20001;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    overflow: hidden;
+}
+
+.xiaoxin-active-call-screen.show {
+    opacity: 1;
+}
+
+.xiaoxin-active-call-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    filter: blur(20px);
+    -webkit-filter: blur(20px);
+    transform: scale(1.2); /* 放大更多，确保铺满整个容器 */
+    z-index: 1;
+    /* 确保背景覆盖整个区域 */
+    min-width: 100%;
+    min-height: 100%;
+    width: 100%;
+    height: 100%;
+}
+
+/* 暗色遮罩（与来电全屏页面一致） */
+.xiaoxin-active-call-background::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 2;
+    /* 确保遮罩完全覆盖 */
+    min-width: 100%;
+    min-height: 100%;
+    width: 100%;
+    height: 100%;
+}
+
+.xiaoxin-active-call-content {
+    position: relative;
+    z-index: 3; /* 与来电全屏页面一致，确保内容在遮罩之上 */
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start; /* 改为flex-start，让内容从顶部开始 */
+    padding: 60px 20px 140px; /* 底部padding增加，为按钮留出空间 */
+    box-sizing: border-box;
+}
+
+/* 顶部状态栏 */
+.xiaoxin-active-call-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    position: absolute;
+    top: 60px; /* 往下移动，避开灵动岛 */
+    left: 0;
+    right: 0;
+    z-index: 10;
+}
+
+.xiaoxin-active-call-minimize-btn,
+.xiaoxin-active-call-invite-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.xiaoxin-active-call-minimize-btn:hover,
+.xiaoxin-active-call-invite-btn:hover {
+    background: rgba(0, 0, 0, 0.5);
+    transform: scale(1.1);
+}
+
+.xiaoxin-active-call-minimize-btn:active,
+.xiaoxin-active-call-invite-btn:active {
+    transform: scale(0.95);
+}
+
+.xiaoxin-active-call-duration {
+    color: white;
+    font-size: 16px;
+    font-weight: 500;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* 中间区域：头像和名称（与来电全屏页面完全一致） */
+.xiaoxin-active-call-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+    justify-content: flex-start;
+    padding-top: 120px; /* 与来电全屏页面一致，避开灵动岛 */
+    position: relative;
+    width: 100%;
+    min-height: 0; /* 允许flex子元素收缩 */
+}
+
+.xiaoxin-active-call-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 8px; /* 与来电全屏页面一致，使用圆角矩形 */
+    overflow: hidden;
+    background: #f0f0f0;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    margin-bottom: 24px; /* 与来电全屏页面一致 */
+    margin-top: 40px; /* 与来电全屏页面一致，额外向下移动，避开灵动岛 */
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.xiaoxin-active-call-name {
+    font-size: 24px; /* 与来电全屏页面一致 */
+    font-weight: 500; /* 与来电全屏页面一致 */
+    color: #ffffff; /* 与来电全屏页面一致 */
+    text-align: center; /* 与来电全屏页面一致 */
+    margin-top: 0; /* 移除额外的margin-top，与来电全屏页面一致 */
+    margin-bottom: 0; /* 移除底部margin，让消息区域紧贴名称 */
+    flex-shrink: 0; /* 名称不收缩 */
+}
+
+/* 等待对方接受邀请文字样式 - 强制浅灰色 */
+.xiaoxin-active-call-waiting {
+    font-size: 16px;
+    font-weight: 400;
+    color: #cccccc !important; /* 强制浅灰色 */
+    text-align: center;
+    margin-top: 12px;
+    flex-shrink: 0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* 通话状态弹窗样式 - 灰色弹窗+白色文字 */
+.xiaoxin-active-call-status-toast {
+    position: absolute;
+    top: calc(50% + 140px); /* 向下移动140px，避免挡住第一条语音文本消息 */
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 16px 24px;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 500;
+    text-align: center;
+    white-space: nowrap;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.xiaoxin-active-call-status-toast.show {
+    opacity: 1;
+}
+
+/* 语音通话文本消息显示区域 */
+.xiaoxin-active-call-messages {
+    width: 100%;
+    max-width: 320px;
+    margin-top: 16px; /* 名称和消息之间的间距 */
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    /* 使用flex布局，自动填充剩余空间，但不超过底部按钮 */
+    flex: 1;
+    min-height: 0; /* 允许flex子元素收缩 */
+    max-height: 100%; /* 不超过父容器 */
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 0 10px;
+    padding-bottom: 20px; /* 底部padding，确保最后一条消息不被按钮遮挡 */
+    box-sizing: border-box;
+    position: relative;
+    /* 确保可以滚动 */
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 滚动条样式 */
+.xiaoxin-active-call-messages::-webkit-scrollbar {
+    width: 4px;
+}
+
+.xiaoxin-active-call-messages::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+.xiaoxin-active-call-messages::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+}
+
+.xiaoxin-active-call-messages::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.xiaoxin-active-call-message-item {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border-radius: 12px;
+    padding: 10px 14px;
+    max-width: 100%;
+    box-sizing: border-box;
+    opacity: 0;
+    transform: translateY(10px);
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+/* 待发送状态的消息样式 */
+.xiaoxin-active-call-message-item.xiaoxin-active-call-message-pending {
+    opacity: 0.7;
+    border: 1px dashed rgba(255, 255, 255, 0.3);
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.xiaoxin-active-call-message-content {
+    font-size: 13px;
+    line-height: 1.5;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+}
+
+/* 角色消息：白色 */
+.xiaoxin-active-call-message-character .xiaoxin-active-call-message-content {
+    color: #ffffff;
+}
+
+/* 玩家消息：绿色 */
+.xiaoxin-active-call-message-player .xiaoxin-active-call-message-content {
+    color: #07c160;
+}
+
+.xiaoxin-active-call-message-content.typing {
+    position: relative;
+}
+
+.xiaoxin-active-call-message-content.typing::after {
+    content: "▊";
+    animation: blink 1s infinite;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+@keyframes blink {
+    0%,
+    50% {
+        opacity: 1;
+    }
+    51%,
+    100% {
+        opacity: 0;
+    }
+}
+
+/* 底部控制按钮 */
+.xiaoxin-active-call-controls {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    padding-bottom: 20px;
+    position: fixed; /* 固定在底部 */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 100; /* 确保在消息区域之上 */
+    background: transparent; /* 透明背景，不遮挡内容 */
+    pointer-events: none; /* 让按钮区域可以点击，但容器本身不阻挡 */
+}
+
+/* 按钮本身可以点击 */
+.xiaoxin-active-call-controls .xiaoxin-active-call-control-item {
+    pointer-events: auto;
+}
+
+/* 语音通话输入框 */
+.xiaoxin-active-call-input-wrapper {
+    position: fixed;
+    bottom: 140px; /* 在按钮上方 */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 101; /* 在按钮之上 */
+    width: 90%;
+    max-width: 400px;
+    pointer-events: auto;
+}
+
+.xiaoxin-active-call-input-container {
+    background: rgba(30, 30, 30, 0.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.xiaoxin-active-call-input {
+    width: 100%;
+    min-height: 80px;
+    max-height: 200px;
+    padding: 12px;
+    background: #2a2a2a !important; /* 强制深灰色，不受主题影响 */
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px;
+    color: #ffffff !important;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.xiaoxin-active-call-input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.3) !important;
+    background: #2a2a2a !important; /* 保持深灰色 */
+}
+
+.xiaoxin-active-call-input::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.xiaoxin-active-call-input-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.xiaoxin-active-call-input-cancel,
+.xiaoxin-active-call-input-send {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: none !important; /* 移除所有过渡效果 */
+}
+
+.xiaoxin-active-call-input-cancel {
+    background: #4a4a4a !important; /* 强制深灰色 */
+    color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.xiaoxin-active-call-input-cancel:hover,
+.xiaoxin-active-call-input-cancel:active,
+.xiaoxin-active-call-input-cancel:focus {
+    background: #4a4a4a !important; /* 悬停时保持原色 */
+    color: rgba(255, 255, 255, 0.8) !important;
+    transform: none !important; /* 移除变换效果 */
+}
+
+.xiaoxin-active-call-input-send {
+    background: #07c160 !important; /* 强制绿色 */
+    color: #ffffff !important;
+}
+
+.xiaoxin-active-call-input-send:hover,
+.xiaoxin-active-call-input-send:active,
+.xiaoxin-active-call-input-send:focus {
+    background: #07c160 !important; /* 悬停时保持原色 */
+    color: #ffffff !important;
+    transform: none !important; /* 移除变换效果 */
+}
+
+/* 控制按钮容器 */
+.xiaoxin-active-call-control-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.xiaoxin-active-call-mic-btn,
+.xiaoxin-active-call-hangup-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.xiaoxin-active-call-mic-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.xiaoxin-active-call-mic-btn.muted {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.xiaoxin-active-call-mic-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.xiaoxin-active-call-mic-btn:active {
+    transform: scale(0.95);
+}
+
+.xiaoxin-active-call-mic-icon {
+    width: 24px;
+    height: 24px;
+    transition: opacity 0.2s ease;
+}
+
+.xiaoxin-active-call-mic-label {
+    color: white;
+    font-size: 12px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    margin-top: 0;
+    text-align: center;
+}
+
+.xiaoxin-active-call-hangup-btn {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #ff3b30;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.xiaoxin-active-call-hangup-btn:hover {
+    background: #ff5757;
+    transform: scale(1.1);
+}
+
+.xiaoxin-active-call-hangup-btn:active {
+    transform: scale(0.95);
+}
+
+.xiaoxin-active-call-hangup-icon {
+    width: 24px;
+    height: 24px;
+}
+
+.xiaoxin-active-call-hangup-label {
+    color: white;
+    font-size: 12px;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+    margin-top: 0;
+    text-align: center;
+}

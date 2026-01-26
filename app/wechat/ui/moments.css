@@ -1,0 +1,801 @@
+/* 朋友圈发布页面样式 */
+
+/* ========== 发布朋友圈页面主容器 ========== */
+.xiaoxin-wechat-moments-publish-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #fff;
+    overflow: hidden;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+}
+
+/* ========== 导航栏（紧贴灵动岛，样式对齐微信标题栏） ========== */
+.xiaoxin-wechat-moments-publish-nav-bar {
+    position: absolute;
+    top: 54px; /* 与其他页面保持一致：状态栏/灵动岛区域高度约54px */
+    left: 0;
+    right: 0;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    background: #fff;
+    border-bottom: 0.5px solid #d1d1d6;
+    z-index: 99;
+    box-sizing: border-box;
+}
+
+.xiaoxin-wechat-moments-publish-nav-cancel {
+    font-size: 16px;
+    font-weight: 330;
+    color: #000;
+    cursor: pointer;
+    user-select: none;
+    padding: 0;
+    background: none;
+    border: none;
+    outline: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    flex: 0 0 auto;
+    min-width: 40px; /* 确保有足够宽度 */
+}
+
+.xiaoxin-wechat-moments-publish-nav-cancel:active {
+    opacity: 0.6;
+}
+
+.xiaoxin-wechat-moments-publish-nav-title {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 17px;
+    font-weight: 330;
+    color: #000;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: calc(100% - 120px); /* 确保不超出左右按钮区域 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    pointer-events: none; /* 不拦截点击事件 */
+}
+
+.xiaoxin-wechat-moments-publish-nav-publish {
+    font-size: 16px;
+    font-weight: 330;
+    color: #07c160;
+    cursor: pointer;
+    user-select: none;
+    padding: 6px 16px;
+    background: none;
+    border: none;
+    outline: none;
+    border-radius: 4px;
+    transition: background 0.2s;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    flex: 0 0 auto;
+    min-width: 40px; /* 确保有足够宽度，与左侧按钮对称 */
+    text-align: right; /* 文字右对齐 */
+}
+
+.xiaoxin-wechat-moments-publish-nav-publish:active,
+.xiaoxin-wechat-moments-publish-nav-publish:hover,
+.xiaoxin-wechat-moments-publish-nav-publish:focus {
+    background: none !important;
+    color: #07c160 !important;
+}
+
+.xiaoxin-wechat-moments-publish-nav-publish:disabled {
+    color: #999 !important;
+    cursor: not-allowed;
+}
+
+.xiaoxin-wechat-moments-publish-nav-publish:disabled:active,
+.xiaoxin-wechat-moments-publish-nav-publish:disabled:hover,
+.xiaoxin-wechat-moments-publish-nav-publish:disabled:focus {
+    background: none !important;
+    color: #999 !important;
+}
+
+/* ========== 内容区域 ========== */
+.xiaoxin-wechat-moments-publish-content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-top: 98px; /* 54px（状态栏/灵动岛区域） + 44px（导航栏高度） */
+    padding-left: 16px;
+    padding-right: 16px;
+    padding-bottom: 16px;
+    margin: 0;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 隐藏滚动条 */
+.xiaoxin-wechat-moments-publish-content::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+    background: transparent;
+}
+
+.xiaoxin-wechat-moments-publish-content {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+/* ========== 文字输入框 ========== */
+.xiaoxin-wechat-moments-publish-textarea,
+.xiaoxin-wechat-moments-publish-textarea *,
+textarea.xiaoxin-wechat-moments-publish-textarea {
+    width: 100% !important;
+    min-height: 120px !important;
+    padding: 12px !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    background: #f7f7f7 !important;
+    background-color: #f7f7f7 !important;
+    background-image: none !important;
+    font-size: 16px !important;
+    font-weight: 330 !important;
+    color: #000 !important;
+    line-height: 1.6 !important;
+    resize: none !important;
+    box-sizing: border-box !important;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+        "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    -webkit-text-fill-color: #000 !important;
+    caret-color: #000 !important;
+}
+
+.xiaoxin-wechat-moments-publish-textarea:focus,
+.xiaoxin-wechat-moments-publish-textarea:active,
+.xiaoxin-wechat-moments-publish-textarea:hover,
+textarea.xiaoxin-wechat-moments-publish-textarea:focus,
+textarea.xiaoxin-wechat-moments-publish-textarea:active,
+textarea.xiaoxin-wechat-moments-publish-textarea:hover {
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    background: #f7f7f7 !important;
+    background-color: #f7f7f7 !important;
+    background-image: none !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    -webkit-text-fill-color: #000 !important;
+}
+
+.xiaoxin-wechat-moments-publish-textarea::placeholder,
+textarea.xiaoxin-wechat-moments-publish-textarea::placeholder {
+    color: #999 !important;
+    -webkit-text-fill-color: #999 !important;
+    opacity: 1 !important;
+}
+
+/* ========== 图片上传区域 ========== */
+.xiaoxin-wechat-moments-publish-images {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 16px;
+    margin-bottom: 16px;
+}
+
+.xiaoxin-wechat-moments-publish-image-item {
+    width: calc(33.333% - 6px);
+    aspect-ratio: 1;
+    border-radius: 4px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #f0f0f0;
+    position: relative;
+    overflow: hidden;
+}
+
+.xiaoxin-wechat-moments-publish-image-delete {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 24px;
+    height: 24px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    z-index: 10;
+}
+
+.xiaoxin-wechat-moments-publish-image-delete:active {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+/* ========== 添加图片按钮（方形灰色加号框） ========== */
+.xiaoxin-wechat-moments-publish-add-image {
+    width: calc(33.333% - 6px);
+    aspect-ratio: 1;
+    border-radius: 4px;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+    position: relative;
+}
+
+.xiaoxin-wechat-moments-publish-add-image:active {
+    background: #e8e8e8;
+}
+
+.xiaoxin-wechat-moments-publish-add-image-icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #999;
+    font-size: 32px;
+    font-weight: 300;
+    line-height: 1;
+}
+
+/* ========== 选项列表 ========== */
+.xiaoxin-wechat-moments-publish-options {
+    margin-top: 16px;
+    background: #fff;
+    border-top: 0.5px solid #f5f5f5;
+    border-bottom: 0.5px solid #f5f5f5;
+}
+
+.xiaoxin-wechat-moments-publish-option {
+    display: flex;
+    align-items: center;
+    padding: 14px 0;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 0.5px solid #f5f5f5;
+    transition: background 0.2s;
+}
+
+.xiaoxin-wechat-moments-publish-option:last-child {
+    border-bottom: none;
+}
+
+.xiaoxin-wechat-moments-publish-option:active {
+    background: #f5f5f5;
+}
+
+.xiaoxin-wechat-moments-publish-option-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    flex-shrink: 0;
+    color: #666;
+    font-size: 20px;
+}
+
+.xiaoxin-wechat-moments-publish-option-icon svg {
+    width: 100%;
+    height: 100%;
+    color: inherit;
+    fill: none;
+    stroke: currentColor;
+}
+
+.xiaoxin-wechat-moments-publish-option-label {
+    flex: 1;
+    font-size: 16px;
+    font-weight: 330;
+    color: #000;
+}
+
+.xiaoxin-wechat-moments-publish-option-value {
+    font-size: 14px;
+    color: #999;
+    margin-right: 8px;
+}
+
+.xiaoxin-wechat-moments-publish-option-arrow {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #c7c7cc;
+    font-size: 12px;
+    flex-shrink: 0;
+}
+
+.xiaoxin-wechat-moments-publish-option-subtext {
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+    margin-left: 36px; /* 图标宽度24px + 间距12px */
+}
+
+/* ========== 图片上传弹窗 ========== */
+.xiaoxin-wechat-moments-publish-image-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog.show {
+    display: flex;
+    opacity: 1;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-content {
+    position: relative;
+    background: #fff;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 500px;
+    max-height: calc(100vh - 40px); /* 减去上下padding */
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 10001;
+    overflow: hidden;
+    margin: auto;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-title {
+    font-size: 18px;
+    font-weight: 330;
+    color: #000;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-close:active,
+.xiaoxin-wechat-moments-publish-image-dialog-close:hover,
+.xiaoxin-wechat-moments-publish-image-dialog-close:focus {
+    background: rgba(0, 0, 0, 0.05) !important;
+    color: #999 !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0; /* 允许flex子元素缩小 */
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 隐藏滚动条 */
+.xiaoxin-wechat-moments-publish-image-dialog-body::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
+    background: transparent;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-body {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+/* 图片预览 */
+.xiaoxin-wechat-moments-publish-image-preview {
+    width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    object-fit: contain;
+    margin-bottom: 16px;
+    display: none;
+}
+
+.xiaoxin-wechat-moments-publish-image-preview.show {
+    display: block;
+}
+
+/* 上传方式选择 */
+.xiaoxin-wechat-moments-publish-image-upload-section {
+    margin-bottom: 20px;
+}
+
+.xiaoxin-wechat-moments-publish-image-upload-label {
+    font-size: 14px;
+    color: #000 !important;
+    margin-bottom: 8px;
+    display: block;
+    font-weight: 330;
+}
+
+.xiaoxin-wechat-moments-publish-image-upload-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.xiaoxin-wechat-moments-publish-image-upload-btn {
+    padding: 10px 16px;
+    background: #07c160 !important;
+    background-color: #07c160 !important;
+    color: #fff !important;
+    border: none !important;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 330;
+    transition: none !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-upload-btn:active,
+.xiaoxin-wechat-moments-publish-image-upload-btn:hover,
+.xiaoxin-wechat-moments-publish-image-upload-btn:focus {
+    background: #07c160 !important;
+    background-color: #07c160 !important;
+    color: #fff !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-url-input,
+.xiaoxin-wechat-moments-publish-image-url-input *,
+input.xiaoxin-wechat-moments-publish-image-url-input {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    box-sizing: border-box !important;
+    background: #f7f7f7 !important;
+    background-color: #f7f7f7 !important;
+    background-image: none !important;
+    color: #000 !important;
+    outline: none !important;
+    margin-bottom: 8px !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    -webkit-text-fill-color: #000 !important;
+    caret-color: #000 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-url-input:focus,
+.xiaoxin-wechat-moments-publish-image-url-input:active,
+.xiaoxin-wechat-moments-publish-image-url-input:hover,
+input.xiaoxin-wechat-moments-publish-image-url-input:focus,
+input.xiaoxin-wechat-moments-publish-image-url-input:active,
+input.xiaoxin-wechat-moments-publish-image-url-input:hover {
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    background: #f7f7f7 !important;
+    background-color: #f7f7f7 !important;
+    background-image: none !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    -webkit-text-fill-color: #000 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-url-input::placeholder,
+input.xiaoxin-wechat-moments-publish-image-url-input::placeholder {
+    color: #999 !important;
+    -webkit-text-fill-color: #999 !important;
+    opacity: 1 !important;
+}
+
+/* 上传图片描述输入 */
+.xiaoxin-wechat-moments-publish-image-upload-description-section {
+    margin-top: 20px;
+}
+
+.xiaoxin-wechat-moments-publish-image-upload-description-label {
+    font-size: 14px;
+    color: #000 !important;
+    margin-bottom: 8px;
+    display: block;
+    font-weight: 330;
+}
+
+.xiaoxin-wechat-moments-publish-image-upload-description-input,
+.xiaoxin-wechat-moments-publish-image-upload-description-input *,
+textarea.xiaoxin-wechat-moments-publish-image-upload-description-input {
+    width: 100% !important;
+    min-height: 100px !important;
+    padding: 12px !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    box-sizing: border-box !important;
+    background: #f7f7f7 !important;
+    background-color: #f7f7f7 !important;
+    background-image: none !important;
+    color: #000 !important;
+    outline: none !important;
+    resize: vertical !important;
+    font-family: inherit !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    -webkit-text-fill-color: #000 !important;
+    caret-color: #000 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-upload-description-input:focus,
+.xiaoxin-wechat-moments-publish-image-upload-description-input:active,
+.xiaoxin-wechat-moments-publish-image-upload-description-input:hover,
+textarea.xiaoxin-wechat-moments-publish-image-upload-description-input:focus,
+textarea.xiaoxin-wechat-moments-publish-image-upload-description-input:active,
+textarea.xiaoxin-wechat-moments-publish-image-upload-description-input:hover {
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    background: #f7f7f7 !important;
+    background-color: #f7f7f7 !important;
+    background-image: none !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    -webkit-text-fill-color: #000 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-upload-description-input::placeholder,
+textarea.xiaoxin-wechat-moments-publish-image-upload-description-input::placeholder {
+    color: #999 !important;
+    -webkit-text-fill-color: #999 !important;
+    opacity: 1 !important;
+}
+
+/* 图片描述输入（AI生图） */
+.xiaoxin-wechat-moments-publish-image-description-section {
+    margin-top: 20px;
+}
+
+.xiaoxin-wechat-moments-publish-image-description-label {
+    font-size: 14px;
+    color: #000 !important;
+    margin-bottom: 8px;
+    display: block;
+    font-weight: 330;
+}
+
+.xiaoxin-wechat-moments-publish-image-description-prefix {
+    font-size: 12px;
+    color: #999;
+    margin-bottom: 8px;
+    padding: 8px 12px;
+    background: #f7f7f7;
+    border-radius: 4px;
+}
+
+.xiaoxin-wechat-moments-publish-image-description-input,
+.xiaoxin-wechat-moments-publish-image-description-input *,
+textarea.xiaoxin-wechat-moments-publish-image-description-input {
+    width: 100% !important;
+    min-height: 100px !important;
+    padding: 12px !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    box-sizing: border-box !important;
+    background: #f7f7f7 !important;
+    background-color: #f7f7f7 !important;
+    background-image: none !important;
+    color: #000 !important;
+    outline: none !important;
+    resize: vertical !important;
+    font-family: inherit !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    -webkit-text-fill-color: #000 !important;
+    caret-color: #000 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-description-input:focus,
+.xiaoxin-wechat-moments-publish-image-description-input:active,
+.xiaoxin-wechat-moments-publish-image-description-input:hover,
+textarea.xiaoxin-wechat-moments-publish-image-description-input:focus,
+textarea.xiaoxin-wechat-moments-publish-image-description-input:active,
+textarea.xiaoxin-wechat-moments-publish-image-description-input:hover {
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    outline: none !important;
+    background: #f7f7f7 !important;
+    background-color: #f7f7f7 !important;
+    background-image: none !important;
+    color: #000 !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    filter: none !important;
+    -webkit-filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    -webkit-text-fill-color: #000 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-description-input::placeholder,
+textarea.xiaoxin-wechat-moments-publish-image-description-input::placeholder {
+    color: #999 !important;
+    -webkit-text-fill-color: #999 !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-description-input:disabled {
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
+    color: #999 !important;
+    cursor: not-allowed !important;
+    -webkit-text-fill-color: #999 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid #e5e5e5;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-cancel,
+.xiaoxin-wechat-moments-publish-image-dialog-confirm {
+    padding: 10px 24px;
+    border: none !important;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    font-weight: 330;
+    transition: none !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-cancel {
+    background: #f0f0f0 !important;
+    background-color: #f0f0f0 !important;
+    color: #333 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-cancel:active,
+.xiaoxin-wechat-moments-publish-image-dialog-cancel:hover,
+.xiaoxin-wechat-moments-publish-image-dialog-cancel:focus {
+    background: #f0f0f0 !important;
+    background-color: #f0f0f0 !important;
+    color: #333 !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-confirm {
+    background: #07c160 !important;
+    background-color: #07c160 !important;
+    color: #fff !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-confirm:active,
+.xiaoxin-wechat-moments-publish-image-dialog-confirm:hover,
+.xiaoxin-wechat-moments-publish-image-dialog-confirm:focus {
+    background: #07c160 !important;
+    background-color: #07c160 !important;
+    color: #fff !important;
+    opacity: 1 !important;
+}
+
+.xiaoxin-wechat-moments-publish-image-dialog-confirm:disabled {
+    background: #ccc !important;
+    background-color: #ccc !important;
+    color: #999 !important;
+    cursor: not-allowed !important;
+    opacity: 1 !important;
+}

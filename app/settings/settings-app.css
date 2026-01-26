@@ -1,0 +1,279 @@
+/* 设置应用 - CSS样式（iPhone 原生风格） */
+
+.xiaoxin-settings-root {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+  background-color: #f2f2f7;
+  min-height: 100%;
+  color: #000;
+}
+
+/* 取消所有文字阴影，避免模糊效果 */
+.xiaoxin-settings-root,
+.xiaoxin-settings-root * {
+  text-shadow: none !important;
+}
+
+/* 顶部标题栏（仿 iOS 设置“设置”标题） */
+.xiaoxin-settings-title-bar {
+  position: sticky;
+  top: 0; /* 覆盖当前应用滚动区域顶部 */
+  z-index: 80; /* 低于状态栏(100)，高于内容 */
+  height: 98px; /* 大约 = 状态栏(54) + 标题区域(44) */
+  display: flex;
+  align-items: flex-end; /* 标题文字靠近底部，位于灵动岛下方 */
+  justify-content: center;
+  padding-bottom: 6px;
+  padding-top: 54px; /* 标题文字下移，避免与时间/灵动岛重叠 */
+  background: linear-gradient(to bottom, #f8f8fb 0%, #f2f2f7 60%, rgba(242, 242, 247, 0.95) 100%);
+  border-bottom: 0.5px solid #d1d1d6;
+  box-sizing: border-box;
+}
+
+/* 设置应用：让整个页面内容真正顶到手机屏幕最上方，由标题栏来撑出顶部空间 */
+.xiaoxin-app-page.xiaoxin-app-settings {
+  padding-top: 0;
+}
+
+.xiaoxin-settings-title-text {
+  font-size: 17px;
+  font-weight: 600;
+  color: #000;
+}
+
+.xiaoxin-settings-section-title {
+  padding: 28px 16px 6px;
+  font-size: 13px;
+  color: #6d6d72;
+}
+
+.xiaoxin-settings-group {
+  background-color: #fff;
+  margin: 0 16px;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 0 0 0.5px rgba(0, 0, 0, 0.05);
+}
+
+.xiaoxin-settings-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid #e5e5ea;
+}
+
+.xiaoxin-settings-row:last-child {
+  border-bottom: none;
+}
+
+.xiaoxin-settings-row-label {
+  flex: 0 0 auto;
+  font-size: 15px;
+}
+
+.xiaoxin-settings-row-control {
+  flex: 1 1 auto;
+  text-align: right;
+  font-size: 14px;
+}
+
+/* 输入框统一浅灰色，不跟随酒馆主题 */
+.xiaoxin-settings-root input[type='text'],
+.xiaoxin-settings-root input[type='number'],
+.xiaoxin-settings-root input[type='url'],
+.xiaoxin-settings-root textarea {
+  background-color: #f2f2f7 !important;
+  color: #000 !important;
+  border: 1px solid #d1d1d6;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 13px;
+  outline: none;
+}
+
+.xiaoxin-settings-root input[type='text']:focus,
+.xiaoxin-settings-root input[type='number']:focus,
+.xiaoxin-settings-root input[type='url']:focus,
+.xiaoxin-settings-root textarea:focus {
+  border-color: #007aff;
+}
+
+/* 开关/按钮风格 */
+.xiaoxin-settings-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 12px;
+  border-radius: 16px;
+  background-color: #007aff !important;
+  background: #007aff !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  font-size: 13px;
+  border: none !important;
+  cursor: pointer;
+  transition: none !important;
+  -webkit-transition: none !important;
+}
+
+/* 取消所有悬停效果，强制覆盖主题样式 */
+.xiaoxin-settings-button:hover,
+.xiaoxin-settings-button:focus,
+.xiaoxin-settings-button:focus-visible,
+.xiaoxin-settings-button:active {
+  background-color: #007aff !important;
+  background: #007aff !important;
+  color: #fff !important;
+  -webkit-text-fill-color: #fff !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  outline: none !important;
+  border: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: none !important;
+  -webkit-transition: none !important;
+}
+
+.xiaoxin-settings-subtext {
+  font-size: 11px;
+  color: #8e8e93;
+  margin-top: 4px;
+  text-align: left;
+}
+
+/* 壁纸预览区域，保持 9:16 比例 */
+.xiaoxin-wallpaper-preview {
+  width: 120px;
+  height: calc(120px * 16 / 9);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #d1d1d6;
+  background-color: #000;
+  position: relative;
+}
+
+.xiaoxin-wallpaper-preview-inner {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+
+/* 滑动条样式，禁用所有可能导致文字模糊的效果 */
+.xiaoxin-settings-range {
+  width: 100%;
+  /* 禁用可能导致模糊的 CSS 属性 */
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  /* 确保文字清晰 */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* 禁用 transform，避免模糊 */
+  transform: none !important;
+  /* 确保父元素也不会影响 */
+  will-change: auto;
+}
+
+/* 滑动条 hover 和 focus 状态，确保文字清晰 */
+.xiaoxin-settings-range:hover,
+.xiaoxin-settings-range:focus,
+.xiaoxin-settings-range:active {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+  outline: none;
+}
+
+/* 确保包含滑动条的行在 hover 时也不会模糊 */
+.xiaoxin-settings-row:hover {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+}
+
+/* 确保整个设置根容器不会有模糊效果 */
+.xiaoxin-settings-root {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  /* 确保文字清晰，禁用可能导致模糊的变换 */
+  transform: none !important;
+  will-change: auto;
+  /* 确保父元素也不会应用模糊效果 */
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+/* 确保设置应用页面本身不会有模糊效果 */
+.xiaoxin-app-page.xiaoxin-app-settings,
+.xiaoxin-app-page.xiaoxin-app-settings * {
+  filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transform: none !important;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 确保设置应用的所有文本元素清晰 */
+.xiaoxin-settings-root * {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* 下拉框样式，取消悬停效果 */
+.xiaoxin-settings-select,
+.xiaoxin-settings-select:hover,
+.xiaoxin-settings-select:focus,
+.xiaoxin-settings-select:focus-visible,
+.xiaoxin-settings-select:active {
+  background-color: #f2f2f7 !important;
+  background: #f2f2f7 !important;
+  color: #000 !important;
+  -webkit-text-fill-color: #000 !important;
+  border: 1px solid #d1d1d6 !important;
+  transform: none !important;
+  -webkit-transform: none !important;
+  box-shadow: none !important;
+  -webkit-box-shadow: none !important;
+  outline: none !important;
+  opacity: 1 !important;
+  filter: none !important;
+  -webkit-filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  transition: none !important;
+  -webkit-transition: none !important;
+}
+
+/* 生图 API 测试结果提示（简易弹窗） */
+.xiaoxin-settings-toast {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  max-width: 80%;
+  text-align: center;
+  z-index: 300;
+}
+

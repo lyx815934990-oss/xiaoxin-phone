@@ -1,0 +1,517 @@
+/* 微信钱包页面样式 */
+
+/* ========== 钱包页面主容器 ========== */
+.xiaoxin-wechat-wallet-main {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #ededed;
+    overflow: hidden;
+}
+
+/* 移除标题栏的 padding-top */
+.xiaoxin-wechat-wallet-main .xiaoxin-wechat-header {
+    padding-top: 0 !important;
+}
+
+/* 返回按钮颜色设置为黑色 */
+.xiaoxin-wechat-wallet-main .xiaoxin-wechat-header-back {
+    color: #000 !important;
+}
+
+/* ========== 钱包内容区域 ========== */
+.xiaoxin-wechat-wallet-content {
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 20px;
+}
+
+/* ========== 零钱卡片 ========== */
+.xiaoxin-wechat-wallet-balance-card {
+    background: linear-gradient(135deg, #07c160 0%, #06ad56 100%);
+    padding: 24px 16px;
+    margin: 8px 0;
+    border-radius: 0;
+    color: #fff;
+    text-align: center;
+}
+
+.xiaoxin-wechat-wallet-balance-label {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.xiaoxin-wechat-wallet-balance-amount {
+    font-size: 36px;
+    font-weight: 500;
+    margin-bottom: 20px;
+    letter-spacing: 1px;
+    text-align: center;
+}
+
+.xiaoxin-wechat-wallet-balance-actions {
+    display: flex;
+    gap: 16px;
+}
+
+/* ========== 零钱通卡片 ========== */
+.xiaoxin-wechat-wallet-lct-card {
+    background: #fff;
+    padding: 20px 16px;
+    margin: 8px 0;
+    border-radius: 0;
+}
+
+.xiaoxin-wechat-wallet-lct-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.xiaoxin-wechat-wallet-lct-label {
+    font-size: 16px;
+    font-weight: 500;
+    color: #000;
+}
+
+.xiaoxin-wechat-wallet-lct-info {
+    font-size: 12px;
+    color: #888;
+}
+
+.xiaoxin-wechat-wallet-lct-amount {
+    font-size: 28px;
+    font-weight: 500;
+    color: #000;
+    margin-bottom: 8px;
+}
+
+.xiaoxin-wechat-wallet-lct-interest {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 16px;
+}
+
+.xiaoxin-wechat-wallet-lct-actions {
+    display: flex;
+    gap: 16px;
+    padding-top: 16px;
+    border-top: 0.5px solid #e5e5e5;
+}
+
+/* ========== 操作按钮 ========== */
+.xiaoxin-wechat-wallet-action-btn {
+    flex: 1;
+    padding: 10px 16px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 14px;
+    color: #000;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.xiaoxin-wechat-wallet-balance-actions .xiaoxin-wechat-wallet-action-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.xiaoxin-wechat-wallet-action-btn:active {
+    background-color: #e0e0e0;
+}
+
+.xiaoxin-wechat-wallet-balance-actions .xiaoxin-wechat-wallet-action-btn:active {
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
+/* ========== 区块样式 ========== */
+.xiaoxin-wechat-wallet-section {
+    background: #fff;
+    margin: 8px 0;
+    padding: 0;
+}
+
+.xiaoxin-wechat-wallet-section-header {
+    padding: 14px 16px;
+    font-size: 14px;
+    color: #888;
+    border-bottom: 0.5px solid #e5e5e5;
+}
+
+/* ========== 账单明细标题栏 ========== */
+.xiaoxin-wechat-wallet-transactions-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.xiaoxin-wechat-wallet-transactions-header-left {
+    flex: 1;
+}
+
+.xiaoxin-wechat-wallet-transactions-header-right {
+    flex-shrink: 0;
+}
+
+.xiaoxin-wechat-wallet-date-filter-btn {
+    padding: 4px 12px;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 12px;
+    color: #07c160;
+    cursor: pointer;
+    user-select: none;
+    /* 移除所有过渡和悬停效果 */
+}
+
+/* ========== 日期筛选弹窗 ========== */
+.xiaoxin-wechat-wallet-date-filter-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 9998;
+}
+
+/* 当弹窗在手机容器内时，使用绝对定位 */
+.xiaoxin-phone-container .xiaoxin-wechat-wallet-date-filter-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.xiaoxin-wechat-wallet-date-filter-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 400px;
+    max-height: 80vh;
+    overflow-y: auto;
+    z-index: 9999;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+/* 当弹窗在手机容器内时，使用绝对定位，相对于手机容器居中 */
+.xiaoxin-phone-container .xiaoxin-wechat-wallet-date-filter-dialog {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.xiaoxin-wechat-wallet-date-filter-dialog-content {
+    padding: 20px;
+}
+
+.xiaoxin-wechat-wallet-date-filter-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #000;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.xiaoxin-wechat-wallet-date-filter-type-selector {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.xiaoxin-wechat-wallet-date-filter-type-btn {
+    flex: 1;
+    padding: 10px;
+    text-align: center;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #000;
+    cursor: pointer;
+    user-select: none;
+    /* 移除所有过渡和悬停效果 */
+}
+
+.xiaoxin-wechat-wallet-date-filter-type-btn.active {
+    background: #07c160;
+    color: #fff;
+}
+
+.xiaoxin-wechat-wallet-date-filter-year-selector,
+.xiaoxin-wechat-wallet-date-filter-month-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 20px;
+}
+
+.xiaoxin-wechat-wallet-date-filter-option {
+    padding: 10px;
+    text-align: center;
+    background: #f5f5f5;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #000;
+    cursor: pointer;
+    user-select: none;
+    /* 移除所有过渡和悬停效果 */
+}
+
+.xiaoxin-wechat-wallet-date-filter-option.active {
+    background: #07c160;
+    color: #fff;
+}
+
+.xiaoxin-wechat-wallet-date-filter-range-selector {
+    margin-bottom: 20px;
+}
+
+.xiaoxin-wechat-wallet-date-filter-range-item {
+    margin-bottom: 16px;
+}
+
+.xiaoxin-wechat-wallet-date-filter-range-item label {
+    display: block;
+    font-size: 14px;
+    color: #000;
+    margin-bottom: 8px;
+}
+
+.xiaoxin-wechat-wallet-date-filter-range-item input[type="date"] {
+    width: 100%;
+    padding: 10px;
+    border: none !important;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #000;
+    background: #f5f5f5 !important;
+    /* 强制浅灰色无边框样式，不适配酒馆主题 */
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+.xiaoxin-wechat-wallet-date-filter-range-item input[type="date"]:focus {
+    outline: none !important;
+    border: none !important;
+    background: #f5f5f5 !important;
+    box-shadow: none !important;
+}
+
+.xiaoxin-wechat-wallet-date-filter-range-item input[type="date"]:hover {
+    background: #f5f5f5 !important;
+    border: none !important;
+}
+
+.xiaoxin-wechat-wallet-date-filter-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.xiaoxin-wechat-wallet-date-filter-btn-reset,
+.xiaoxin-wechat-wallet-date-filter-btn-confirm {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 4px;
+    font-size: 16px;
+    cursor: pointer;
+    user-select: none;
+    /* 移除所有过渡和悬停效果 */
+}
+
+.xiaoxin-wechat-wallet-date-filter-btn-reset {
+    background: #f5f5f5 !important;
+    color: #000 !important;
+    /* 强制保持默认样式，移除所有悬停效果 */
+}
+
+.xiaoxin-wechat-wallet-date-filter-btn-reset:hover,
+.xiaoxin-wechat-wallet-date-filter-btn-reset:active,
+.xiaoxin-wechat-wallet-date-filter-btn-reset:focus {
+    background: #f5f5f5 !important;
+    color: #000 !important;
+    outline: none !important;
+}
+
+.xiaoxin-wechat-wallet-date-filter-btn-confirm {
+    background: #07c160 !important;
+    color: #fff !important;
+    /* 强制保持默认样式，移除所有悬停效果 */
+}
+
+.xiaoxin-wechat-wallet-date-filter-btn-confirm:hover,
+.xiaoxin-wechat-wallet-date-filter-btn-confirm:active,
+.xiaoxin-wechat-wallet-date-filter-btn-confirm:focus {
+    background: #07c160 !important;
+    color: #fff !important;
+    outline: none !important;
+}
+
+/* ========== 银行卡列表 ========== */
+.xiaoxin-wechat-wallet-cards-list {
+    padding: 0;
+}
+
+.xiaoxin-wechat-wallet-card-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 0.5px solid #e5e5e5;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.xiaoxin-wechat-wallet-card-item:active {
+    background-color: #f5f5f5;
+}
+
+.xiaoxin-wechat-wallet-card-item:last-child {
+    border-bottom: none;
+}
+
+.xiaoxin-wechat-wallet-card-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    flex-shrink: 0;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.xiaoxin-wechat-wallet-card-info {
+    flex: 1;
+}
+
+.xiaoxin-wechat-wallet-card-name {
+    font-size: 16px;
+    color: #000;
+    margin-bottom: 4px;
+}
+
+.xiaoxin-wechat-wallet-card-number {
+    font-size: 14px;
+    color: #888;
+}
+
+.xiaoxin-wechat-wallet-card-arrow {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #c7c7cc;
+    flex-shrink: 0;
+}
+
+.xiaoxin-wechat-wallet-card-arrow i {
+    font-size: 14px;
+}
+
+.xiaoxin-wechat-wallet-add-card {
+    padding: 14px 16px;
+    text-align: center;
+    color: #07c160;
+    font-size: 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.xiaoxin-wechat-wallet-add-card:active {
+    background-color: #f5f5f5;
+}
+
+/* ========== 账单明细列表 ========== */
+.xiaoxin-wechat-wallet-transactions-list {
+    padding: 0;
+}
+
+.xiaoxin-wechat-wallet-transaction-item {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    border-bottom: 0.5px solid #e5e5e5;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.2s;
+}
+
+.xiaoxin-wechat-wallet-transaction-item:active {
+    background-color: #f5f5f5;
+}
+
+.xiaoxin-wechat-wallet-transaction-item:last-child {
+    border-bottom: none;
+}
+
+.xiaoxin-wechat-wallet-transaction-icon {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    flex-shrink: 0;
+    background: #f5f5f5;
+    border-radius: 8px;
+}
+
+.xiaoxin-wechat-wallet-transaction-icon i {
+    font-size: 18px;
+}
+
+.xiaoxin-wechat-wallet-transaction-info {
+    flex: 1;
+}
+
+.xiaoxin-wechat-wallet-transaction-title {
+    font-size: 16px;
+    color: #000;
+    margin-bottom: 4px;
+}
+
+.xiaoxin-wechat-wallet-transaction-time {
+    font-size: 12px;
+    color: #888;
+}
+
+.xiaoxin-wechat-wallet-transaction-amount {
+    font-size: 16px;
+    font-weight: 500;
+    flex-shrink: 0;
+}
+
+.xiaoxin-wechat-wallet-transaction-amount-positive {
+    color: #07c160;
+}
+
+.xiaoxin-wechat-wallet-transaction-amount-negative {
+    color: #000;
+}
+
+/* ========== 空状态 ========== */
+.xiaoxin-wechat-wallet-empty {
+    padding: 40px 16px;
+    text-align: center;
+    color: #888;
+    font-size: 14px;
+}
+

@@ -1,0 +1,487 @@
+/* ========== 照片消息弹窗 ========== */
+.xiaoxin-photo-message-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.xiaoxin-photo-message-dialog.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.xiaoxin-photo-message-dialog-backdrop {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+}
+
+.xiaoxin-photo-message-dialog-content {
+    position: relative;
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    z-index: 10001;
+}
+
+.xiaoxin-photo-message-dialog-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.xiaoxin-photo-message-dialog-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
+}
+
+.xiaoxin-photo-message-dialog-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #999;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.2s ease;
+}
+
+.xiaoxin-photo-message-dialog-close:hover {
+    background-color: transparent !important;
+}
+
+.xiaoxin-photo-message-dialog-tabs {
+    display: flex;
+    border-bottom: 1px solid #e5e5e5;
+    padding: 0 20px;
+}
+
+.xiaoxin-photo-message-tab,
+.xiaoxin-photo-message-tab:hover,
+.xiaoxin-photo-message-tab:active,
+.xiaoxin-photo-message-tab:focus {
+    flex: 1;
+    padding: 12px 0;
+    background: none !important;
+    border: none !important;
+    font-size: 14px;
+    color: #666 !important;
+    cursor: pointer;
+    border-bottom: 2px solid transparent !important;
+    transition: none !important;
+}
+
+.xiaoxin-photo-message-tab.active,
+.xiaoxin-photo-message-tab.active:hover,
+.xiaoxin-photo-message-tab.active:active,
+.xiaoxin-photo-message-tab.active:focus {
+    color: #07c160 !important;
+    border-bottom-color: #07c160 !important;
+    font-weight: 600;
+}
+
+.xiaoxin-photo-message-dialog-body {
+    padding: 20px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.xiaoxin-photo-message-custom-panel,
+.xiaoxin-photo-message-ai-panel {
+    display: none;
+}
+
+.xiaoxin-photo-message-custom-panel.active,
+.xiaoxin-photo-message-ai-panel.active {
+    display: block;
+}
+
+.xiaoxin-photo-message-upload-section {
+    margin-bottom: 20px;
+}
+
+.xiaoxin-photo-message-upload-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.xiaoxin-photo-message-upload-area {
+    border: 2px dashed #d1d1d6;
+    border-radius: 8px;
+    padding: 16px;
+    background: #fafafa;
+}
+
+.xiaoxin-photo-message-preview-container {
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.xiaoxin-photo-message-preview {
+    max-width: 100%;
+    max-height: 200px;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.xiaoxin-photo-message-preview-placeholder {
+    color: #999;
+    font-size: 14px;
+    padding: 40px 0;
+}
+
+.xiaoxin-photo-message-upload-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.xiaoxin-photo-message-upload-btn {
+    padding: 10px 16px;
+    background: #07c160;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.xiaoxin-photo-message-upload-btn:hover {
+    background: #07c160 !important;
+}
+
+.xiaoxin-photo-message-url-input,
+.xiaoxin-photo-message-url-input:focus,
+.xiaoxin-photo-message-url-input:active,
+.xiaoxin-photo-message-url-input:hover,
+.xiaoxin-photo-message-url-input:focus-visible,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-url-input,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-url-input:focus,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-url-input:active,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-url-input:hover {
+    width: 100% !important;
+    padding: 10px 12px !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    box-sizing: border-box !important;
+    background: #e5e5e5 !important;
+    background-color: #e5e5e5 !important;
+    color: #000 !important;
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-style: none !important;
+    outline-color: transparent !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
+}
+
+.xiaoxin-photo-message-description-section {
+    margin-top: 20px;
+}
+
+.xiaoxin-photo-message-description-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.xiaoxin-photo-message-description-input,
+.xiaoxin-photo-message-description-input:focus,
+.xiaoxin-photo-message-description-input:active,
+.xiaoxin-photo-message-description-input:hover,
+.xiaoxin-photo-message-description-input:focus-visible,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-description-input,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-description-input:focus,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-description-input:active,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-description-input:hover {
+    width: 100% !important;
+    min-height: 100px !important;
+    max-height: 200px !important;
+    padding: 12px !important;
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    resize: vertical !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important;
+    background: #e5e5e5 !important;
+    background-color: #e5e5e5 !important;
+    color: #000 !important;
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-style: none !important;
+    outline-color: transparent !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-y: auto !important;
+}
+
+.xiaoxin-photo-message-ai-panel {
+    padding: 0;
+}
+
+/* AI生图：图片描述区域 */
+.xiaoxin-photo-message-ai-description-section {
+    margin-bottom: 20px;
+}
+
+.xiaoxin-photo-message-ai-description-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.xiaoxin-photo-message-ai-description-wrapper {
+    position: relative;
+}
+
+.xiaoxin-photo-message-ai-description-input,
+.xiaoxin-photo-message-ai-description-input:focus,
+.xiaoxin-photo-message-ai-description-input:active,
+.xiaoxin-photo-message-ai-description-input:hover,
+.xiaoxin-photo-message-ai-description-input:focus-visible,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-ai-description-input,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-ai-description-input:focus,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-ai-description-input:active,
+.xiaoxin-photo-message-dialog .xiaoxin-photo-message-ai-description-input:hover {
+    width: 100% !important;
+    min-height: 100px !important;
+    max-height: 200px !important;
+    padding: 12px !important;
+    padding-bottom: 40px !important; /* 为优化按钮留出空间 */
+    border: none !important;
+    border-width: 0 !important;
+    border-style: none !important;
+    border-color: transparent !important;
+    border-radius: 6px !important;
+    font-size: 14px !important;
+    resize: vertical !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important;
+    background: #e5e5e5 !important;
+    background-color: #e5e5e5 !important;
+    color: #000 !important;
+    outline: none !important;
+    outline-width: 0 !important;
+    outline-style: none !important;
+    outline-color: transparent !important;
+    box-shadow: none !important;
+    -webkit-box-shadow: none !important;
+    -moz-box-shadow: none !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    overflow-y: auto !important;
+}
+
+.xiaoxin-photo-message-ai-optimize-btn {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    padding: 6px 12px;
+    background: #07c160;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.xiaoxin-photo-message-ai-optimize-btn:hover {
+    background: #07c160 !important;
+}
+
+.xiaoxin-photo-message-ai-optimize-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+/* AI生图：图片尺寸选择区域 */
+.xiaoxin-photo-message-ai-size-section {
+    margin-bottom: 20px;
+}
+
+.xiaoxin-photo-message-ai-size-label {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.xiaoxin-photo-message-ai-size-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.xiaoxin-photo-message-ai-size-option {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    border: 1px solid #d1d1d6;
+    border-radius: 6px;
+    background: #f7f7f7;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.xiaoxin-photo-message-ai-size-option:hover {
+    border-color: #d1d1d6 !important;
+    background: #f7f7f7 !important;
+}
+
+.xiaoxin-photo-message-ai-size-option input[type="radio"] {
+    margin: 0;
+    margin-right: 6px;
+    cursor: pointer;
+}
+
+.xiaoxin-photo-message-ai-size-option input[type="radio"]:checked + span {
+    color: #07c160;
+    font-weight: 600;
+}
+
+.xiaoxin-photo-message-ai-size-option:has(input[type="radio"]:checked) {
+    border-color: #07c160;
+    background: #f0f9f4;
+}
+
+.xiaoxin-photo-message-ai-size-option span {
+    font-size: 14px;
+    color: #333;
+    user-select: none;
+}
+
+/* AI生图：预览区域 */
+.xiaoxin-photo-message-ai-preview-section {
+    margin-top: 20px;
+}
+
+.xiaoxin-photo-message-ai-preview-container {
+    text-align: center;
+    border: 2px dashed #d1d1d6;
+    border-radius: 8px;
+    padding: 16px;
+    background: #fafafa;
+    min-height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.xiaoxin-photo-message-ai-preview {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.xiaoxin-photo-message-ai-preview-placeholder {
+    color: #999;
+    font-size: 14px;
+}
+
+.xiaoxin-photo-message-dialog-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid #e5e5e5;
+}
+
+.xiaoxin-photo-message-dialog-cancel,
+.xiaoxin-photo-message-dialog-complete {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.xiaoxin-photo-message-dialog-cancel {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.xiaoxin-photo-message-dialog-cancel:hover {
+    background: #f0f0f0 !important;
+}
+
+.xiaoxin-photo-message-dialog-complete {
+    background: #07c160;
+    color: white;
+}
+
+.xiaoxin-photo-message-dialog-complete:hover {
+    background: #07c160 !important;
+}
+
+/* 照片消息显示样式 */
+.xiaoxin-wechat-chat-message-photo {
+    position: relative;
+    /* 移除气泡样式 */
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+}
+
+.xiaoxin-wechat-chat-message-photo-img {
+    max-width: 200px;
+    max-height: 300px;
+    border-radius: 8px;
+    object-fit: contain;
+    cursor: pointer;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    display: block;
+}
+
+.xiaoxin-wechat-chat-message-photo-img:hover {
+    opacity: 0.9;
+    transform: scale(1.02);
+}
+
+/* 隐藏描述文字（不再显示） */
+.xiaoxin-wechat-chat-message-photo-desc {
+    display: none !important;
+}
+

@@ -1,0 +1,190 @@
+/* 灵动岛通话状态样式 */
+
+/* 通话状态下的灵动岛（延长状态） - 使用更高的优先级 */
+.xiaoxin-dynamic-island.call-active,
+.xiaoxin-phone-screen .xiaoxin-dynamic-island.call-active,
+.xiaoxin-phone-container .xiaoxin-dynamic-island.call-active {
+    width: 200px !important; /* 进一步缩短宽度，避免挡住时间显示 */
+    height: 37px !important;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    display: flex !important; /* 确保使用 flex 布局 */
+    align-items: center !important;
+    padding: 0 8px !important; /* 减小内边距 */
+    gap: 6px !important; /* 减小间距，让声波更贴近头像 */
+    overflow: hidden !important;
+    z-index: 99999 !important; /* 确保在最上层 */
+    /* 确保背景色不变 */
+    background: #000 !important;
+    border-radius: 19px !important;
+    /* 保持居中显示 */
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+}
+
+/* 通话中角色头像（左侧，正圆） */
+.xiaoxin-dynamic-island-call-avatar {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 50% !important;
+    background-size: cover !important;
+    background-position: center !important;
+    background-repeat: no-repeat !important;
+    flex-shrink: 0 !important;
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    display: block !important; /* 确保显示 */
+}
+
+/* 右侧内容区域（声波动画或文本） */
+.xiaoxin-dynamic-island-call-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    overflow: hidden;
+    position: relative;
+    margin-left: 0; /* 紧贴头像 */
+    padding-left: 0; /* 紧贴头像 */
+}
+
+/* 声波动画容器 */
+.xiaoxin-dynamic-island-call-waves {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important; /* 左对齐，紧贴头像 */
+    gap: 3px !important;
+    height: 20px !important;
+    width: auto !important; /* 自动宽度，不占满容器 */
+    flex-shrink: 0 !important; /* 防止被压缩 */
+    margin-left: 0 !important; /* 紧贴头像 */
+    padding-left: 0 !important; /* 紧贴头像 */
+}
+
+/* 声波条 */
+.xiaoxin-dynamic-island-wave-bar {
+    width: 3px !important;
+    height: 8px !important;
+    background: rgba(
+        255,
+        255,
+        255,
+        0.8
+    ) !important; /* 提高不透明度，确保可见 */
+    border-radius: 2px !important;
+    animation: waveAnimation 1.2s ease-in-out infinite !important;
+    display: block !important; /* 确保显示 */
+    flex-shrink: 0 !important; /* 防止被压缩 */
+}
+
+.xiaoxin-dynamic-island-wave-bar:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.xiaoxin-dynamic-island-wave-bar:nth-child(2) {
+    animation-delay: 0.15s;
+    height: 12px;
+}
+
+.xiaoxin-dynamic-island-wave-bar:nth-child(3) {
+    animation-delay: 0.3s;
+    height: 16px;
+}
+
+.xiaoxin-dynamic-island-wave-bar:nth-child(4) {
+    animation-delay: 0.45s;
+    height: 12px;
+}
+
+.xiaoxin-dynamic-island-wave-bar:nth-child(5) {
+    animation-delay: 0.6s;
+    height: 8px;
+}
+
+@keyframes waveAnimation {
+    0%,
+    100% {
+        transform: scaleY(0.5);
+        opacity: 0.5;
+    }
+    50% {
+        transform: scaleY(1);
+        opacity: 1;
+    }
+}
+
+/* 文本显示容器（替换声波动画） */
+.xiaoxin-dynamic-island-call-text {
+    display: none;
+    align-items: center;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+.xiaoxin-dynamic-island-call-text.show {
+    display: flex;
+}
+
+.xiaoxin-dynamic-island-call-text.hide {
+    display: none;
+}
+
+/* 文本内容（支持滚动） */
+.xiaoxin-dynamic-island-call-text-content {
+    white-space: nowrap;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 500;
+    line-height: 1.2;
+    padding: 0 4px;
+    overflow: visible; /* 改为 visible，允许文本超出容器 */
+    text-overflow: clip; /* 改为 clip，不显示省略号 */
+    max-width: none; /* 移除最大宽度限制 */
+    display: inline-block; /* 改为 inline-block，支持 transform */
+    /* 移除动画，使用实时 transform 控制 */
+    animation: none !important;
+}
+
+/* 当文本长度超过容器时，启用滚动动画 */
+.xiaoxin-dynamic-island-call-text-content.scroll {
+    /* 动画通过 JavaScript 动态设置 */
+}
+
+@keyframes scrollText {
+    0% {
+        transform: translateX(0);
+    }
+    50% {
+        transform: translateX(calc(-100% + var(--content-width, 280px)));
+    }
+    100% {
+        transform: translateX(0);
+    }
+}
+
+/* 确保文本容器可以正确测量宽度 */
+.xiaoxin-dynamic-island-call-content {
+    position: relative;
+    overflow: hidden;
+}
+
+/* 打字机效果的光标 */
+.xiaoxin-dynamic-island-call-text-cursor {
+    display: inline-block;
+    width: 1px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.9);
+    margin-left: 2px;
+    animation: blinkCursor 1s step-end infinite;
+}
+
+@keyframes blinkCursor {
+    0%,
+    50% {
+        opacity: 1;
+    }
+    51%,
+    100% {
+        opacity: 0;
+    }
+}
