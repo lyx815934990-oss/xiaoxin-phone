@@ -344,7 +344,7 @@ window.XiaoxinWeChatApp = (function () {
         var $img = $('<img class="xiaoxin-wechat-splash-img" alt="" />');
         $img.attr(
             "src",
-            "/scripts/extensions/third-party/小馨手机/image/background/微信应用开场加载cg图.jpeg"
+            "/scripts/extensions/third-party/xiaoxin-phone/image/background/微信应用开场加载cg图.jpeg"
         );
 
         $img.on("error", function () {
@@ -409,7 +409,7 @@ window.XiaoxinWeChatApp = (function () {
         } else {
             // 是文件名格式，加上路径前缀
             return (
-                "/scripts/extensions/third-party/小馨手机/image/表情包/" +
+                "/scripts/extensions/third-party/xiaoxin-phone/image/表情包/" +
                 emojiNameOrUrlOrId
             );
         }
@@ -932,7 +932,7 @@ window.XiaoxinWeChatApp = (function () {
     function _showAvatarPicker($avatarElement, $root, onConfirm) {
         console.info("[小馨手机][微信] 打开头像选择器");
         var DEFAULT_AVATAR =
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
         var self = this;
         // currentAvatar 可能来自 data("avatar")（字符串）或 background-image 的 match（数组）
         var dataAvatar = $avatarElement.data("avatar");
@@ -1850,7 +1850,7 @@ window.XiaoxinWeChatApp = (function () {
         console.info("[小馨手机][微信] 未检测到注册信息，渲染注册页");
 
         var DEFAULT_AVATAR =
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
 
         var $page = $('<div class="xiaoxin-wechat-register"></div>');
 
@@ -2366,7 +2366,7 @@ window.XiaoxinWeChatApp = (function () {
             '<div class="xiaoxin-wechat-add-menu-item"></div>'
         );
         var $groupChatIcon = $(
-            '<img src="/scripts/extensions/third-party/小馨手机/image/icon/发起群聊图标.png" class="xiaoxin-wechat-add-menu-icon" />'
+            '<img src="/scripts/extensions/third-party/xiaoxin-phone/image/icon/发起群聊图标.png" class="xiaoxin-wechat-add-menu-icon" />'
         );
         var $groupChatText = $(
             '<span class="xiaoxin-wechat-add-menu-text">发起群聊</span>'
@@ -2386,7 +2386,7 @@ window.XiaoxinWeChatApp = (function () {
             '<div class="xiaoxin-wechat-add-menu-item"></div>'
         );
         var $addFriendIcon = $(
-            '<img src="/scripts/extensions/third-party/小馨手机/image/icon/添加朋友按钮.jpg" class="xiaoxin-wechat-add-menu-icon" />'
+            '<img src="/scripts/extensions/third-party/xiaoxin-phone/image/icon/添加朋友按钮.jpg" class="xiaoxin-wechat-add-menu-icon" />'
         );
         var $addFriendText = $(
             '<span class="xiaoxin-wechat-add-menu-text">添加朋友</span>'
@@ -2798,8 +2798,8 @@ window.XiaoxinWeChatApp = (function () {
                     userId: userId,
                     avatar: contact
                         ? contact.avatar ||
-                          "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg"
-                        : "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg",
+                          "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg"
+                        : "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg",
                     name: _getContactDisplayName(contact, userId),
                     message: messagePreview,
                     time: timeStr,
@@ -2911,36 +2911,36 @@ window.XiaoxinWeChatApp = (function () {
                 id: "chat",
                 label: "微信",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/微信图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/微信图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信图标未选中.jpg",
                 active: true,
             },
             {
                 id: "contacts",
                 label: "通讯录",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/通讯录图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/通讯录图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/通讯录图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/通讯录图标未选中.jpg",
                 active: false,
             },
             {
                 id: "discover",
                 label: "发现",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/发现图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/发现图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/发现图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/发现图标未选中.jpg",
                 active: false,
             },
             {
                 id: "me",
                 label: "我",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/我的图标已选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/我的图标已选中.jpg",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/我的图标未选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/我的图标未选中.png",
                 active: false,
             },
         ];
@@ -3236,7 +3236,7 @@ window.XiaoxinWeChatApp = (function () {
                 remark: chatInfo.remark || null, // 保留备注信息，仅用于显示
                 avatar:
                     chatInfo.avatar ||
-                    "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg",
             };
         }
 
@@ -3247,7 +3247,7 @@ window.XiaoxinWeChatApp = (function () {
                 characterId: userId, // 同时设置 characterId
                 wechatId: userId, // 设置 wechatId
                 nickname: userId, // 仅用于显示
-                avatar: "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg",
+                avatar: "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg",
             };
         }
 
@@ -3320,7 +3320,7 @@ window.XiaoxinWeChatApp = (function () {
         var $avatar = $('<div class="xiaoxin-wechat-me-avatar"></div>');
         var avatarUrl =
             account.avatar ||
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
         $avatar.css("background-image", "url(" + avatarUrl + ")");
         $avatar.data("avatar", avatarUrl);
 
@@ -3506,36 +3506,36 @@ window.XiaoxinWeChatApp = (function () {
                 id: "chat",
                 label: "微信",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/微信图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/微信图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信图标未选中.jpg",
                 active: false,
             },
             {
                 id: "contacts",
                 label: "通讯录",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/通讯录图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/通讯录图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/通讯录图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/通讯录图标未选中.jpg",
                 active: false,
             },
             {
                 id: "discover",
                 label: "发现",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/发现图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/发现图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/发现图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/发现图标未选中.jpg",
                 active: false,
             },
             {
                 id: "me",
                 label: "我",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/我的图标已选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/我的图标已选中.jpg",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/我的图标未选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/我的图标未选中.png",
                 active: true,
             },
         ];
@@ -3784,7 +3784,7 @@ window.XiaoxinWeChatApp = (function () {
         );
         var features = [
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/新的朋友.jpg",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/新的朋友.jpg",
                 label: "新的朋友",
                 action: function () {
                     console.info("[小馨手机][微信] 点击新的朋友");
@@ -3803,7 +3803,7 @@ window.XiaoxinWeChatApp = (function () {
                 },
             },
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/仅聊天的朋友.png",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/仅聊天的朋友.png",
                 label: "仅聊天的朋友",
                 action: function () {
                     console.info("[小馨手机][微信] 点击仅聊天的朋友");
@@ -3813,7 +3813,7 @@ window.XiaoxinWeChatApp = (function () {
                 },
             },
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/群聊.jpg",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/群聊.jpg",
                 label: "群聊",
                 action: function () {
                     console.info("[小馨手机][微信] 点击群聊");
@@ -3823,7 +3823,7 @@ window.XiaoxinWeChatApp = (function () {
                 },
             },
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/标签.png",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/标签.png",
                 label: "标签",
                 action: function () {
                     console.info("[小馨手机][微信] 点击标签");
@@ -3898,7 +3898,7 @@ window.XiaoxinWeChatApp = (function () {
         }
         if (!selfAvatar) {
             selfAvatar =
-                "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
         }
         var selfContact = {
             id: account.id || account.wechatId || "self",
@@ -4080,7 +4080,7 @@ window.XiaoxinWeChatApp = (function () {
                 } else {
                     // 如果没有头像URL，使用默认头像
                     var defaultAvatar =
-                        "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                        "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                     $avatar.css(
                         "background-image",
                         "url(" + defaultAvatar + ")"
@@ -4202,7 +4202,7 @@ window.XiaoxinWeChatApp = (function () {
                 } else {
                     // 如果没有头像URL，使用默认头像
                     var defaultAvatar =
-                        "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                        "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                     $avatar.css(
                         "background-image",
                         "url(" + defaultAvatar + ")"
@@ -4326,36 +4326,36 @@ window.XiaoxinWeChatApp = (function () {
                 id: "chat",
                 label: "微信",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/微信图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/微信图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信图标未选中.jpg",
                 active: false,
             },
             {
                 id: "contacts",
                 label: "通讯录",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/通讯录图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/通讯录图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/通讯录图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/通讯录图标未选中.jpg",
                 active: true,
             },
             {
                 id: "discover",
                 label: "发现",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/发现图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/发现图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/发现图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/发现图标未选中.jpg",
                 active: false,
             },
             {
                 id: "me",
                 label: "我",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/我的图标已选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/我的图标已选中.jpg",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/我的图标未选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/我的图标未选中.png",
                 active: false,
             },
         ];
@@ -4432,7 +4432,7 @@ window.XiaoxinWeChatApp = (function () {
 
                 if (contact) {
                     var displayName = (contact.remark && contact.remark.trim()) || contact.nickname || "微信用户";
-                    var avatarUrl = contact.avatar || "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                    var avatarUrl = contact.avatar || "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                     var greetingText = latestRequest.greeting || "";
 
                     $friendRequestNotification = $(
@@ -4806,36 +4806,36 @@ window.XiaoxinWeChatApp = (function () {
                 id: "chat",
                 label: "微信",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/微信图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/微信图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信图标未选中.jpg",
                 active: false,
             },
             {
                 id: "contacts",
                 label: "通讯录",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/通讯录图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/通讯录图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/通讯录图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/通讯录图标未选中.jpg",
                 active: false,
             },
             {
                 id: "discover",
                 label: "发现",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/发现图标已选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/发现图标已选中.png",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/发现图标未选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/发现图标未选中.jpg",
                 active: true,
             },
             {
                 id: "me",
                 label: "我",
                 iconActive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/我的图标已选中.jpg",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/我的图标已选中.jpg",
                 iconInactive:
-                    "/scripts/extensions/third-party/小馨手机/image/icon/我的图标未选中.png",
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/icon/我的图标未选中.png",
                 active: false,
             },
         ];
@@ -5261,7 +5261,7 @@ window.XiaoxinWeChatApp = (function () {
                 // 使用默认占位图
                 $commentImage.css(
                     "background-image",
-                    "url(/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg)"
+                    "url(/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg)"
                 );
                 $commentImage.css("cursor", "pointer");
 
@@ -5928,11 +5928,11 @@ window.XiaoxinWeChatApp = (function () {
         );
         var backgroundUrl =
             account.momentsBackground ||
-            "/scripts/extensions/third-party/小馨手机/image/background/默认微信朋友圈背景图.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/background/默认微信朋友圈背景图.jpg";
         _setBackgroundImageSafely(
             $backgroundImage,
             backgroundUrl,
-            "/scripts/extensions/third-party/小馨手机/image/background/默认微信朋友圈背景图.jpg"
+            "/scripts/extensions/third-party/xiaoxin-phone/image/background/默认微信朋友圈背景图.jpg"
         );
 
         // 背景图可点击更换
@@ -5997,7 +5997,7 @@ window.XiaoxinWeChatApp = (function () {
         var $avatar = $('<div class="xiaoxin-wechat-moments-avatar"></div>');
         var avatarUrl =
             account.avatar ||
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
         $avatar.css("background-image", "url(" + avatarUrl + ")");
 
         // 先添加分割线，然后添加昵称和头像（昵称在左，头像在右）
@@ -6444,7 +6444,7 @@ window.XiaoxinWeChatApp = (function () {
                     if (playerAccount) {
                         avatarUrl =
                             playerAccount.avatar ||
-                            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                         displayAuthorName =
                             playerAccount.nickname ||
                             playerAccount.name ||
@@ -6453,7 +6453,7 @@ window.XiaoxinWeChatApp = (function () {
                     } else {
                         avatarUrl =
                             moment.authorAvatar ||
-                            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                         displayAuthorName = moment.author || "微信用户";
                     }
                 } else {
@@ -6545,7 +6545,7 @@ window.XiaoxinWeChatApp = (function () {
                         // 玩家自己的朋友圈：强制使用玩家账号信息
                         avatarUrl =
                             account.avatar ||
-                            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                         displayAuthorName =
                             account.nickname || account.name || "微信用户";
                         console.info(
@@ -6569,7 +6569,7 @@ window.XiaoxinWeChatApp = (function () {
                         avatarUrl =
                             (authorContact && authorContact.avatar) ||
                             moment.authorAvatar ||
-                            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                     }
                 }
 
@@ -6961,7 +6961,7 @@ window.XiaoxinWeChatApp = (function () {
                             // 如果是描述，先显示占位图，然后调用API生成
                             $imageItem.css(
                                 "background-image",
-                                "url(/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg)"
+                                "url(/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg)"
                             );
                             $imageItem.addClass(
                                 "xiaoxin-wechat-moments-image-loading"
@@ -7255,7 +7255,7 @@ window.XiaoxinWeChatApp = (function () {
                         } else {
                             // 默认图片
                             var defaultImageUrl =
-                                "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                                "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                             $imageItem.css(
                                 "background-image",
                                 "url(" + defaultImageUrl + ")"
@@ -7405,7 +7405,7 @@ window.XiaoxinWeChatApp = (function () {
                         // 如果是描述，先显示占位图，然后调用API生成
                         $musicCover.css(
                             "background-image",
-                            "url(/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg)"
+                            "url(/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg)"
                         );
                         $musicCover.addClass(
                             "xiaoxin-wechat-moments-image-loading"
@@ -7605,7 +7605,7 @@ window.XiaoxinWeChatApp = (function () {
                         // 默认图片
                         $musicCover.css(
                             "background-image",
-                            "url(/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg)"
+                            "url(/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg)"
                         );
                     }
 
@@ -8995,7 +8995,7 @@ window.XiaoxinWeChatApp = (function () {
         }
         // 如果没有设置朋友圈背景，使用默认背景图
         var defaultMomentsBg =
-            "/scripts/extensions/third-party/小馨手机/image/background/默认微信朋友圈背景图.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/background/默认微信朋友圈背景图.jpg";
         _setBackgroundImageSafely(
             $backgroundImage,
             contactBackgroundUrl || defaultMomentsBg,
@@ -9016,7 +9016,7 @@ window.XiaoxinWeChatApp = (function () {
         // 头像始终使用联系人的头像资源，而不是朋友圈背景
         var contactAvatarUrl =
             contact.avatar ||
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
         $avatar.css("background-image", "url(" + contactAvatarUrl + ")");
         $dividerSection.append($divider, $nickname, $avatar);
         $headerSection.append($backgroundImage, $dividerSection);
@@ -9286,12 +9286,12 @@ window.XiaoxinWeChatApp = (function () {
                     // 玩家自己的朋友圈：使用玩家账号的头像
                     avatarUrl =
                         account.avatar ||
-                        "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                        "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                 } else {
                     // 其他联系人的朋友圈：使用联系人的头像
                     avatarUrl =
                         contact.avatar ||
-                        "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                        "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                 }
                 $momentAvatar.css("background-image", "url(" + avatarUrl + ")");
 
@@ -9377,7 +9377,7 @@ window.XiaoxinWeChatApp = (function () {
                         } else if (imageDescription) {
                             $imageItem.css(
                                 "background-image",
-                                "url(/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg)"
+                                "url(/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg)"
                             );
                             $imageItem.addClass(
                                 "xiaoxin-wechat-moments-image-loading"
@@ -9631,7 +9631,7 @@ window.XiaoxinWeChatApp = (function () {
                         } else {
                             // 默认图片
                             var defaultImageUrl =
-                                "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                                "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                             $imageItem.css(
                                 "background-image",
                                 "url(" + defaultImageUrl + ")"
@@ -9719,7 +9719,7 @@ window.XiaoxinWeChatApp = (function () {
                     } else if (musicCoverDesc) {
                         $musicCover.css(
                             "background-image",
-                            "url(/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg)"
+                            "url(/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg)"
                         );
                         $musicCover.addClass(
                             "xiaoxin-wechat-moments-image-loading"
@@ -9770,7 +9770,7 @@ window.XiaoxinWeChatApp = (function () {
                     } else {
                         $musicCover.css(
                             "background-image",
-                            "url(/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg)"
+                            "url(/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg)"
                         );
                     }
 
