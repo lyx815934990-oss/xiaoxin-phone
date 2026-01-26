@@ -311,7 +311,8 @@ function registerExtensionSettings() {
                                 <i class="fa-solid fa-download"></i> 立即更新
                             </button>
                             <small style="display: block; margin-top: 8px; color: rgba(255, 255, 255, 0.6);">
-                                更新将自动从 GitHub 下载最新版本
+                                更新将自动从 GitHub 下载最新版本<br>
+                                <span style="color: rgba(255, 200, 0, 0.8);">⚠️ 如果网络无法访问 GitHub，自动更新会失败，建议使用手动更新方式</span>
                             </small>
                         </div>
                         <!-- 版本信息（无更新时显示） -->
@@ -336,6 +337,13 @@ function registerExtensionSettings() {
                                 </button>
                             </div>
                             <small>不同角色卡的数据会独立存储。点击"切换"按钮可以修改角色卡标识。</small>
+                        </div>
+                        <div class="form_group">
+                            <label>
+                                <input type="checkbox" id="xiaoxin_auto_update_check" />
+                                <span>自动检查更新</span>
+                            </label>
+                            <small>启用后会在启动时自动检查 GitHub 是否有新版本。如果网络无法访问 GitHub，建议关闭此选项以避免错误提示。</small>
                         </div>
                     </div>
                 </details>
@@ -482,8 +490,55 @@ function initExtensionSettingsPanel() {
                 }
             );
 
-            // 初始化版本检查和更新功能
-            initVersionCheck();
+            // 加载自动更新检查开关状态
+            const autoUpdateEnabled = localStorage.getItem("xiaoxin_auto_update_check") !== "false";
+            const autoUpdateCheckbox = document.getElementById("xiaoxin_auto_update_check");
+            if (autoUpdateCheckbox) {
+                autoUpdateCheckbox.checked = autoUpdateEnabled;
+                
+                // 监听开关变化
+                autoUpdateCheckbox.addEventListener("change", function() {
+                    const isEnabled = this.checked;
+                    localStorage.setItem("xiaoxin_auto_update_check", isEnabled);
+                    console.log("[小馨手机] 自动更新检查:", isEnabled ? "已启用" : "已禁用");
+                    
+                    if (typeof toastr !== "undefined") {
+                        toastr.info(
+                            isEnabled ? "已启用自动更新检查" : "已禁用自动更新检查",
+                            "小馨手机",
+                            { timeOut: 2000 }
+                        );
+                    }
+                });
+            }
+
+            // 只有在启用自动更新检查时才执行版本检查
+            if (autoUpdateEnabled) {
+                initVersionCheck();
+            } else {
+                // 即使禁用自动检查，也显示当前版本
+                fetch("./scripts/extensions/third-party/xiaoxin-phone/manifest.json")
+                    .then(response => {
+                        if (response.ok) {
+                            return response.json();
+                        }
+                        throw new Error("无法读取 manifest.json");
+                    })
+                    .then(manifest => {
+                        const currentVersion = manifest.version || "0.1.0";
+                        const versionDisplay = document.getElementById("xiaoxin-version-display");
+                        if (versionDisplay) {
+                            versionDisplay.textContent = "v" + currentVersion;
+                        }
+                    })
+                    .catch(error => {
+                        console.warn("[小馨手机] 无法读取版本号:", error);
+                        const versionDisplay = document.getElementById("xiaoxin-version-display");
+                        if (versionDisplay) {
+                            versionDisplay.textContent = "v0.1.0";
+                        }
+                    });
+            }
 
             console.log("[小馨手机] 扩展设置面板逻辑已初始化");
         }
@@ -611,10 +666,13 @@ function checkForUpdates(currentVersion) {
                                   errorMsg.includes("网络") || 
                                   errorMsg.includes("timeout") ||
                                   errorMsg.includes("超时") ||
-                                  errorMsg.includes("connect");
+                                  errorMsg.includes("connect") ||
+                                  errorMsg.includes("Connection was reset") ||
+                                  errorMsg.includes("Recv failure");
             
             if (isNetworkError) {
-                console.info("[小馨手机] 提示: 无法连接到 GitHub，可能是网络问题。建议使用手动更新方式。");
+                console.info("[小馨手机] 提示: 无法连接到 GitHub，可能是网络问题。");
+                console.info("[小馨手机] 提示: 如果经常遇到此问题，可以在设置中关闭「自动检查更新」选项，避免每次启动都尝试连接 GitHub。");
             }
             
             // 检查失败时，至少显示当前版本
@@ -628,6 +686,9 @@ function checkForUpdates(currentVersion) {
             const versionInfo = document.getElementById("xiaoxin-version-info");
             if (updateNotice) updateNotice.style.display = "none";
             if (versionInfo) versionInfo.style.display = "block";
+            
+            // 注意：版本检查失败时不显示错误提示，避免打扰用户
+            // 只有在用户主动点击更新按钮时才会显示详细错误信息
         });
 }
 
@@ -710,16 +771,22 @@ function performUpdate() {
         console.error("[小馨手机] 自动更新失败:", error);
         const errorMsg = error.message || String(error);
         
-        // 判断是否是网络相关错误
+        // 判断是否是网络相关错误（包括更多错误类型）
         const isNetworkError = errorMsg.includes("Failed to connect") || 
                               errorMsg.includes("无法连接") || 
                               errorMsg.includes("443") ||
                               errorMsg.includes("timeout") ||
                               errorMsg.includes("超时") ||
-                              errorMsg.includes("网络");
+                              errorMsg.includes("网络") ||
+                              errorMsg.includes("Connection was reset") ||
+                              errorMsg.includes("Recv failure") ||
+                              errorMsg.includes("连接被重置") ||
+                              errorMsg.includes("500") ||
+                              errorMsg.includes("Internal Server Error");
         
         if (isNetworkError) {
             console.warn("[小馨手机] 网络连接失败，建议使用手动更新方式");
+            console.info("[小馨手机] 提示: 如果经常遇到此问题，可以在设置中关闭「自动检查更新」选项");
         }
         
         handleUpdateError(errorMsg);
@@ -736,27 +803,59 @@ function handleUpdateError(errorMsg) {
 
     // 构建更详细的错误提示
     let message = "自动更新失败";
-    if (errorMsg && (errorMsg.includes("无法连接") || errorMsg.includes("网络") || errorMsg.includes("443"))) {
-        message = "无法连接到 GitHub（网络问题），建议使用手动更新：";
+    let isNetworkIssue = false;
+    
+    if (errorMsg) {
+        // 检查是否是网络相关错误
+        isNetworkIssue = errorMsg.includes("无法连接") || 
+                        errorMsg.includes("网络") || 
+                        errorMsg.includes("443") ||
+                        errorMsg.includes("Connection was reset") ||
+                        errorMsg.includes("Recv failure") ||
+                        errorMsg.includes("连接被重置") ||
+                        errorMsg.includes("500") ||
+                        errorMsg.includes("Internal Server Error");
+    }
+    
+    if (isNetworkIssue) {
+        message = "❌ 无法连接到 GitHub（网络问题）<br><br>这是网络连接问题，不是插件问题。建议：";
     } else {
         message = "自动更新失败，建议使用手动更新：";
     }
     
-    const manualUpdateSteps = "<br>1. 访问 GitHub 下载最新版本<br>2. 删除旧版本文件夹<br>3. 解压并复制新版本到扩展目录<br><br>详细步骤请查看 README.md";
+    const manualUpdateSteps = `
+        <div style="margin-top: 12px; padding: 12px; background: rgba(255, 255, 255, 0.05); border-radius: 6px; border-left: 3px solid #4a9eff;">
+            <strong style="color: #4a9eff;">📥 手动更新步骤：</strong>
+            <ol style="margin: 8px 0 0 0; padding-left: 20px; color: rgba(255, 255, 255, 0.9);">
+                <li>访问 GitHub: <a href="https://github.com/lyx815934990-oss/xiaoxin-phone" target="_blank" style="color: #4a9eff;">点击这里</a></li>
+                <li>点击绿色的 <strong>Code</strong> 按钮 → <strong>Download ZIP</strong></li>
+                <li>删除旧版本文件夹: <code style="background: rgba(0,0,0,0.3); padding: 2px 6px; border-radius: 3px;">public/scripts/extensions/third-party/xiaoxin-phone/</code></li>
+                <li>解压 ZIP 文件，将文件夹复制到扩展目录</li>
+                <li>刷新页面即可</li>
+            </ol>
+        </div>
+        <div style="margin-top: 8px; padding: 8px; background: rgba(255, 200, 0, 0.1); border-radius: 4px; border-left: 3px solid #ffc800;">
+            <small style="color: rgba(255, 200, 0, 0.9);">
+                💡 提示: 如果经常遇到网络问题，可以在设置中关闭「自动检查更新」选项，避免每次启动都尝试连接 GitHub
+            </small>
+        </div>
+    `;
     
     if (typeof toastr !== "undefined") {
         toastr.error(
-            message + manualUpdateSteps + "<br><br><small>GitHub 地址: https://github.com/lyx815934990-oss/xiaoxin-phone</small>",
-            "小馨手机",
-            { timeOut: 12000, escapeHtml: false }
+            message + manualUpdateSteps,
+            "小馨手机 - 更新失败",
+            { timeOut: 15000, escapeHtml: false }
         );
     } else {
-        alert(message + "\n\n" + 
-              "1. 访问 GitHub 下载最新版本\n" +
-              "2. 删除旧版本文件夹\n" +
-              "3. 解压并复制新版本到扩展目录\n\n" +
-              "GitHub 地址: https://github.com/lyx815934990-oss/xiaoxin-phone\n\n" +
-              "详细步骤请查看 README.md");
+        alert(message.replace(/<br>/g, "\n").replace(/<[^>]*>/g, "") + "\n\n" + 
+              "手动更新步骤：\n" +
+              "1. 访问 GitHub: https://github.com/lyx815934990-oss/xiaoxin-phone\n" +
+              "2. 点击绿色的 Code 按钮 → Download ZIP\n" +
+              "3. 删除旧版本文件夹: public/scripts/extensions/third-party/xiaoxin-phone/\n" +
+              "4. 解压 ZIP 文件，将文件夹复制到扩展目录\n" +
+              "5. 刷新页面即可\n\n" +
+              "提示: 如果经常遇到网络问题，可以在设置中关闭「自动检查更新」选项");
     }
 }
 
