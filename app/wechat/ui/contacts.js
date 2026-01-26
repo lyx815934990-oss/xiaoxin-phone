@@ -331,7 +331,7 @@ window.XiaoxinWeChatContacts = (function () {
         );
         $contactIcon.css(
             "background-image",
-            "url(/scripts/extensions/third-party/小馨手机/image/icon/添加手机联系人.jpg)"
+            "url(/scripts/extensions/third-party/xiaoxin-phone/image/icon/添加手机联系人.jpg)"
         );
 
         var $contactInfo = $(
@@ -379,7 +379,7 @@ window.XiaoxinWeChatContacts = (function () {
         $img.attr("src", avatarUrl);
         $img.on("error", function () {
             // 加载失败时使用默认头像
-            this.src = "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            this.src = "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
         });
 
         $container.append($img, $close);
@@ -791,7 +791,7 @@ window.XiaoxinWeChatContacts = (function () {
         );
         var avatarUrl =
             contact.avatar ||
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
         var $avatarImg = $(
             '<img class="xiaoxin-wechat-contact-detail-avatar-img" alt="avatar" />'
         );
@@ -799,7 +799,7 @@ window.XiaoxinWeChatContacts = (function () {
         $avatarImg.on("error", function () {
             // 兜底：加载失败时使用默认头像
             this.src =
-                "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
         });
         $avatar.append($avatarImg);
 
@@ -825,8 +825,8 @@ window.XiaoxinWeChatContacts = (function () {
         if (contact.gender) {
             var genderIcon =
                 contact.gender === "男" || contact.gender === "male"
-                    ? "/scripts/extensions/third-party/小馨手机/image/icon/微信联系人资料卡性别男.png"
-                    : "/scripts/extensions/third-party/小馨手机/image/icon/微信联系人资料卡性别女.png";
+                    ? "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信联系人资料卡性别男.png"
+                    : "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信联系人资料卡性别女.png";
             var $gender = $(
                 '<div class="xiaoxin-wechat-contact-detail-gender">' +
                     '<img src="' +
@@ -2006,7 +2006,7 @@ window.XiaoxinWeChatContacts = (function () {
                     var avatarUrl =
                         req.avatar ||
                         (req.contact && req.contact.avatar) ||
-                        "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                        "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                     $avatar.css("background-image", "url(" + avatarUrl + ")");
 
                     var displayName =
