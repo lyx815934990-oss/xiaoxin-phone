@@ -21,7 +21,7 @@
 2. 点击 **从 GitHub 导入**
 3. 输入以下 GitHub 仓库地址：
    ```
-  
+  https://github.com/lyx815934990-oss/xiaoxin-phone.git
    ```
 4. 点击 **导入**，等待安装完成
 5. 刷新页面，插件即可使用
