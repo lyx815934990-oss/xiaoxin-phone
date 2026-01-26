@@ -529,15 +529,39 @@ function initVersionCheck() {
 function checkForUpdates(currentVersion) {
     const repoUrl = "https://github.com/lyx815934990-oss/xiaoxin-phone";
     
+    // 设置超时时间（10秒）
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("网络请求超时，请检查网络连接")), 10000);
+    });
+    
     // 从 GitHub API 获取最新 release 或 tag
     // 使用 GitHub API: https://api.github.com/repos/{owner}/{repo}/releases/latest
     // 或者获取 tags: https://api.github.com/repos/{owner}/{repo}/tags
-    fetch("https://api.github.com/repos/lyx815934990-oss/xiaoxin-phone/releases/latest")
+    Promise.race([
+        fetch("https://api.github.com/repos/lyx815934990-oss/xiaoxin-phone/releases/latest", {
+            method: "GET",
+            headers: {
+                "Accept": "application/vnd.github.v3+json"
+            }
+        }),
+        timeoutPromise
+    ])
         .then(response => {
             if (!response.ok) {
                 // 如果没有 release，尝试获取 tags
-                return fetch("https://api.github.com/repos/lyx815934990-oss/xiaoxin-phone/tags")
-                    .then(tagsResponse => tagsResponse.json())
+                return Promise.race([
+                    fetch("https://api.github.com/repos/lyx815934990-oss/xiaoxin-phone/tags", {
+                        method: "GET",
+                        headers: {
+                            "Accept": "application/vnd.github.v3+json"
+                        }
+                    }),
+                    timeoutPromise
+                ])
+                    .then(tagsResponse => {
+                        if (!tagsResponse.ok) throw new Error("无法获取版本信息");
+                        return tagsResponse.json();
+                    })
                     .then(tags => {
                         if (tags && tags.length > 0) {
                             // 获取最新的 tag（去掉 'v' 前缀）
@@ -578,12 +602,32 @@ function checkForUpdates(currentVersion) {
             }
         })
         .catch(error => {
-            console.warn("[小馨手机] 版本检查失败:", error);
+            // 更详细的错误日志
+            const errorMsg = error.message || String(error);
+            console.warn("[小馨手机] 版本检查失败:", errorMsg);
+            
+            // 判断是否是网络相关错误
+            const isNetworkError = errorMsg.includes("Failed to fetch") || 
+                                  errorMsg.includes("网络") || 
+                                  errorMsg.includes("timeout") ||
+                                  errorMsg.includes("超时") ||
+                                  errorMsg.includes("connect");
+            
+            if (isNetworkError) {
+                console.info("[小馨手机] 提示: 无法连接到 GitHub，可能是网络问题。建议使用手动更新方式。");
+            }
+            
             // 检查失败时，至少显示当前版本
             const versionDisplay = document.getElementById("xiaoxin-version-display");
             if (versionDisplay) {
                 versionDisplay.textContent = "v" + currentVersion;
             }
+            
+            // 隐藏更新提醒，显示版本信息（即使检查失败也显示当前版本）
+            const updateNotice = document.getElementById("xiaoxin-update-notice");
+            const versionInfo = document.getElementById("xiaoxin-version-info");
+            if (updateNotice) updateNotice.style.display = "none";
+            if (versionInfo) versionInfo.style.display = "block";
         });
 }
 
@@ -620,17 +664,25 @@ function performUpdate() {
 
     const repoUrl = "https://github.com/lyx815934990-oss/xiaoxin-phone";
     
+    // 设置超时时间（60秒，因为 Git 克隆可能需要较长时间）
+    const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("更新超时，可能是网络连接问题")), 60000);
+    });
+    
     // 尝试调用酒馆的扩展安装 API
     // 使用 fetch 调用本地 API
-    fetch("http://127.0.0.1:8000/api/extensions/install", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-            url: repoUrl
-        })
-    })
+    Promise.race([
+        fetch("http://127.0.0.1:8000/api/extensions/install", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                url: repoUrl
+            })
+        }),
+        timeoutPromise
+    ])
     .then(response => {
         if (response.ok) {
             if (typeof toastr !== "undefined") {
@@ -641,31 +693,70 @@ function performUpdate() {
                 window.location.reload();
             }, 2000);
         } else {
-            throw new Error("更新失败: " + response.status);
+            // 尝试读取错误信息
+            return response.text().then(text => {
+                let errorMsg = `更新失败: HTTP ${response.status}`;
+                // 检查是否是网络连接错误
+                if (text.includes("Failed to connect") || text.includes("无法连接") || text.includes("443")) {
+                    errorMsg = "无法连接到 GitHub，请检查网络连接或使用手动更新";
+                } else if (text.includes("500")) {
+                    errorMsg = "服务器错误，可能是网络问题导致无法从 GitHub 克隆仓库";
+                }
+                throw new Error(errorMsg);
+            });
         }
     })
     .catch(error => {
         console.error("[小馨手机] 自动更新失败:", error);
-        handleUpdateError();
+        const errorMsg = error.message || String(error);
+        
+        // 判断是否是网络相关错误
+        const isNetworkError = errorMsg.includes("Failed to connect") || 
+                              errorMsg.includes("无法连接") || 
+                              errorMsg.includes("443") ||
+                              errorMsg.includes("timeout") ||
+                              errorMsg.includes("超时") ||
+                              errorMsg.includes("网络");
+        
+        if (isNetworkError) {
+            console.warn("[小馨手机] 网络连接失败，建议使用手动更新方式");
+        }
+        
+        handleUpdateError(errorMsg);
     });
 }
 
 // 处理更新错误（提示手动更新）
-function handleUpdateError() {
+function handleUpdateError(errorMsg) {
     const updateBtn = document.getElementById("xiaoxin-update-btn");
     if (updateBtn) {
         updateBtn.disabled = false;
         updateBtn.innerHTML = '<i class="fa-solid fa-download"></i> 立即更新';
     }
 
+    // 构建更详细的错误提示
+    let message = "自动更新失败";
+    if (errorMsg && (errorMsg.includes("无法连接") || errorMsg.includes("网络") || errorMsg.includes("443"))) {
+        message = "无法连接到 GitHub（网络问题），建议使用手动更新：";
+    } else {
+        message = "自动更新失败，建议使用手动更新：";
+    }
+    
+    const manualUpdateSteps = "<br>1. 访问 GitHub 下载最新版本<br>2. 删除旧版本文件夹<br>3. 解压并复制新版本到扩展目录<br><br>详细步骤请查看 README.md";
+    
     if (typeof toastr !== "undefined") {
-        toastr.warning(
-            "自动更新失败，请手动更新：<br>1. 打开扩展设置 → 第三方扩展<br>2. 找到「小馨手机插件」<br>3. 点击「从 GitHub 导入」<br>4. 输入: https://github.com/lyx815934990-oss/xiaoxin-phone",
+        toastr.error(
+            message + manualUpdateSteps + "<br><br><small>GitHub 地址: https://github.com/lyx815934990-oss/xiaoxin-phone</small>",
             "小馨手机",
-            { timeOut: 8000, escapeHtml: false }
+            { timeOut: 12000, escapeHtml: false }
         );
     } else {
-        alert("自动更新失败，请手动更新：\n1. 打开扩展设置 → 第三方扩展\n2. 找到「小馨手机插件」\n3. 点击「从 GitHub 导入」\n4. 输入: https://github.com/lyx815934990-oss/xiaoxin-phone");
+        alert(message + "\n\n" + 
+              "1. 访问 GitHub 下载最新版本\n" +
+              "2. 删除旧版本文件夹\n" +
+              "3. 解压并复制新版本到扩展目录\n\n" +
+              "GitHub 地址: https://github.com/lyx815934990-oss/xiaoxin-phone\n\n" +
+              "详细步骤请查看 README.md");
     }
 }
 
