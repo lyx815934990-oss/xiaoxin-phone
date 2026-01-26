@@ -298,13 +298,21 @@ window.XiaoxinWeChatChatUI = (function () {
         var $voiceBtn = $(
             '<div class="xiaoxin-wechat-chat-input-voice"></div>'
         );
+        // 确保语音按钮图标正确加载
+        $voiceBtn.css("background-image", "url(/scripts/extensions/third-party/xiaoxin-phone/image/icon/语音按钮.jpg)");
+        
         var $inputField = $(
             '<input type="text" class="xiaoxin-wechat-chat-input-field" placeholder="">'
         );
         var $emojiBtn = $(
             '<div class="xiaoxin-wechat-chat-input-emoji"></div>'
         );
+        // 确保表情按钮图标正确加载
+        $emojiBtn.css("background-image", "url(/scripts/extensions/third-party/xiaoxin-phone/image/icon/表情按钮.png)");
+        
         var $addBtn = $('<div class="xiaoxin-wechat-chat-input-add"></div>');
+        // 确保加号按钮图标正确加载
+        $addBtn.css("background-image", "url(/scripts/extensions/third-party/xiaoxin-phone/image/icon/聊天功能按钮.jpg)");
 
         $inputBar.append($voiceBtn, $inputField, $emojiBtn, $addBtn);
         $container.append($inputBar);
