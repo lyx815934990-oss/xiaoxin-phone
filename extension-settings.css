@@ -1,0 +1,126 @@
+/* 小馨手机扩展设置面板样式 */
+
+#xiaoxin-mobile-settings-panel {
+    margin-bottom: 10px;
+}
+
+#xiaoxin-mobile-settings-panel .menu-section {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+#xiaoxin-mobile-settings-panel .menu-section-header {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.05);
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+    transition: background 0.2s;
+}
+
+#xiaoxin-mobile-settings-panel .menu-section-header:hover {
+    background: rgba(255, 255, 255, 0.08);
+}
+
+#xiaoxin-mobile-settings-panel .menu-section-header::-webkit-details-marker {
+    display: none;
+}
+
+#xiaoxin-mobile-settings-panel .menu-section-header i:first-child {
+    margin-right: 8px;
+    color: #4a9eff;
+}
+
+#xiaoxin-mobile-settings-panel .menu-section-header span {
+    flex: 1;
+    font-weight: 500;
+}
+
+#xiaoxin-mobile-settings-panel .menu-section-chevron {
+    margin-left: auto;
+    transition: transform 0.2s;
+    font-size: 0.9em;
+    opacity: 0.7;
+}
+
+#xiaoxin-mobile-settings-panel .menu-section[open] .menu-section-chevron {
+    transform: rotate(180deg);
+}
+
+#xiaoxin-mobile-settings-panel .menu-section-content {
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+#xiaoxin-mobile-settings-panel .form_group {
+    margin-bottom: 16px;
+}
+
+#xiaoxin-mobile-settings-panel .form_group:last-child {
+    margin-bottom: 0;
+}
+
+#xiaoxin-mobile-settings-panel .form_group label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+}
+
+#xiaoxin-mobile-settings-panel .form_group input[type="checkbox"] {
+    width: auto;
+    margin: 0;
+    cursor: pointer;
+}
+
+#xiaoxin-mobile-settings-panel .form_group small {
+    display: block;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85em;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+#xiaoxin-mobile-settings-panel .text_pole {
+    width: 100%;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: #fff;
+    font-size: 14px;
+    box-sizing: border-box;
+}
+
+#xiaoxin-mobile-settings-panel .text_pole:focus {
+    outline: none;
+    border-color: #4a9eff;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+#xiaoxin-mobile-settings-panel .menu_button {
+    padding: 6px 12px;
+    background: #4a9eff;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+    transition: background 0.2s;
+    white-space: nowrap;
+}
+
+#xiaoxin-mobile-settings-panel .menu_button:hover {
+    background: #3a8eef;
+}
+
+#xiaoxin-mobile-settings-panel .menu_button:active {
+    background: #2a7edf;
+}
+

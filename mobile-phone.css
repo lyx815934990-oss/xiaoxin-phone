@@ -1,0 +1,880 @@
+/* 小馨手机 - 主样式文件 */
+
+/* 悬浮手机按钮（外观：正圆，使用悬浮手机按钮外观.png） */
+.xiaoxin-mobile-floating-btn {
+    position: fixed;
+    /* 初始位置通过JavaScript动态设置，确保在屏幕内 */
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background-color: transparent;
+    background-image: url("./image/icon/悬浮手机按钮外观.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+    cursor: pointer;
+    z-index: 9999; /* 保证在大部分元素之上 */
+    user-select: none;
+    -webkit-user-drag: none;
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out,
+        opacity 0.2s;
+}
+
+.xiaoxin-mobile-floating-btn:hover {
+    transform: scale(1.04);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+
+.xiaoxin-mobile-floating-btn:active {
+    transform: scale(0.96);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+/* 拖动时，轻微透明，减少遮挡感 */
+.xiaoxin-mobile-floating-btn.dragging {
+    opacity: 0.85;
+    cursor: grabbing;
+}
+
+/* 悬浮按钮红点提示 */
+.xiaoxin-mobile-floating-btn-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    background-color: #ff3b30;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 8px;
+    border: none;
+    box-shadow: none;
+    z-index: 10000;
+    display: none;
+}
+
+.xiaoxin-mobile-floating-btn-badge.show {
+    display: block;
+}
+
+.xiaoxin-mobile-floating-btn-badge.single-digit {
+    min-width: 16px;
+    padding: 0;
+}
+
+.xiaoxin-mobile-floating-btn-badge.double-digit {
+    min-width: 20px;
+    padding: 0 3px;
+}
+
+.xiaoxin-mobile-floating-btn-badge.triple-digit {
+    min-width: 28px;
+    padding: 0 5px;
+}
+
+/* ========== iPhone 17 Pro 手机容器 ========== */
+.xiaoxin-phone-container {
+    position: fixed;
+    /* 初始位置通过JavaScript动态设置，确保在屏幕内 */
+    width: 393px;
+    height: 790px;
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none !important;
+    display: none;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.xiaoxin-phone-container.visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto !important;
+    display: block;
+}
+
+/* iPhone 17 Pro 外壳 */
+.xiaoxin-phone-frame {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 50%, #1a1a1a 100%);
+    border-radius: 48px;
+    padding: 8px;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.1),
+        0 20px 60px rgba(0, 0, 0, 0.6),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+    position: relative;
+}
+
+.xiaoxin-phone-frame::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 48px;
+    padding: 2px;
+    background: linear-gradient(
+        135deg,
+        rgba(255, 255, 255, 0.1),
+        rgba(255, 255, 255, 0.05)
+    );
+    -webkit-mask: linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+}
+
+/* 手机屏幕 */
+.xiaoxin-phone-screen {
+    width: 100%;
+    height: 100%;
+    background: #000;
+    border-radius: 40px;
+    overflow: hidden;
+    position: relative;
+    background-image: url("./image/background/手机壁纸2.jpeg");
+    background-size: cover;
+    background-position: center;
+}
+
+/* ========== 状态栏 ========== */
+.xiaoxin-status-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 54px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start; /* 右侧图标删除后只保留左侧时间 */
+    padding: 0 20px;
+    z-index: 99999; /* 最高层级，确保时间始终显示在最上层 */
+    /* 去掉顶部阴影视觉遮罩，保持纯净的 iOS 风格 */
+    background: transparent;
+}
+
+.xiaoxin-status-left {
+    display: flex;
+    align-items: center;
+    flex: 1;
+}
+
+.xiaoxin-time {
+    font-size: 17px;
+    font-weight: 600;
+    color: #fff;
+    letter-spacing: -0.4px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    position: relative;
+    z-index: 99999; /* 最高层级，确保时间始终显示在最上层 */
+}
+
+/* 灵动岛 (Dynamic Island) */
+.xiaoxin-dynamic-island {
+    position: absolute;
+    left: 50%;
+    top: 12px;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 37px;
+    background: #000;
+    border-radius: 19px;
+    z-index: 99999; /* 最高层级，确保灵动岛始终显示在最上层 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    cursor: grab; /* 显示可拖动光标 */
+    user-select: none; /* 防止拖动时选中文字 */
+    -webkit-user-select: none;
+}
+
+.xiaoxin-dynamic-island:active {
+    cursor: grabbing; /* 拖动时显示抓取光标 */
+}
+
+/* 手机容器拖动状态 */
+.xiaoxin-phone-container.xiaoxin-phone-dragging {
+    transition: none !important; /* 拖动时禁用所有过渡动画 */
+}
+
+.xiaoxin-status-right {
+    display: none; /* 删除信号、WiFi、电池图标，仅保留时间与灵动岛 */
+}
+
+.xiaoxin-signal,
+.xiaoxin-wifi,
+.xiaoxin-battery {
+    font-size: 16px;
+    color: #fff;
+    line-height: 1;
+}
+
+/* 状态栏明暗主题自适配 */
+.xiaoxin-status-bar.status-light .xiaoxin-time,
+.xiaoxin-status-bar.status-light .xiaoxin-signal,
+.xiaoxin-status-bar.status-light .xiaoxin-wifi,
+.xiaoxin-status-bar.status-light .xiaoxin-battery {
+    color: #000;
+    text-shadow: none;
+}
+
+.xiaoxin-status-bar.status-dark .xiaoxin-time,
+.xiaoxin-status-bar.status-dark .xiaoxin-signal,
+.xiaoxin-status-bar.status-dark .xiaoxin-wifi,
+.xiaoxin-status-bar.status-dark .xiaoxin-battery {
+    color: #fff;
+}
+
+/* 微信应用全局：强制状态栏时间为黑色（覆盖所有其他样式） */
+.xiaoxin-app-page:has(.xiaoxin-wechat-main) ~ .xiaoxin-status-bar .xiaoxin-time,
+.xiaoxin-phone-screen:has(.xiaoxin-wechat-main)
+    .xiaoxin-status-bar
+    .xiaoxin-time,
+.xiaoxin-app-page:has(.xiaoxin-wechat-register)
+    ~ .xiaoxin-status-bar
+    .xiaoxin-time,
+.xiaoxin-phone-screen:has(.xiaoxin-wechat-register)
+    .xiaoxin-status-bar
+    .xiaoxin-time {
+    color: #000 !important;
+    -webkit-text-fill-color: #000 !important;
+}
+
+/* ========== 主页面 ========== */
+.xiaoxin-home-page {
+    position: absolute;
+    top: 54px;
+    left: 0;
+    right: 0;
+    bottom: 68px;
+    position: relative; /* 让装饰动图的 absolute 定位以主页为参照 */
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
+    will-change: opacity;
+}
+
+/* 不再使用 display:none 隐藏桌面，避免返回时重新布局导致“先壁纸后图标” */
+.xiaoxin-home-page.hidden {
+    display: none;
+}
+
+/* 桌面不可见/不可交互状态（仍保持渲染，确保随时可瞬间显示完整内容） */
+.xiaoxin-home-page.xiaoxin-home-page-inactive {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.xiaoxin-home-page.slide-out-left {
+    transform: translateX(-100%);
+}
+
+.xiaoxin-home-page.slide-in-left {
+    transform: translateX(0);
+    animation: slideInLeft 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100%);
+    }
+    to {
+        transform: translateX(0);
+    }
+}
+
+/* 横条装饰动图（显示在横条上方层级） */
+.xiaoxin-top-widget-deco {
+    display: block;
+    width: 60px; /* 调小：避免遮挡内容，可按需要再调 */
+    height: auto;
+    /* 用定位保证它一定出现在横条上方且不受布局影响 */
+    position: absolute;
+    left: 78%; /* 往右移动一些 */
+    transform: translateX(-50%);
+    top: 0px; /* 往上移动一些 */
+    z-index: 120; /* 高于状态栏(100)与横条(1)，避免被盖住 */
+    pointer-events: none;
+}
+
+/* 顶部横条 Widget（iOS 风格） */
+.xiaoxin-top-widget {
+    margin: 38px 24px 10px; /* 整体下移一行：顶部外边距 +20px，给上方动图留空间 */
+    height: 78px; /* 扁平化：从92px减少到78px */
+    border-radius: 999px; /* 更圆润：左右两侧为大圆弧胶囊形 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px; /* 减少内边距以适应更扁平的高度 */
+    color: #fff;
+    background: #000 !important; /* 纯黑不透明，强制覆盖 */
+    box-shadow: none !important; /* 阴影交给 ::after 做“底部渐淡灰条”，强制覆盖 */
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition: none !important; /* 完全移除过渡效果，避免任何hover动画 */
+    position: relative;
+    z-index: 1;
+}
+
+/* 横条下方：基础逐渐淡化的灰色阴影条（在横条下层，不覆盖横条内容） */
+.xiaoxin-top-widget::after {
+    content: "";
+    position: absolute;
+    left: 22px; /* 调整阴影位置，匹配横条缩短后的宽度 */
+    right: 22px; /* 调整阴影位置，匹配横条缩短后的宽度 */
+    bottom: -12px;
+    height: 22px;
+    border-radius: 999px;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(200, 200, 200, 0.22) 0%,
+        rgba(200, 200, 200, 0.12) 35%,
+        rgba(200, 200, 200, 0) 75%
+    );
+    filter: blur(2px);
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* 取消所有鼠标悬停效果 - 强制覆盖所有可能的样式 */
+.xiaoxin-top-widget:hover {
+    transform: none !important;
+    background: #000 !important;
+    box-shadow: none !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    opacity: 1 !important;
+}
+
+/* 按压反馈 */
+.xiaoxin-top-widget.pressed {
+    transform: scale(0.985);
+    background: #000 !important; /* 保持纯黑，不改变透明度 */
+}
+
+.xiaoxin-top-widget-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 60px; /* 稍微增加，适应更大的头像 */
+    flex-shrink: 0; /* 防止头像区域被压缩 */
+}
+
+.xiaoxin-top-widget-avatar {
+    width: 52px; /* 放大：从44px增加到52px */
+    height: 52px; /* 放大：从44px增加到52px */
+    border-radius: 50%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    cursor: pointer;
+    transition: transform 0.12s ease;
+}
+
+.xiaoxin-top-widget-avatar:active {
+    transform: scale(0.95);
+}
+
+.xiaoxin-top-widget-center {
+    flex: 1;
+    min-width: 0;
+    padding: 0 6px; /* 减少左右内边距，给标题更多可用宽度 */
+    overflow: visible; /* 改为visible，确保文字能完整显示 */
+}
+
+.xiaoxin-top-widget-title {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    font-size: 14px; /* 减小字体：从15px改为14px，确保"Hi，今天也要元气满满！"能完整显示 */
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.1px; /* 稍微收紧字间距 */
+    /* 只显示一行，完整显示，不截断 */
+    white-space: nowrap;
+    overflow: visible; /* 改为visible，不隐藏溢出 */
+    text-overflow: clip; /* 改为clip，不显示省略号 */
+    max-width: none; /* 移除最大宽度限制 */
+}
+
+.xiaoxin-top-widget-sub {
+    margin-top: 6px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.88;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.xiaoxin-top-widget-right {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 54px; /* 温度最多两位数，进一步减小占位给标题 */
+    flex-shrink: 0; /* 防止温度区域被压缩 */
+}
+
+.xiaoxin-top-widget-temp {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    font-size: 32px; /* 略微减小，给标题更多空间且观感不突兀 */
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: -0.6px;
+}
+
+/* 应用图标网格 */
+.xiaoxin-app-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, auto);
+    gap: 20px;
+    padding: 20px 16px;
+    padding-top: 44px; /* 同步下移一行：顶部内边距 +20px */
+    position: relative;
+}
+
+/* 应用图标 */
+.xiaoxin-app-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.xiaoxin-app-icon:active {
+    transform: scale(0.9);
+}
+
+.xiaoxin-app-icon-img {
+    width: 60px;
+    height: 60px;
+    border-radius: 13px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    margin-bottom: 6px;
+}
+
+.xiaoxin-app-icon-label {
+    font-size: 12px;
+    color: #fff;
+    text-align: center;
+    font-weight: 500;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    /* 去掉文字阴影，避免模糊感 */
+    text-shadow: none;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 应用图标网格装饰（2×2图片） */
+.xiaoxin-app-grid-deco {
+    border-radius: 13px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    pointer-events: none; /* 装饰图片不可点击 */
+}
+
+/* ========== 应用页面 ========== */
+.xiaoxin-app-page {
+    position: absolute;
+    /* 覆盖整个屏幕区域，自己用内边距让内容避开状态栏和 Home 条，实现"全面屏"效果 */
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #fff;
+    overflow-y: auto; /* 允许垂直滚动 */
+    overflow-x: hidden;
+    padding-top: 98px; /* 留出状态栏(约54px) + 标题栏高度，使列表从标题下方开始 */
+    padding-bottom: 40px; /* 留出 Home 条空间 */
+    /* 初始圆角，匹配手机屏幕圆角 */
+    border-radius: 40px;
+    /* 禁用可能导致模糊的硬件加速，改用更安全的方式 */
+    /* 不使用 translate3d，因为它可能导致模糊 */
+    transform: none;
+    backface-visibility: visible;
+    -webkit-backface-visibility: visible;
+    perspective: none;
+    -webkit-perspective: none;
+    /* 禁用 will-change，避免浏览器过度优化导致模糊 */
+    will-change: auto;
+    /* 确保文字清晰 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* 禁用所有模糊滤镜 */
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    /* 确保像素对齐 */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* 所有应用页面内的元素都要清晰 */
+.xiaoxin-app-page * {
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
+    /* 确保子元素也不会被模糊 */
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.xiaoxin-app-page.hidden {
+    display: none;
+}
+
+/* 保留旧的滑动动画作为备用 */
+.xiaoxin-app-page.slide-in-right {
+    transform: translate3d(0, 0, 0);
+    animation: slideInRight 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.xiaoxin-app-page.slide-out-right {
+    transform: translate3d(100%, 0, 0);
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translate3d(100%, 0, 0);
+    }
+    to {
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+.xiaoxin-app-content {
+    padding: 20px;
+    color: #000;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+/* ========== 底部 Dock（固定应用栏） ========== */
+.xiaoxin-dock {
+    position: absolute;
+    bottom: 24px; /* 往上移动：从 bottom: 0 改为 bottom: 24px */
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 48px); /* 左右各留 24px 边距，与横条一致 */
+    height: 98px; /* 与横条高度一致 */
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* 4个按钮均匀分布 */
+    gap: 0; /* 交给 space-between 处理间距 */
+    padding: 12px 22px; /* 增加左右内边距，避免图标贴边溢出 */
+    box-sizing: border-box;
+    overflow: hidden; /* 确保图标不会超出固定栏区域 */
+    /* 胶囊形样式（两侧圆条），与横条一致 */
+    border-radius: 999px;
+    /* 半透明毛玻璃效果 */
+    background: rgba(255, 255, 255, 0.15);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 0.5px solid rgba(255, 255, 255, 0.2);
+    z-index: 50;
+    transition: opacity 0.3s ease;
+}
+
+.xiaoxin-dock.hidden {
+    display: none;
+}
+
+.xiaoxin-dock-icon {
+    width: 60px;
+    height: 60px;
+    flex: 0 0 60px; /* 固定宽度，防止被压缩导致变形 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.xiaoxin-dock-icon:active {
+    transform: scale(0.9);
+}
+
+.xiaoxin-dock-icon-empty {
+    /* 空位不显示任何边框或背景 */
+    pointer-events: none;
+    opacity: 0;
+}
+
+.xiaoxin-dock-icon-img {
+    width: 60px;
+    height: 60px;
+    border-radius: 13px;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* ========== 底部 Home Indicator ========== */
+.xiaoxin-home-indicator {
+    position: absolute;
+    /* 稍微往上提一点，避免太贴近机身边缘 */
+    bottom: 18px;
+    left: 50%;
+    width: 134px;
+    height: 5px;
+    /* 深灰色，贴近 iPhone 的 Home 条颜色 */
+    background: rgba(40, 40, 40, 0.85);
+    border-radius: 3px;
+    cursor: pointer;
+    /* 使用硬件加速优化动画，保持水平居中 */
+    transform: translate3d(-50%, 0, 0);
+    transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+        background 0.2s ease;
+    z-index: 20000;
+    /* 优化渲染性能 */
+    will-change: transform;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+}
+
+.xiaoxin-home-indicator:hover {
+    background: rgba(50, 50, 50, 0.95);
+}
+
+.xiaoxin-home-indicator.dragging {
+    background: rgba(60, 60, 60, 1);
+    cursor: grabbing;
+}
+
+/* 滚动条样式 */
+.xiaoxin-home-page::-webkit-scrollbar,
+.xiaoxin-app-page::-webkit-scrollbar {
+    width: 0;
+    background: transparent;
+}
+
+/* ========== 弹窗样式（头像选择、文案编辑等，显示在手机主页内） ========== */
+.xiaoxin-picker-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.35); /* 调低遮罩透明度，避免页面过暗 */
+    z-index: 2147483647; /* 强制设为最高层级，确保在手机容器之上 */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 确保遮罩层不会影响弹窗清晰度 */
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+}
+
+.xiaoxin-picker {
+    width: 85%;
+    max-width: 340px;
+    background: #fff;
+    border-radius: 20px;
+    padding: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    max-height: 80vh;
+    overflow-y: auto;
+    /* 确保文字和内容清晰显示 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* 避免 transform 缩放导致发虚：弹窗已挂到 body，不再跟随手机缩放 */
+    transform: none !important;
+    transform-origin: center center;
+    /* 禁用可能导致模糊的效果 */
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    will-change: transform;
+}
+
+.xiaoxin-picker-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #000;
+    text-align: center;
+    margin-bottom: 20px;
+    /* 确保标题文字清晰 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+.xiaoxin-picker-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 16px;
+}
+
+.xiaoxin-picker-row:last-of-type {
+    margin-bottom: 0;
+}
+
+.xiaoxin-picker-label {
+    flex: 0 0 90px;
+    font-size: 14px;
+    color: #000;
+    /* 确保标签文字清晰 */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+.xiaoxin-picker-control {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.xiaoxin-picker-control input[type="url"],
+.xiaoxin-picker-control input[type="text"],
+.xiaoxin-picker-control input[type="number"],
+.xiaoxin-picker-control textarea {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid #d1d1d6;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    background: #f2f2f7 !important; /* 强制浅灰色背景 */
+    color: #000 !important; /* 强制黑色文本 */
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+}
+
+.xiaoxin-picker-control input[type="url"]:focus,
+.xiaoxin-picker-control input[type="text"]:focus,
+.xiaoxin-picker-control input[type="number"]:focus,
+.xiaoxin-picker-control textarea:focus {
+    border-color: #007aff;
+    background: #f2f2f7 !important; /* 聚焦时也保持浅灰色 */
+    color: #000 !important; /* 聚焦时也保持黑色文本 */
+}
+
+/* 语音输入框专用样式 */
+.xiaoxin-voice-content-input,
+.xiaoxin-voice-duration-input {
+    background: #f2f2f7 !important;
+    color: #000 !important;
+    border: 1px solid #d1d1d6 !important;
+}
+
+.xiaoxin-voice-content-input:focus,
+.xiaoxin-voice-duration-input:focus {
+    background: #f2f2f7 !important;
+    color: #000 !important;
+    border-color: #007aff !important;
+}
+
+.xiaoxin-picker-button {
+    padding: 8px 16px;
+    border-radius: 16px;
+    background-color: #007aff;
+    color: #fff;
+    font-size: 14px;
+    border: none;
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+    transition: none; /* 移除过渡效果 */
+}
+
+/* 移除所有悬停和激活效果 */
+.xiaoxin-picker-button:hover,
+.xiaoxin-picker-button:active,
+.xiaoxin-picker-button:focus {
+    background-color: inherit;
+    transform: none;
+    outline: none;
+}
+
+.xiaoxin-picker-button-cancel {
+    background-color: #ffffff !important; /* 强制白色背景 */
+    color: #000 !important;
+}
+
+/* 移除取消按钮的悬停和激活效果 */
+.xiaoxin-picker-button-cancel:hover,
+.xiaoxin-picker-button-cancel:active,
+.xiaoxin-picker-button-cancel:focus {
+    background-color: #ffffff !important;
+    color: #000 !important;
+    transform: none;
+    outline: none;
+}
+
+.xiaoxin-picker-button-confirm {
+    flex: 1;
+    background-color: #34c759 !important; /* 改为绿色 */
+    color: #fff !important;
+}
+
+/* 移除确认按钮的悬停和激活效果 */
+.xiaoxin-picker-button-confirm:hover,
+.xiaoxin-picker-button-confirm:active,
+.xiaoxin-picker-button-confirm:focus {
+    background-color: #34c759 !important; /* 保持绿色 */
+    color: #fff !important;
+    transform: none;
+    outline: none;
+}
+
+.xiaoxin-picker-preview {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid #d1d1d6;
+    background-color: #f2f2f7;
+    margin: 0 auto;
+}
+
+.xiaoxin-picker-preview-inner {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.xiaoxin-picker-buttons {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 0.5px solid #e5e5ea;
+    display: flex;
+    gap: 12px;
+}
+
+.xiaoxin-picker-hint {
+    font-size: 12px;
+    color: #8e8e93;
+    text-align: right;
+    flex: 1;
+}
+
+.xiaoxin-picker-char-count {
+    font-size: 12px;
+    color: #8e8e93;
+    margin-left: 4px;
+}
