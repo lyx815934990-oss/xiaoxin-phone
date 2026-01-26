@@ -40,19 +40,19 @@ function initMobilePlugin() {
 
         // 加载工具函数（必须先加载 data-manager，其他模块依赖它）
         loadScript(
-            "./scripts/extensions/third-party/小馨手机/utils/data-manager.js",
+            "./scripts/extensions/third-party/xiaoxin-phone/utils/data-manager.js",
             () => {
                 console.log("[小馨手机] 数据管理工具加载完成");
                 loadScript(
-                    "./scripts/extensions/third-party/小馨手机/utils/message-listener.js",
+                    "./scripts/extensions/third-party/xiaoxin-phone/utils/message-listener.js",
                     () => {
                         console.log("[小馨手机] 消息监听器加载完成");
                         loadScript(
-                            "./scripts/extensions/third-party/小馨手机/utils/image-api.js",
+                            "./scripts/extensions/third-party/xiaoxin-phone/utils/image-api.js",
                             () => {
                                 // 加载手机核心脚本
                                 loadScript(
-                                    "./scripts/extensions/third-party/小馨手机/mobile-phone.js",
+                                    "./scripts/extensions/third-party/xiaoxin-phone/mobile-phone.js",
                                     () => {
                                         console.log(
                                             "[小馨手机] 手机核心脚本加载完成"
@@ -70,10 +70,10 @@ function initMobilePlugin() {
 
                                             // 加载设置应用的样式与脚本（用于 iOS 风格设置界面）
                                             loadCss(
-                                                "./scripts/extensions/third-party/小馨手机/app/settings/settings-app.css"
+                                                "./scripts/extensions/third-party/xiaoxin-phone/app/settings/settings-app.css"
                                             );
                                             loadScript(
-                                                "./scripts/extensions/third-party/小馨手机/app/settings/settings-app.js",
+                                                "./scripts/extensions/third-party/xiaoxin-phone/app/settings/settings-app.js",
                                                 () => {
                                                     // 设置面板加载完成后，初始化设置面板逻辑
                                                     initExtensionSettingsPanel();
@@ -82,67 +82,67 @@ function initMobilePlugin() {
 
                                             // 加载微信应用的样式与脚本（先加载 account，再加载 data-handler，最后加载主应用）
                                             loadScript(
-                                                "./scripts/extensions/third-party/小馨手机/app/wechat/state/account.js",
+                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/state/account.js",
                                                 () => {
                                                     console.log(
                                                         "[小馨手机] 微信账号管理模块加载完成"
                                                     );
                                                     loadScript(
-                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/api/data-handler.js",
+                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/api/data-handler.js",
                                                         () => {
                                                             console.log(
                                                                 "[小馨手机] 微信数据处理器加载完成"
                                                             );
                                                             // 加载解析器
                                                             loadScript(
-                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/api/parser.js",
+                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/api/parser.js",
                                                                 () => {
                                                                     console.log(
                                                                         "[小馨手机] 微信解析器加载完成"
                                                                     );
                                                                     // 加载UI模块
                                                                     loadCss(
-                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/contacts.css"
+                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/contacts.css"
                                                                     );
                                                                     loadScript(
-                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/contacts.js",
+                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/contacts.js",
                                                                         () => {
                                                                             console.log(
                                                                                 "[小馨手机] 通讯录UI模块加载完成"
                                                                             );
                                                                             // 加载聊天UI模块（chat.js 和 chat.css）
                                                                             loadCss(
-                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/ui/chat.css"
+                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/chat.css"
                                                                             );
                                                                             loadScript(
-                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/ui/chat.js",
+                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/chat.js",
                                                                                 () => {
                                                                                     console.log(
                                                                                         "[小馨手机] 聊天UI模块加载完成"
                                                                                     );
                                                                                     // 加载AI生图模块（ai-image-generator.js）
                                                                                     loadScript(
-                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/ai-image-generator.js",
+                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/ai-image-generator.js",
                                                                                         () => {
                                                                                             console.log(
                                                                                                 "[小馨手机] AI生图模块加载完成"
                                                                                             );
                                                                                             // 加载照片消息模块（photo-message.js 和 photo-message.css）
                                                                                             loadCss(
-                                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/ui/photo-message.css"
+                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/photo-message.css"
                                                                                             );
                                                                                             loadScript(
-                                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/ui/photo-message.js",
+                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/photo-message.js",
                                                                                                 () => {
                                                                                                     console.log(
                                                                                                         "[小馨手机] 照片消息模块加载完成"
                                                                                                     );
                                                                                                     // 加载红包UI模块（redpacket.js 和 redpacket.css）
                                                                                                     loadCss(
-                                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/redpacket.css"
+                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/redpacket.css"
                                                                                                     );
                                                                                                     loadScript(
-                                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/redpacket.js",
+                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/redpacket.js",
                                                                                                         () => {
                                                                                                             console.log(
                                                                                                                 "[小馨手机] 红包UI模块加载完成"
@@ -155,20 +155,20 @@ function initMobilePlugin() {
                                                                                     );
                                                                                     // 加载来电弹窗组件
                                                                                     loadCss(
-                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/incoming-call.css"
+                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/incoming-call.css"
                                                                                     );
                                                                                     loadCss(
-                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/dynamic-island-call.css"
+                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/dynamic-island-call.css"
                                                                                     );
                                                                                     loadScript(
-                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/incoming-call.js",
+                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/incoming-call.js",
                                                                                         () => {
                                                                                             console.log(
                                                                                                 "[小馨手机] 来电弹窗组件加载完成"
                                                                                             );
                                                                                             // 加载灵动岛通话状态组件
                                                                                             loadScript(
-                                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/ui/dynamic-island-call.js",
+                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/dynamic-island-call.js",
                                                                                                 () => {
                                                                                                     console.log(
                                                                                                         "[小馨手机] 灵动岛通话状态组件加载完成"
@@ -177,53 +177,53 @@ function initMobilePlugin() {
                                                                                             );
                                                                                             // 加载消息队列管理器（独立运行，不依赖其他模块）
                                                                                             loadScript(
-                                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/ui/message-queue.js",
+                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/message-queue.js",
                                                                                                 () => {
                                                                                                     console.log(
                                                                                                         "[小馨手机] 消息队列管理器加载完成"
                                                                                                     );
                                                                                                     // 加载微信主应用样式和脚本
                                                                                                     loadCss(
-                                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/wechat-app.css"
+                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/wechat-app.css"
                                                                                                     );
                                                                                                     loadCss(
-                                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/components.css"
+                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/components.css"
                                                                                                     );
                                                                                                     // 加载朋友圈发布页面样式和脚本
                                                                                                     loadCss(
-                                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/moments.css"
+                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/moments.css"
                                                                                                     );
                                                                                                     loadScript(
-                                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/moments.js",
+                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/moments.js",
                                                                                                         () => {
                                                                                                             console.log(
                                                                                                                 "[小馨手机] 朋友圈发布页面模块加载完成"
                                                                                                             );
                                                                                                             // 加载设置页面样式和脚本
                                                                                                             loadCss(
-                                                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/ui/settings.css"
+                                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/settings.css"
                                                                                                             );
                                                                                                             loadScript(
-                                                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/ui/settings.js",
+                                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/settings.js",
                                                                                                                 () => {
                                                                                                                     console.log(
                                                                                                                         "[小馨手机] 设置页面模块加载完成"
                                                                                                                     );
                                                                                                                     // 加载钱包页面样式和脚本
                                                                                                                     loadCss(
-                                                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/wallet.css"
+                                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/wallet.css"
                                                                                                                     );
                                                                                                                     loadScript(
-                                                                                                                        "./scripts/extensions/third-party/小馨手机/app/wechat/ui/wallet.js",
+                                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/wallet.js",
                                                                                                                         () => {
                                                                                                                             console.log(
                                                                                                                                 "[小馨手机] 钱包页面模块加载完成"
                                                                                                                             );
                                                                                                                             loadScript(
-                                                                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/ui/components.js",
+                                                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/components.js",
                                                                                                                                 () => {
                                                                                                                                     loadScript(
-                                                                                                                                "./scripts/extensions/third-party/小馨手机/app/wechat/wechat-app.js",
+                                                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/wechat-app.js",
                                                                                                                                 () => {
                                                                                                                                     console.log(
                                                                                                                                         "[小馨手机] 微信应用加载完成"
@@ -273,7 +273,7 @@ function initMobilePlugin() {
 // 注册扩展设置面板
 function registerExtensionSettings() {
     // 加载扩展设置面板样式
-    loadCss("./scripts/extensions/third-party/小馨手机/extension-settings.css");
+    loadCss("./scripts/extensions/third-party/xiaoxin-phone/extension-settings.css");
 
     // 等待扩展设置容器加载完成
     const waitForContainer = setInterval(() => {
