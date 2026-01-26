@@ -1879,15 +1879,18 @@ select.xiaoxin-wechat-history-chat-select:visited {
 
 /* 底部输入栏按钮图标 */
 .xiaoxin-wechat-chat-input-voice {
-    background-image: url("/scripts/extensions/third-party/小馨手机/image/icon/语音按钮.jpg");
+    background-image: url("/scripts/extensions/third-party/xiaoxin-phone/image/icon/语音按钮.jpg");
+    background-color: transparent; /* 确保背景透明，显示图标 */
 }
 
 .xiaoxin-wechat-chat-input-emoji {
-    background-image: url("/scripts/extensions/third-party/小馨手机/image/icon/表情按钮.png");
+    background-image: url("/scripts/extensions/third-party/xiaoxin-phone/image/icon/表情按钮.png");
+    background-color: transparent; /* 确保背景透明，显示图标 */
 }
 
 .xiaoxin-wechat-chat-input-add {
-    background-image: url("/scripts/extensions/third-party/小馨手机/image/icon/聊天功能按钮.jpg");
+    background-image: url("/scripts/extensions/third-party/xiaoxin-phone/image/icon/聊天功能按钮.jpg");
+    background-color: transparent; /* 确保背景透明，显示图标 */
 }
 
 .xiaoxin-wechat-chat-input-field {
@@ -2768,11 +2771,11 @@ select.xiaoxin-wechat-history-chat-select:visited {
 }
 
 .xiaoxin-call-options-icon-video {
-    background-image: url("/scripts/extensions/third-party/小馨手机/image/icon/视频通话选择按钮.jpg");
+    background-image: url("/scripts/extensions/third-party/xiaoxin-phone/image/icon/视频通话选择按钮.jpg");
 }
 
 .xiaoxin-call-options-icon-voice {
-    background-image: url("/scripts/extensions/third-party/小馨手机/image/icon/语音通话选择按钮.jpg");
+    background-image: url("/scripts/extensions/third-party/xiaoxin-phone/image/icon/语音通话选择按钮.jpg");
 }
 
 .xiaoxin-call-options-label {
