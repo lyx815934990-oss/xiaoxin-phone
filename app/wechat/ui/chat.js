@@ -316,27 +316,27 @@ window.XiaoxinWeChatChatUI = (function () {
         // 菜单按钮配置
         var menuItems = [
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/照片图标.png",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/照片图标.png",
                 label: "照片",
             },
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/视频通话图标.png",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/视频通话图标.png",
                 label: "视频通话",
             },
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/红包图标.png",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/红包图标.png",
                 label: "红包",
             },
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/转账图标.png",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/转账图标.png",
                 label: "转账",
             },
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/个人名片图标.png",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/个人名片图标.png",
                 label: "个人名片",
             },
             {
-                icon: "/scripts/extensions/third-party/小馨手机/image/icon/音乐图标.png",
+                icon: "/scripts/extensions/third-party/xiaoxin-phone/image/icon/音乐图标.png",
                 label: "音乐",
             },
         ];
@@ -349,7 +349,10 @@ window.XiaoxinWeChatChatUI = (function () {
             var $menuIcon = $(
                 '<div class="xiaoxin-wechat-chat-menu-icon"></div>'
             );
-            $menuIcon.css("background-image", "url(" + item.icon + ")");
+            // 设置图标背景图片
+            var iconUrl = item.icon;
+            console.info("[小馨手机][微信聊天UI] 设置菜单图标:", item.label, iconUrl);
+            $menuIcon.css("background-image", "url(" + iconUrl + ")");
             var $menuLabel = $(
                 '<div class="xiaoxin-wechat-chat-menu-label"></div>'
             ).text(item.label);
@@ -505,7 +508,7 @@ window.XiaoxinWeChatChatUI = (function () {
                     "";
                 var avatarUrl =
                     (contact && contact.avatar) ||
-                    "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                    "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
 
                 var showRealName = canTransferToContact(contact);
                 // 优先从联系方式中读取实名信息（从世界书解析的字段）
@@ -2306,7 +2309,7 @@ window.XiaoxinWeChatChatUI = (function () {
                     if (currentCategory.id === "default") {
                         // 默认分组：直接是文件名，加上路径前缀
                         url =
-                            "/scripts/extensions/third-party/小馨手机/image/表情包/" +
+                            "/scripts/extensions/third-party/xiaoxin-phone/image/表情包/" +
                             item;
                         description = "表情包";
                     } else {
@@ -3531,10 +3534,10 @@ note=${playerName}对${charRealName}发起了语音通话
                 contact && contact.id ? String(contact.id) : String(chatUserId);
 
             var safeContent = String(emojiContent || "").trim();
-            // 如果传入的是完整URL（/scripts/extensions/third-party/小馨手机/image/表情包/xxx.png），
+            // 如果传入的是完整URL（/scripts/extensions/third-party/xiaoxin-phone/image/表情包/xxx.png），
             // 为了兼容 _getEmojiPath 的逻辑，统一只保留文件名/ID，后续再由 _getEmojiPath 拼接前缀
             safeContent = safeContent.replace(
-                /^\/scripts\/extensions\/third-party\/小馨手机\/image\/表情包\//,
+                /^\/scripts\/extensions\/third-party\/xiaoxin-phone\/image\/表情包\//,
                 ""
             );
             if (!safeContent) safeContent = "表情包";
@@ -6116,9 +6119,9 @@ note=${playerName}对${charRealName}发起了语音通话
                 : null;
             var avatarUrl = isPlayerMessage
                 ? (account && account.avatar) ||
-                  "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg"
+                  "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg"
                 : contact.avatar ||
-                  "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+                  "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
             $avatar.css("background-image", "url(" + avatarUrl + ")");
             $messageContent.append($avatar);
         }
@@ -7505,7 +7508,7 @@ note=${playerName}对${charRealName}发起了语音通话
                         "[小馨手机][微信聊天UI] 历史消息已处理但没有有效图片URL，使用默认图片:",
                         message.id
                     );
-                    var $defaultImg = $('<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg">');
+                    var $defaultImg = $('<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg">');
                     $defaultImg.css("opacity", "0.5");
                     adjustImageSize($defaultImg);
                     $bubble.append($defaultImg);
@@ -7626,7 +7629,7 @@ note=${playerName}对${charRealName}发起了语音通话
                     } else {
                         // 降级处理：使用默认路径
                         emojiPath =
-                            "/scripts/extensions/third-party/小馨手机/image/表情包/" +
+                            "/scripts/extensions/third-party/xiaoxin-phone/image/表情包/" +
                             trimmedContent;
                     }
                     $bubble.append(
@@ -7681,7 +7684,7 @@ note=${playerName}对${charRealName}发起了语音通话
                         }
                     }
                     // 如果没有图片URL，可能是描述文本，但已处理过，使用默认图片
-                    var $defaultImg = $('<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg">');
+                    var $defaultImg = $('<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg">');
                     $defaultImg.css("opacity", "0.5");
                     adjustImageSize($defaultImg);
                     $bubble.append($defaultImg);
@@ -7802,7 +7805,7 @@ note=${playerName}对${charRealName}发起了语音通话
                         );
                         $loadingImg.remove();
                         var $timeoutImg = $(
-                            '<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg">'
+                            '<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg">'
                         );
                         adjustImageSize($timeoutImg);
                         $timeoutImg.css("opacity", "0.5");
@@ -7909,7 +7912,7 @@ note=${playerName}对${charRealName}发起了语音通话
                                         // 最终失败，使用默认图片
                                         $(this).attr(
                                             "src",
-                                            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg"
+                                            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg"
                                         );
                                         $(this).css("opacity", "0.5");
                                         // 移除点击放大功能（因为是占位图）
@@ -8030,7 +8033,7 @@ note=${playerName}对${charRealName}发起了语音通话
                                 );
                                 $loadingImg.remove();
                                 var $defaultImg = $(
-                                    '<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg">'
+                                    '<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg">'
                                 );
                                 adjustImageSize($defaultImg);
                                 // 默认图片不添加点击放大功能（因为是占位图）
@@ -8050,7 +8053,7 @@ note=${playerName}对${charRealName}发起了语音通话
                             );
                             $loadingImg.remove();
                             var $errorImg = $(
-                                '<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg">'
+                                '<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg">'
                             );
                             $errorImg.css("opacity", "0.5");
                             adjustImageSize($errorImg);
@@ -8063,7 +8066,7 @@ note=${playerName}对${charRealName}发起了语音通话
                     );
                     $loadingImg.remove();
                     var $defaultImg = $(
-                        '<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg">'
+                        '<img class="xiaoxin-wechat-chat-message-image-img" src="/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg">'
                     );
                     adjustImageSize($defaultImg);
                     // 默认图片不添加点击放大功能（因为是占位图）
@@ -8218,7 +8221,7 @@ note=${playerName}对${charRealName}发起了语音通话
                 } else {
                     // 是文件名格式，加上路径前缀
                     emojiPath =
-                        "/scripts/extensions/third-party/小馨手机/image/表情包/" +
+                        "/scripts/extensions/third-party/xiaoxin-phone/image/表情包/" +
                         emojiContent;
                 }
             }
@@ -8521,7 +8524,7 @@ note=${playerName}对${charRealName}发起了语音通话
                     } else {
                         // 是文件名格式，加上路径前缀
                         emojiPath =
-                            "/scripts/extensions/third-party/小馨手机/image/表情包/" +
+                            "/scripts/extensions/third-party/xiaoxin-phone/image/表情包/" +
                             emojiFromContent;
                     }
                 }
@@ -8976,7 +8979,7 @@ note=${playerName}对${charRealName}发起了语音通话
         var senderContact = null;
         var senderName = "未知";
         var senderAvatar =
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
 
         if (window.XiaoxinWeChatDataHandler) {
             var allContacts =
@@ -9982,7 +9985,7 @@ note=${playerName}对${charRealName}发起了语音通话
             : "";
         var avatarUrl =
             contact.avatar ||
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
 
         var $topInfo = $('<div class="xiaoxin-wechat-chat-settings-top"></div>');
         var $avatar = $(
