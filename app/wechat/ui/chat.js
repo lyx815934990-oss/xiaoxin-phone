@@ -300,7 +300,7 @@ window.XiaoxinWeChatChatUI = (function () {
         );
         // 确保语音按钮图标正确加载
         $voiceBtn.css("background-image", "url(/scripts/extensions/third-party/xiaoxin-phone/image/icon/语音按钮.jpg)");
-        
+
         var $inputField = $(
             '<input type="text" class="xiaoxin-wechat-chat-input-field" placeholder="">'
         );
@@ -309,7 +309,7 @@ window.XiaoxinWeChatChatUI = (function () {
         );
         // 确保表情按钮图标正确加载
         $emojiBtn.css("background-image", "url(/scripts/extensions/third-party/xiaoxin-phone/image/icon/表情按钮.png)");
-        
+
         var $addBtn = $('<div class="xiaoxin-wechat-chat-input-add"></div>');
         // 确保加号按钮图标正确加载
         $addBtn.css("background-image", "url(/scripts/extensions/third-party/xiaoxin-phone/image/icon/聊天功能按钮.jpg)");
@@ -3940,6 +3940,65 @@ note=${playerName}对${charRealName}发起了语音通话
                 }
             });
 
+            // ===== 工具：用于“预览消息（pending）”与“已确认消息”之间的近似去重 =====
+            function _toAmountNumber(v) {
+                var n = typeof v === "number" ? v : parseFloat(String(v || "").replace(/[^\d.\-]/g, ""));
+                if (isNaN(n)) n = 0;
+                // 统一到分（2位小数）比较，避免 200 与 200.00 的浮点误差
+                return Math.round(n * 100) / 100;
+            }
+
+            function _parseMessageTime(msg) {
+                if (!msg) return null;
+                if (typeof msg.timestamp === "number" && msg.timestamp > 0) return msg.timestamp;
+                var timeStr = (msg.rawTime || msg.time || "").trim();
+                if (!timeStr) return null;
+                // 尽量兼容世界观时间/中文日期/不同分隔符
+                var normalized = timeStr
+                    .replace(/-/g, "/")
+                    .replace(/年/g, "/")
+                    .replace(/月/g, "/")
+                    .replace(/日/g, " ")
+                    .replace(/星期[一二三四五六日]/g, "")
+                    .trim()
+                    .replace(/\s+/g, " ");
+                var parsed = Date.parse(normalized);
+                if (!isNaN(parsed)) return parsed;
+                return null;
+            }
+
+            function _isDuplicateTransfer(pendingMsgObj, confirmedMsg) {
+                if (!pendingMsgObj || !confirmedMsg) return false;
+                if (pendingMsgObj.type !== "transfer" || confirmedMsg.type !== "transfer") return false;
+
+                var pAmt = _toAmountNumber(pendingMsgObj.amount);
+                // 已确认消息可能走 payload.amount 或 amount 两种字段
+                var cAmt = _toAmountNumber(
+                    (confirmedMsg.payload && confirmedMsg.payload.amount) ||
+                        confirmedMsg.amount
+                );
+                if (pAmt !== cAmt) return false;
+
+                var pNote = String(pendingMsgObj.note || "").trim();
+                var cNote = String(
+                    (confirmedMsg.payload && confirmedMsg.payload.note) ||
+                        confirmedMsg.note ||
+                        ""
+                ).trim();
+                // 备注允许为空；若双方都有备注则要求一致（避免误删）
+                if (pNote && cNote && pNote !== cNote) return false;
+
+                var pt = _parseMessageTime(pendingMsgObj);
+                var ct = _parseMessageTime(confirmedMsg);
+                // 时间近似：2分钟内视为同一笔（兼容模型重写 id/time 的情况）
+                if (pt && ct && Math.abs(ct - pt) <= 2 * 60 * 1000) return true;
+
+                // 如果无法解析时间，则退化为“同金额 + 备注相容”即可（仅对 transfer 生效）
+                if (!pt || !ct) return true;
+
+                return false;
+            }
+
             // 3. 移除已确认的预览消息，避免重复显示
             Object.keys(pendingMessages).forEach(function (pid) {
                 if (
@@ -3948,6 +4007,27 @@ note=${playerName}对${charRealName}发起了语音通话
                     })
                 ) {
                     delete pendingMessages[pid];
+                    return;
+                }
+
+                // 转账消息：如果模型/解析器改写了 id，按“金额+备注+时间近似”清除预览
+                var pendingObj = pendingMessages[pid];
+                if (pendingObj && pendingObj.type === "transfer") {
+                    var dup = confirmedMessages.some(function (m) {
+                        return _isDuplicateTransfer(pendingObj, m);
+                    });
+                    if (dup) {
+                        console.info(
+                            "[小馨手机][微信聊天UI] 清除已确认转账消息的预览（指纹匹配）:",
+                            "pendingId:",
+                            pid,
+                            "amount:",
+                            pendingObj.amount,
+                            "note:",
+                            pendingObj.note
+                        );
+                        delete pendingMessages[pid];
+                    }
                 }
             });
 
@@ -5037,9 +5117,12 @@ note=${playerName}对${charRealName}发起了语音通话
                     eventMessages = fullMessages;
                 }
 
-                // 检查是否有角色发送的消息（需要等待队列显示）
+                // 检查是否有角色发送的消息（需要等待队列显示）以及是否包含玩家消息
                 var hasCharacterMessages = eventMessages.some(function (msg) {
                     return msg.isOutgoing === false;
+                });
+                var hasPlayerMessages = eventMessages.some(function (msg) {
+                    return msg.isOutgoing === true;
                 });
 
                 // 当收到新消息（角色回复或玩家自己发送的消息被确认）时，
@@ -5064,10 +5147,15 @@ note=${playerName}对${charRealName}发起了语音通话
                     }
                 });
 
-                // 如果有角色消息，不立即刷新（等待队列管理器显示）
-                // 如果没有角色消息（只有玩家消息），立即刷新
-                if (!hasCharacterMessages) {
-                    // 只有玩家消息，立即刷新
+                // 如果包含玩家消息，则无论是否有角色消息，都要立即刷新玩家侧（显示确认后的绿色气泡）
+                // 否则：如果只有角色消息，则交给队列管理器在显示完成后再刷新
+                if (hasPlayerMessages) {
+                    console.info(
+                        "[小馨手机][微信聊天UI] 更新中包含玩家消息，立即刷新（即使同时有角色消息）"
+                    );
+                    refreshMessageList();
+                } else if (!hasCharacterMessages) {
+                    // 只有玩家消息（理论上与 hasPlayerMessages 等价，这里保留兜底）
                     console.info(
                         "[小馨手机][微信聊天UI] 只有玩家消息，立即刷新"
                     );
@@ -5121,6 +5209,59 @@ note=${playerName}对${charRealName}发起了语音通话
             }
         }
         window.addEventListener("xiaoxin-message-typing", handleMessageTyping);
+
+        // ========== 监听联系人头像更新（用于“停留在聊天页时实时换头像”） ==========
+        function handleContactAvatarUpdated(event) {
+            try {
+                var detail = event && event.detail ? event.detail : {};
+                function normId(v) {
+                    return String(v || "")
+                        .trim()
+                        .replace(/^contact_/, "");
+                }
+
+                var eventContactId = normId(detail.contactId);
+                var avatarUrl = String(detail.avatarUrl || "").trim();
+                if (!eventContactId || !avatarUrl) return;
+
+                // 检查是否匹配当前聊天对象
+                var isMatch = false;
+                if (eventContactId === normId(chatUserId) || eventContactId === normId(userId)) {
+                    isMatch = true;
+                } else if (contact) {
+                    if (
+                        eventContactId === normId(contact.id) ||
+                        eventContactId === normId(contact.wechatId) ||
+                        eventContactId === normId(contact.characterId)
+                    ) {
+                        isMatch = true;
+                    }
+                }
+                if (!isMatch) return;
+
+                // 先同步闭包 contact（避免本次渲染仍用旧值）
+                try {
+                    if (contact) {
+                        contact.avatar = avatarUrl;
+                    }
+                } catch (e1) {}
+
+                // 强制整页重绘（会从 DataHandler 重新读取最新联系人数据）
+                if (
+                    window.XiaoxinWeChatChatUI &&
+                    typeof window.XiaoxinWeChatChatUI.refreshChatScreen === "function"
+                ) {
+                    window.XiaoxinWeChatChatUI.refreshChatScreen(chatUserId);
+                } else if (typeof refreshChatScreen === "function") {
+                    refreshChatScreen(chatUserId);
+                } else if (typeof refreshMessageList === "function") {
+                    refreshMessageList();
+                }
+            } catch (e) {
+                console.warn("[小馨手机][微信聊天UI] 处理联系人头像更新事件失败:", e);
+            }
+        }
+        window.addEventListener("xiaoxin-contact-avatar-updated", handleContactAvatarUpdated);
 
         // 监听消息显示完成事件
         function handleMessageDisplayed(event) {
@@ -5615,66 +5756,88 @@ note=${playerName}对${charRealName}发起了语音通话
                 }
 
                 // 5. 生成新消息的时间
-                // 规则：必须读取“最新世界观时间”（来自最近的 [time] 标签/全局世界观时钟），并在此基础上延后 30 秒作为玩家新消息时间。
-                // 同时保证：若最后一条已存在消息时间更晚，则以它为基准再 +30 秒，避免玩家消息被排序到上面。
-                var baseTimestamp = lastWorldTimestamp;
-                if (lastMessageTimestamp > lastWorldTimestamp) {
-                    // 角色消息的时间戳超过了当前世界观时间，使用最后一条消息时间作为基准
-                    baseTimestamp = lastMessageTimestamp;
-                    console.info(
-                        "[小馨手机][微信聊天UI] 角色消息时间戳超过世界观时间，使用最后一条消息时间戳:",
-                        baseTimestamp,
-                        "世界观时间:",
-                        lastWorldTimestamp
-                    );
-                } else {
-                    // 使用最新的世界观时间（从时间标签获取）
-                    baseTimestamp = lastWorldTimestamp;
-                    console.info(
-                        "[小馨手机][微信聊天UI] 使用最新的世界观时间:",
-                        baseTimestamp
+                // 规则：
+                // - 基准时间 = max(最新世界观时间, 聊天记录中最后一条消息时间, 酒馆输入框中最后一个 [time] 标签时间)
+                // - 在此基础上，按玩家输入字数动态追加时间：参考 80-120 字/分钟，这里取中值 100 字/分钟
+                //   也就是每个字符约 0.6 秒，过短对话设下限，过长对话设上限，避免跨度过小/过大
+
+                // 从酒馆输入框中获取最后一个 [time] 标签时间（若存在）
+                var inputTimeTimestamp = null;
+                try {
+                    var tavernInputForTime = document.getElementById("send_textarea");
+                    if (tavernInputForTime && tavernInputForTime.value) {
+                        var inputText = String(tavernInputForTime.value);
+                        var timeRe = /\[time\]([\s\S]*?)\[\/time\]/gi;
+                        var matchTime;
+                        var lastTimeStr = "";
+                        while ((matchTime = timeRe.exec(inputText)) !== null) {
+                            lastTimeStr = matchTime[1] || "";
+                        }
+                        if (lastTimeStr) {
+                            var normalizedInputTimeStr = lastTimeStr
+                                .replace(/-/g, "/")
+                                .replace(/年/g, "/")
+                                .replace(/月/g, "/")
+                                .replace(/日/g, " ")
+                                .replace(/星期[一二三四五六日]/g, "")
+                                .trim();
+                            var parsedInputTs = Date.parse(normalizedInputTimeStr);
+                            if (!isNaN(parsedInputTs)) {
+                                inputTimeTimestamp = parsedInputTs;
+                                console.info(
+                                    "[小馨手机][微信聊天UI] 从输入框最后一个 [time] 标签获取时间:",
+                                    lastTimeStr,
+                                    "->",
+                                    parsedInputTs
+                                );
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn(
+                        "[小馨手机][微信聊天UI] 从输入框解析 [time] 标签失败:",
+                        e
                     );
                 }
 
-                // 玩家消息时间戳 = 基准时间戳 + 30秒，确保在最后且更贴近真实对话节奏
-                var nextTimestamp = baseTimestamp + 30000;
+                // 计算基准时间戳
+                var baseTimestamp = lastWorldTimestamp;
+                if (lastMessageTimestamp > (baseTimestamp || 0)) {
+                    baseTimestamp = lastMessageTimestamp;
+                }
+                if (inputTimeTimestamp && inputTimeTimestamp > (baseTimestamp || 0)) {
+                    baseTimestamp = inputTimeTimestamp;
+                }
+                if (!baseTimestamp || baseTimestamp <= 0) {
+                    baseTimestamp = Date.now();
+                }
+                console.info(
+                    "[小馨手机][微信聊天UI] 计算玩家消息基准时间戳:",
+                    baseTimestamp,
+                    "世界观时间:",
+                    lastWorldTimestamp,
+                    "最后一条消息时间:",
+                    lastMessageTimestamp,
+                    "输入框 [time] 时间:",
+                    inputTimeTimestamp
+                );
+
+                // 按字数动态追加时间：参考 100 字/分钟 ≈ 每字符 0.6 秒
+                var charsPerMinute = 100;
+                var chars = text.length;
+                var estimatedMs = Math.round((chars / charsPerMinute) * 60000);
+                // 设定上下限：至少 5 秒，最多 5 分钟，避免极端值
+                var minMs = 5000;
+                var maxMs = 5 * 60 * 1000;
+                if (estimatedMs < minMs) estimatedMs = minMs;
+                if (estimatedMs > maxMs) estimatedMs = maxMs;
+
+                var nextTimestamp = baseTimestamp + estimatedMs;
                 var nowDate = new Date(nextTimestamp);
 
-                // 优先使用全局时钟的原始时间字符串，如果没有则格式化时间戳
-                var nowStr = "";
-                if (
-                    window.XiaoxinWorldClock &&
-                    window.XiaoxinWorldClock.rawTime
-                ) {
-                    // 如果有原始时间字符串，基于它生成新时间（加1分钟）
-                    var rawTimeStr = window.XiaoxinWorldClock.rawTime;
-                    // 尝试解析原始时间字符串（支持多种格式）
-                    // 支持格式：2018年6月20日 星期三 07:55:00 或 2026-01-08 12:02:34
-                    var normalizedTimeStr = rawTimeStr
-                        .replace(/-/g, "/")
-                        .replace(/年|月|日|星期[一二三四五六日]/g, " ");
-                    var baseTime = Date.parse(normalizedTimeStr);
-                    if (!isNaN(baseTime)) {
-                        var newTime = new Date(baseTime + 60000);
-                        nowStr = formatTime(newTime);
-                        console.info(
-                            "[小馨手机][微信聊天UI] 基于原始时间字符串生成新时间:",
-                            rawTimeStr,
-                            "->",
-                            nowStr
-                        );
-                    } else {
-                        // 如果无法解析，使用格式化后的时间戳
-                        console.warn(
-                            "[小馨手机][微信聊天UI] 无法解析原始时间字符串，使用时间戳:",
-                            rawTimeStr
-                        );
-                        nowStr = formatTime(nowDate);
-                    }
-                } else {
-                    // 没有原始时间字符串，使用格式化后的时间戳
-                    nowStr = formatTime(nowDate);
-                }
+                // 直接使用本次计算出的时间戳来格式化世界观时间字符串
+                // 不再额外 +1 分钟，完全由 estimatedMs（按字数估算）决定推进量
+                var nowStr = formatTime(nowDate);
                 // 使用角色ID和玩家ID
                 // 获取玩家微信id（优先使用账号的 wechatId，其次 id）
                 var account = window.XiaoxinWeChatAccount
@@ -5695,6 +5858,10 @@ note=${playerName}对${charRealName}发起了语音通话
                     from: String(fromId),
                     to: String(toId),
                     type: "text",
+                    // 关键：必须标记为玩家发出，否则 refreshMessageList 的过滤逻辑会把它当“角色消息未入队”而隐藏
+                    isOutgoing: true,
+                    // 兼容渲染：部分路径读 content，部分读 payload.content
+                    content: text,
                     payload: { content: text },
                 };
                 // 使用简洁的 字段=值 格式，去掉花括号
@@ -5714,13 +5881,18 @@ note=${playerName}对${charRealName}发起了语音通话
                     "content=" +
                     text +
                     "\n" +
-                    "[/MSG]";
+                    "[/MSG]\n" +
+                    "[time]" +
+                    nowStr +
+                    "[/time]";
 
                 // 将消息添加到预览列表
                 // 补充 timestamp/rawTime 给预览
                 msgObj.timestamp = nextTimestamp;
                 msgObj.rawTime = nowStr;
                 pendingMessages[msgId] = msgObj;
+                // 这里只负责“待发送预览”，真正落盘 & 转为已确认消息仍交给消息监听器解析 [MSG] 之后完成
+                // 否则会出现“消息还没发送就被当作已确认显示”的问题
                 refreshMessageList();
 
                 // 推进全局世界观时钟，避免下一条玩家消息又回到旧时间导致排序错乱
