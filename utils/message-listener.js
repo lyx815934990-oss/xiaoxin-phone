@@ -474,6 +474,12 @@ window.XiaoxinMessageListener = (function () {
 
         while ((match = contactRegex.exec(messageContent)) !== null) {
             var contactContent = match[1];
+            // 容错预处理：<br> 视为换行；全角等号转半角；将“同一行多字段”尽量拆成多行
+            // 注意：这里只做“保守拆分”，避免破坏 URL（URL 内一般不包含等号）
+            contactContent = String(contactContent || "")
+                .replace(/<br\s*\/?>/gi, "\n")
+                .replace(/＝/g, "=")
+                .replace(/\s+([^=\s]+)\s*=/g, "\n$1="); // e.g. "角色ID=1 电话号码=..." -> 分行
             var contact = {};
             var previousLine = "";
 
@@ -487,6 +493,20 @@ window.XiaoxinMessageListener = (function () {
                 if (!line) {
                     previousLine = "";
                     continue;
+                }
+
+                // 容错：支持中文冒号/全角冒号作为分隔符（仅当该行没有 '=' 时）
+                if (line.indexOf("=") === -1) {
+                    // 只替换第一个冒号，避免 URL 的 "https://"
+                    var idxColon = line.indexOf("：");
+                    if (idxColon !== -1) {
+                        line = line.replace("：", "=");
+                    } else {
+                        idxColon = line.indexOf(":");
+                        if (idxColon !== -1) {
+                            line = line.replace(":", "=");
+                        }
+                    }
                 }
 
                 var equalIndex = line.indexOf("=");
@@ -548,6 +568,10 @@ window.XiaoxinMessageListener = (function () {
                         // 清理电话号码中的 HTML 和非数字字符，确保只保留纯数字
                         var rawPhone = cleanFieldValue(fieldValue);
                         var digitsOnly = rawPhone.replace(/[^\d]/g, "");
+                        // 强制 10 位：若多于 10 位（常见 +86 / 11 位等），取末 10 位，保证搜索/匹配稳定
+                        if (digitsOnly.length > 10) {
+                            digitsOnly = digitsOnly.slice(-10);
+                        }
                         contact.phone = digitsOnly;
                         contact.phoneNumber = digitsOnly;
                         processedFields["电话号码"] = true;
