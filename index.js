@@ -1,6 +1,6 @@
 // ==SillyTavern Extension==
 // @name         小馨手机
-// @version      0.1.5
+// @version      0.1.6
 // @description  一个真实体验的悬浮手机插件，支持微信聊天、电话、短信、微博等功能
 // @author       小馨肥肉
 
@@ -27,14 +27,16 @@ function initMobilePlugin() {
     try {
         console.log("[小馨手机] SillyTavern已就绪，开始初始化手机插件...");
 
-        // 注册扩展设置面板
+        // 注册扩展设置面板（始终注册，哪怕插件被禁用，也要能在界面里重新开启）
         registerExtensionSettings();
+        // 初始化扩展设置面板逻辑（始终初始化，保证总开关和版本信息可用）
+        initExtensionSettingsPanel();
 
         // 检查插件总开关
         var pluginEnabled =
             localStorage.getItem("xiaoxin_plugin_enabled") !== "false";
         if (!pluginEnabled) {
-            console.log("[小馨手机] 插件总开关已关闭，跳过初始化");
+            console.log("[小馨手机] 插件总开关已关闭，仅加载设置面板，跳过其他模块初始化");
             return;
         }
 
@@ -361,7 +363,9 @@ function initExtensionSettingsPanel() {
     // 等待设置面板加载
     const waitForPanel = setInterval(() => {
         const panel = document.getElementById("xiaoxin-mobile-settings-panel");
-        if (panel && window.XiaoxinDataManager) {
+        // 只要设置面板 DOM 已经插入，就初始化逻辑；
+        // DataManager 不一定存在（当插件被禁用时不会加载），相关逻辑内部再做判断
+        if (panel) {
             clearInterval(waitForPanel);
 
             // 加载插件总开关状态
