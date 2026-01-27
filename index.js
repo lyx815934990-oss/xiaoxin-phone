@@ -1,6 +1,6 @@
 // ==SillyTavern Extension==
 // @name         小馨手机
-// @version      0.1.6
+// @version      0.1.7
 // @description  一个真实体验的悬浮手机插件，支持微信聊天、电话、短信、微博等功能
 // @author       小馨肥肉
 
@@ -305,17 +305,41 @@ function registerExtensionSettings() {
                                 <i class="fa-solid fa-circle-exclamation" style="color: #4a9eff;"></i>
                                 <strong style="color: #4a9eff;">发现新版本</strong>
                             </div>
-                            <div style="color: rgba(255, 255, 255, 0.8); font-size: 0.9em; margin-bottom: 10px;">
+                            <div style="color: rgba(255, 255, 255, 0.8); font-size: 0.9em; margin-bottom: 6px;">
                                 当前版本：<span id="xiaoxin-current-version">-</span> |
                                 最新版本：<span id="xiaoxin-latest-version">-</span>
                             </div>
-                            <button id="xiaoxin-update-btn" class="menu_button" style="width: 100%;">
-                                <i class="fa-solid fa-download"></i> 立即更新
-                            </button>
-                            <small style="display: block; margin-top: 8px; color: rgba(255, 255, 255, 0.6);">
+                            <div style="display:flex; justify-content: space-between; align-items:center; gap:8px; margin-bottom: 8px;">
+                                <button id="xiaoxin-update-btn" class="menu_button" style="flex:1;">
+                                    <i class="fa-solid fa-download"></i> 立即更新
+                                </button>
+                                <button id="xiaoxin-release-notes-btn" class="menu_button menu_button-secondary" style="white-space: nowrap;">
+                                    更新说明
+                                </button>
+                            </div>
+                            <small style="display: block; margin-top: 4px; color: rgba(255, 255, 255, 0.6);">
                                 更新将自动从 GitHub 下载最新版本<br>
+                                <a id="xiaoxin-release-link" href="https://github.com/lyx815934990-oss/xiaoxin-phone/releases" target="_blank" style="color: #4a9eff; text-decoration: underline;">在 GitHub 查看完整更新说明</a><br>
                                 <span style="color: rgba(255, 200, 0, 0.8);">⚠️ 如果网络无法访问 GitHub，自动更新会失败，建议使用手动更新方式</span>
                             </small>
+                        </div>
+                        <!-- 更新说明弹窗 -->
+                        <div id="xiaoxin-release-modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 9999; align-items: center; justify-content: center;">
+                            <div style="background: #202533; padding: 16px 18px; border-radius: 8px; max-width: 680px; width: 92%; max-height: 80vh; box-shadow: 0 10px 30px rgba(0,0,0,0.6); display:flex; flex-direction:column;">
+                                <div style="display:flex; justify-content: space-between; align-items:center; margin-bottom: 8px;">
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <i class="fa-solid fa-list" style="color:#4a9eff;"></i>
+                                        <strong style="color:#fff; font-size: 1em;">小馨手机 - 更新说明</strong>
+                                    </div>
+                                    <button id="xiaoxin-release-modal-close" class="menu_button" style="padding:2px 8px; min-width:auto;">
+                                        关闭
+                                    </button>
+                                </div>
+                                <div id="xiaoxin-release-modal-content" style="flex:1; overflow-y:auto; padding:8px; margin-top:4px; background: rgba(0,0,0,0.25); border-radius:4px; font-size:0.9em; line-height:1.5; font-family: 'SimHei', 'Microsoft YaHei', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;"></div>
+                                <div style="margin-top:8px; font-size:0.8em; color:rgba(255,255,255,0.7);">
+                                    提示：仅显示你当前版本（含）之后、最新版本（含）之间的所有更新记录。完整内容请前往 GitHub 查看。
+                                </div>
+                            </div>
                         </div>
                         <!-- 版本信息（无更新时显示） -->
                         <div id="xiaoxin-version-info" style="margin-bottom: 16px; padding: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 4px;">
@@ -593,11 +617,10 @@ function checkForUpdates(currentVersion) {
         setTimeout(() => reject(new Error("网络请求超时，请检查网络连接")), 10000);
     });
 
-    // 从 GitHub API 获取最新 release 或 tag
-    // 使用 GitHub API: https://api.github.com/repos/{owner}/{repo}/releases/latest
-    // 或者获取 tags: https://api.github.com/repos/{owner}/{repo}/tags
+    // 从 GitHub API 获取所有 releases（按发布时间倒序）
+    // 使用 GitHub API: https://api.github.com/repos/{owner}/{repo}/releases
     Promise.race([
-        fetch("https://api.github.com/repos/lyx815934990-oss/xiaoxin-phone/releases/latest", {
+        fetch("https://api.github.com/repos/lyx815934990-oss/xiaoxin-phone/releases", {
             method: "GET",
             headers: {
                 "Accept": "application/vnd.github.v3+json"
@@ -633,14 +656,38 @@ function checkForUpdates(currentVersion) {
             return response.json();
         })
         .then(data => {
-            const latestVersion = data.tag_name ? data.tag_name.replace(/^v/, "") : data.name.replace(/^v/, "");
+            if (!Array.isArray(data) || data.length === 0) {
+                throw new Error("未找到任何 Release");
+            }
+
             const currentVersionNum = parseVersion(currentVersion);
-            const latestVersionNum = parseVersion(latestVersion);
+
+            // 解析所有 Release，提取版本号、说明、链接
+            const parsedReleases = data
+                .map(item => {
+                    const rawVersion = (item.tag_name || item.name || "").replace(/^v/, "");
+                    const version = rawVersion || "0.0.0";
+                    return {
+                        version,
+                        versionNum: parseVersion(version),
+                        body: typeof item.body === "string" ? item.body.trim() : "",
+                        url: item.html_url || repoUrl + "/releases",
+                        publishedAt: item.published_at || item.created_at || ""
+                    };
+                })
+                .sort((a, b) => {
+                    // GitHub 默认已按时间排序，这里再按版本号从高到低保险一下
+                    return compareVersions(b.versionNum, a.versionNum);
+                });
+
+            // 找出所有“比当前版本新的” Release，用于弹窗展示
+            const newerReleases = parsedReleases.filter(r => compareVersions(r.versionNum, currentVersionNum) >= 0);
+            const latest = newerReleases[0] || parsedReleases[0];
 
             console.log("[小馨手机] 版本检查:", {
                 current: currentVersion,
-                latest: latestVersion,
-                needsUpdate: compareVersions(latestVersionNum, currentVersionNum) > 0
+                latest: latest.version,
+                needsUpdate: compareVersions(latest.versionNum, currentVersionNum) > 0
             });
 
             // 显示版本信息
@@ -650,8 +697,8 @@ function checkForUpdates(currentVersion) {
             }
 
             // 如果有新版本，显示更新提醒
-            if (compareVersions(latestVersionNum, currentVersionNum) > 0) {
-                showUpdateNotice(currentVersion, latestVersion);
+            if (compareVersions(latest.versionNum, currentVersionNum) > 0) {
+                showUpdateNotice(currentVersion, latest.version, newerReleases);
             } else {
                 // 隐藏更新提醒，显示版本信息
                 const updateNotice = document.getElementById("xiaoxin-update-notice");
@@ -697,18 +744,64 @@ function checkForUpdates(currentVersion) {
 }
 
 // 显示更新提醒
-function showUpdateNotice(currentVersion, latestVersion) {
+// releases: 包含从当前版本（含）到最新版本（含）的所有 Release 信息
+function showUpdateNotice(currentVersion, latestVersion, releases) {
     const updateNotice = document.getElementById("xiaoxin-update-notice");
     const versionInfo = document.getElementById("xiaoxin-version-info");
     const currentVersionSpan = document.getElementById("xiaoxin-current-version");
     const latestVersionSpan = document.getElementById("xiaoxin-latest-version");
     const updateBtn = document.getElementById("xiaoxin-update-btn");
+    const releaseLink = document.getElementById("xiaoxin-release-link");
+    const releaseNotesBtn = document.getElementById("xiaoxin-release-notes-btn");
+    const releaseModal = document.getElementById("xiaoxin-release-modal");
+    const releaseModalClose = document.getElementById("xiaoxin-release-modal-close");
+    const releaseModalContent = document.getElementById("xiaoxin-release-modal-content");
 
     if (updateNotice && currentVersionSpan && latestVersionSpan) {
         currentVersionSpan.textContent = "v" + currentVersion;
         latestVersionSpan.textContent = "v" + latestVersion;
         updateNotice.style.display = "block";
         if (versionInfo) versionInfo.style.display = "none";
+
+        // Release 链接（指向最新版本）
+        if (releaseLink && Array.isArray(releases) && releases.length > 0) {
+            releaseLink.href = releases[0].url || releaseLink.href;
+        }
+
+        // 更新说明弹窗内容
+        if (Array.isArray(releases) && releases.length > 0 && releaseModalContent) {
+            const htmlParts = releases.map(rel => {
+                const title = `v${rel.version}`;
+                const date = rel.publishedAt ? new Date(rel.publishedAt).toLocaleString() : "";
+                let body = rel.body || "（此版本未提供详细说明）";
+                const maxLength = 1200;
+                if (body.length > maxLength) {
+                    body = body.slice(0, maxLength) + "\n…（内容过长，已截断，更多内容请在 GitHub 上查看）";
+                }
+                return `
+                    <div style="margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.08);">
+                        <div style="display:flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 4px;">
+                            <strong style="color:#4a9eff;">${title}</strong>
+                            <span style="font-size:0.8em; color:rgba(255,255,255,0.6);">${date}</span>
+                        </div>
+                        <pre style="margin:0; white-space: pre-wrap; font-family: inherit; color: rgba(255,255,255,0.88);">${body}</pre>
+                    </div>
+                `;
+            });
+            releaseModalContent.innerHTML = htmlParts.join("") || "<div>暂无更新说明。</div>";
+        }
+
+        // 绑定弹窗开关
+        if (releaseNotesBtn && releaseModal) {
+            releaseNotesBtn.onclick = function () {
+                releaseModal.style.display = "flex";
+            };
+        }
+        if (releaseModalClose && releaseModal) {
+            releaseModalClose.onclick = function () {
+                releaseModal.style.display = "none";
+            };
+        }
 
         // 绑定更新按钮事件
         if (updateBtn) {
