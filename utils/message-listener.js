@@ -28,6 +28,164 @@ window.XiaoxinMessageListener = (function () {
     // 用于避免重复处理的已处理消息ID集合
     var processedMessages = new Set();
 
+    // ========== 头像更换（玩家发送照片URL -> 角色决定是否更换） ==========
+    // 说明：
+    // - 玩家通过照片消息（type=photo / type=image）发送 image URL，并在 desc 中表达“换头像”意图
+    // - 扩展缓存候选头像；当下一条来自该联系人的 AI 消息出现时，按语义判断同意/拒绝并应用
+    // - 应用后仅更新“微信联系人头像”（contact.avatar），用于小馨手机内的显示与持久化
+    var AVATAR_CANDIDATE_KEY_PREFIX = "wechat_avatar_candidate_v1_"; // + contactId
+
+    function _isValidImageUrlForAvatar(url) {
+        if (!url || typeof url !== "string") return false;
+        var u = url.trim();
+        if (!u) return false;
+        return (
+            u.startsWith("http://") ||
+            u.startsWith("https://") ||
+            u.toLowerCase().startsWith("data:image") ||
+            u.toLowerCase().startsWith("local:") ||
+            (u.startsWith("/") && !u.startsWith("/scripts"))
+        );
+    }
+
+    function _hasAvatarChangeIntent(text) {
+        var s = String(text || "").trim().toLowerCase();
+        if (!s) return false;
+        // 关键词尽量保守：只要出现“头像”且伴随“换/改/设为/用作”等意图词就认为是请求
+        var hasAvatarWord = s.indexOf("头像") !== -1;
+        if (!hasAvatarWord) return false;
+        return (
+            s.indexOf("换") !== -1 ||
+            s.indexOf("改") !== -1 ||
+            s.indexOf("更新") !== -1 ||
+            s.indexOf("设为") !== -1 ||
+            s.indexOf("设置") !== -1 ||
+            s.indexOf("用这个") !== -1 ||
+            s.indexOf("用这张") !== -1 ||
+            s.indexOf("当头像") !== -1 ||
+            s.indexOf("做头像") !== -1
+        );
+    }
+
+    function _isRoleAcceptAvatar(text) {
+        var s = String(text || "").trim().toLowerCase();
+        if (!s) return false;
+        // 否定优先（避免“可以不换吗”这类误判）
+        var hasNeg =
+            s.indexOf("不换") !== -1 ||
+            s.indexOf("不需要") !== -1 ||
+            s.indexOf("不要") !== -1 ||
+            s.indexOf("不用") !== -1 ||
+            s.indexOf("不行") !== -1 ||
+            s.indexOf("拒绝") !== -1;
+        if (hasNeg) return false;
+
+        return (
+            s.indexOf("我换") !== -1 ||
+            s.indexOf("换上") !== -1 ||
+            s.indexOf("换了") !== -1 ||
+            s.indexOf("可以") !== -1 ||
+            s.indexOf("行") !== -1 ||
+            s.indexOf("好") !== -1 ||
+            s.indexOf("没问题") !== -1 ||
+            s.indexOf("就用这张") !== -1 ||
+            s.indexOf("用这个当头像") !== -1 ||
+            s.indexOf("设成头像") !== -1
+        );
+    }
+
+    function _isRoleRejectAvatar(text) {
+        var s = String(text || "").trim().toLowerCase();
+        if (!s) return false;
+        return (
+            s.indexOf("不换") !== -1 ||
+            s.indexOf("不要") !== -1 ||
+            s.indexOf("不用") !== -1 ||
+            s.indexOf("不行") !== -1 ||
+            s.indexOf("拒绝") !== -1 ||
+            s.indexOf("算了") !== -1 ||
+            s.indexOf("还是别") !== -1
+        );
+    }
+
+    function _getAvatarCandidate(contactId) {
+        try {
+            if (!window.XiaoxinDataManager || !contactId) return null;
+            return window.XiaoxinDataManager.getCharacterData(
+                AVATAR_CANDIDATE_KEY_PREFIX + String(contactId).trim(),
+                null
+            );
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function _setAvatarCandidate(contactId, payload) {
+        try {
+            if (!window.XiaoxinDataManager || !contactId) return;
+            window.XiaoxinDataManager.setCharacterData(
+                AVATAR_CANDIDATE_KEY_PREFIX + String(contactId).trim(),
+                payload || null
+            );
+        } catch (e) {}
+    }
+
+    function _clearAvatarCandidate(contactId) {
+        try {
+            if (!window.XiaoxinDataManager || !contactId) return;
+            window.XiaoxinDataManager.clearCharacterData(
+                AVATAR_CANDIDATE_KEY_PREFIX + String(contactId).trim()
+            );
+        } catch (e) {}
+    }
+
+    function _applyContactAvatar(contactId, url) {
+        if (!contactId || !url) return false;
+        if (!window.XiaoxinWeChatDataHandler || typeof window.XiaoxinWeChatDataHandler.addContact !== "function") {
+            return false;
+        }
+        try {
+            window.XiaoxinWeChatDataHandler.addContact({
+                id: String(contactId).trim(),
+                avatar: String(url).trim(),
+            });
+
+            // 如果当前正打开该聊天，顺便刷新一下 UI（chat.js 的 contact 对象是局部变量，尽量同步）
+            try {
+                if (
+                    window.XiaoxinWeChatChatUI &&
+                    window.XiaoxinWeChatChatUI.contact &&
+                    String(window.XiaoxinWeChatChatUI.contact.id || "").trim() === String(contactId).trim()
+                ) {
+                    window.XiaoxinWeChatChatUI.contact.avatar = String(url).trim();
+                    if (typeof window.XiaoxinWeChatChatUI.refreshMessageList === "function") {
+                        window.XiaoxinWeChatChatUI.refreshMessageList();
+                    }
+                }
+            } catch (e2) {}
+
+            // 兜底：直接更新当前聊天页面中“对方消息”的头像 DOM（避免必须切换页面才刷新）
+            try {
+                if (typeof window.$ === "function") {
+                    var cid = String(contactId).trim();
+                    var safeUrl = String(url).trim();
+                    var $screen = $('.xiaoxin-wechat-chat-screen[data-user-id="' + cid + '"]');
+                    if ($screen && $screen.length) {
+                        $screen
+                            .find(".xiaoxin-wechat-chat-message-contact .xiaoxin-wechat-chat-message-avatar")
+                            .css("background-image", "url(" + safeUrl + ")");
+                    }
+                }
+            } catch (e3) {}
+
+            console.info("[小馨手机][头像更换] 已更新联系人头像:", contactId, url);
+            return true;
+        } catch (e) {
+            console.warn("[小馨手机][头像更换] 更新联系人头像失败:", e);
+            return false;
+        }
+    }
+
     // ========== 玩家历史朋友圈自动生成（仅一次，满10轮触发） ==========
     var _playerHistoryGenInProgress = false;
 
@@ -3899,6 +4057,106 @@ window.XiaoxinMessageListener = (function () {
                         allMessagesInOrder.forEach(function (item) {
                             var blockContent = item.blockContent;
                             var msgObj = item.msgObj;
+
+                            // ====== 头像更换：捕获玩家候选头像、并在角色回复时应用/拒绝 ======
+                            // 1) 玩家发照片（type=photo/image）且 desc 表达“换头像”意图 -> 缓存候选
+                            // 2) 角色下一条文本回复出现 -> 按语义判断同意/拒绝 -> 更新联系人头像并清理候选
+                            try {
+                                // 仅处理标准私聊消息（跳过通话类）
+                                var msgType = String(msgObj.type || "").trim();
+                                var msgFrom = String(msgObj.from || "").trim();
+                                var msgTo = String(msgObj.to || "").trim();
+
+                                // 玩家侧：from=user/player
+                                var isFromPlayer =
+                                    msgFrom === "user" ||
+                                    msgFrom === "player" ||
+                                    msgFrom === "0"; // 兼容部分发送端
+
+                                // 角色侧：from 非 user/player/0
+                                var isFromRole2 = !isFromPlayer && !!msgFrom;
+
+                                if (
+                                    (msgType === "photo" || msgType === "image") &&
+                                    isFromPlayer
+                                ) {
+                                    var candidateUrl =
+                                        (msgObj.image && String(msgObj.image).trim()) ||
+                                        (msgObj.content && String(msgObj.content).trim()) ||
+                                        "";
+                                    var candidateDesc =
+                                        (msgObj.desc && String(msgObj.desc).trim()) ||
+                                        "";
+                                    // 私聊对象一般在 to=contactId（photo-message.js 就是这么写的）
+                                    var contactIdForCandidate = msgTo || "";
+
+                                    if (
+                                        contactIdForCandidate &&
+                                        _isValidImageUrlForAvatar(candidateUrl) &&
+                                        _hasAvatarChangeIntent(candidateDesc)
+                                    ) {
+                                        _setAvatarCandidate(contactIdForCandidate, {
+                                            url: String(candidateUrl).trim(),
+                                            from_msg_id: msgObj.id || "",
+                                            created_at: Date.now(),
+                                            desc: candidateDesc,
+                                        });
+                                        console.info(
+                                            "[小馨手机][头像更换] 捕获候选头像:",
+                                            "contactId:",
+                                            contactIdForCandidate,
+                                            "url:",
+                                            String(candidateUrl).trim().substring(0, 80) + "..."
+                                        );
+                                    }
+                                }
+
+                                // 角色侧：尝试消费候选头像（仅对文本消息做判定，避免图片/红包等误触发）
+                                if (
+                                    isFromRole2 &&
+                                    (msgType === "text" || msgType === "" || msgType === "message")
+                                ) {
+                                    var contactIdForDecision = msgFrom;
+                                    var candidate = _getAvatarCandidate(contactIdForDecision);
+                                    if (candidate && candidate.url) {
+                                        // 过期保护：候选头像如果太久没被处理，直接丢弃，避免误触发
+                                        try {
+                                            var createdAt = candidate.created_at || 0;
+                                            // 默认 6 小时过期（现实时间），足够覆盖一次对话但避免跨天残留
+                                            if (createdAt && Date.now() - createdAt > 6 * 60 * 60 * 1000) {
+                                                console.info(
+                                                    "[小馨手机][头像更换] 候选头像已过期，清理:",
+                                                    contactIdForDecision
+                                                );
+                                                _clearAvatarCandidate(contactIdForDecision);
+                                                candidate = null;
+                                            }
+                                        } catch (e_exp) {}
+                                    }
+                                    if (candidate && candidate.url) {
+                                        var roleText =
+                                            msgObj.content ||
+                                            msgObj.text ||
+                                            "";
+                                        // 同意/拒绝二选一（同意优先，但会被 _isRoleAcceptAvatar 的否定检测挡住）
+                                        var accept = _isRoleAcceptAvatar(roleText);
+                                        var reject = _isRoleRejectAvatar(roleText);
+
+                                        if (accept) {
+                                            _applyContactAvatar(contactIdForDecision, candidate.url);
+                                            _clearAvatarCandidate(contactIdForDecision);
+                                        } else if (reject) {
+                                            console.info(
+                                                "[小馨手机][头像更换] 角色拒绝更换头像，清理候选:",
+                                                contactIdForDecision
+                                            );
+                                            _clearAvatarCandidate(contactIdForDecision);
+                                        }
+                                    }
+                                }
+                            } catch (e_avatar) {
+                                console.warn("[小馨手机][头像更换] 处理失败（忽略，不影响正常聊天）:", e_avatar);
+                            }
 
                             // call_voice_text 消息不添加到聊天记录，但需要处理显示
                             if (msgObj.type === "call_voice_text") {
