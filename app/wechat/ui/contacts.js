@@ -227,13 +227,16 @@ window.XiaoxinWeChatContacts = (function () {
             }
 
             // 判断是手机号还是微信号
-            // 手机号：10-11位数字
+            // 手机号：允许输入 10-11 位，但系统入库会强制裁剪为 10 位，所以搜索时也统一按“末 10 位”匹配
             var isPhoneNumber = /^\d{10,11}$/.test(inputValue);
 
             // 先尝试按手机号搜索（支持多种字段名）
             if (isPhoneNumber) {
                 // 清洗输入值：只保留数字
                 var cleanInput = (inputValue || "").toString().replace(/[^\d]/g, "");
+                if (cleanInput.length > 10) {
+                    cleanInput = cleanInput.slice(-10);
+                }
                 console.info("[小馨手机][添加朋友] 清洗后的输入手机号:", cleanInput);
 
                 foundContact = contacts.find(function (c) {
@@ -253,6 +256,9 @@ window.XiaoxinWeChatContacts = (function () {
                     var hasMatch = phoneValues.some(function (phone) {
                         // 清洗电话号码：只保留数字
                         var cleanPhone = (phone || "").toString().replace(/[^\d]/g, "");
+                        if (cleanPhone.length > 10) {
+                            cleanPhone = cleanPhone.slice(-10);
+                        }
                         var equal = cleanPhone === cleanInput;
                         console.info(
                             "[小馨手机][添加朋友] 比较号码:",
