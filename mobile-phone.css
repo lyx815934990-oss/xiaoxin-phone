@@ -632,17 +632,24 @@
 /* ========== 底部 Home Indicator ========== */
 .xiaoxin-home-indicator {
     position: absolute;
-    /* 稍微往上提一点，避免太贴近机身边缘 */
-    bottom: 18px;
-    left: 50%;
-    width: 134px;
-    height: 5px;
-    /* 深灰色，贴近 iPhone 的 Home 条颜色 */
-    background: rgba(40, 40, 40, 0.85);
-    border-radius: 3px;
-    cursor: pointer;
+    /*
+     * 命中区扩展：
+     * - 之前只有 5px 的条本体可交互，Home 条下方的空白区无法触发滑动
+     * - 将元素本身作为“透明 hitbox”，覆盖到底部
+     * - 视觉上的 5px Home 条由 ::after 绘制，保持原来的视觉位置（bottom: 18px）
+     *
+     * 注意：主页 Dock 的 bottom 是 24px，为避免遮挡 Dock 点击，
+     * hitbox 高度控制为 18px(空白) + 5px(条) = 23px。
+     */
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 23px;
+    background: transparent;
+    border-radius: 3px; /* 仅用于命中区圆角，不影响视觉条 */
+    cursor: grab;
     /* 使用硬件加速优化动画，保持水平居中 */
-    transform: translate3d(-50%, 0, 0);
+    transform: translate3d(0, 0, 0);
     transition: transform 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94),
         background 0.2s ease;
     z-index: 20000;
@@ -652,13 +659,36 @@
     -webkit-backface-visibility: hidden;
 }
 
+.xiaoxin-home-indicator::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    width: 134px;
+    height: 5px;
+    /* 深灰色，贴近 iPhone 的 Home 条颜色 */
+    background: rgba(40, 40, 40, 0.85);
+    border-radius: 3px;
+    /* 稍微往上提一点，避免太贴近机身边缘 */
+    bottom: 18px;
+    transform: translateX(-50%);
+    transition: background 0.2s ease;
+}
+
 .xiaoxin-home-indicator:hover {
-    background: rgba(50, 50, 50, 0.95);
+    background: transparent;
 }
 
 .xiaoxin-home-indicator.dragging {
-    background: rgba(60, 60, 60, 1);
+    background: transparent;
     cursor: grabbing;
+}
+
+.xiaoxin-home-indicator:hover::after {
+    background: rgba(50, 50, 50, 0.95);
+}
+
+.xiaoxin-home-indicator.dragging::after {
+    background: rgba(60, 60, 60, 1);
 }
 
 /* 滚动条样式 */
