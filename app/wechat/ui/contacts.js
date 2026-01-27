@@ -163,9 +163,11 @@ window.XiaoxinWeChatContacts = (function () {
             // 查找联系人（根据手机号或微信号）
             // 从数据处理器获取所有联系人
             var contacts = [];
+            var allContacts = [];
             if (window.XiaoxinWeChatDataHandler && typeof window.XiaoxinWeChatDataHandler.getContacts === "function") {
-                contacts = window.XiaoxinWeChatDataHandler.getContacts() || [];
-                console.info("[小馨手机][添加朋友] 从数据处理器获取到的所有联系人数量:", contacts.length);
+                allContacts = window.XiaoxinWeChatDataHandler.getContacts() || [];
+                contacts = allContacts;
+                console.info("[小馨手机][添加朋友] 从数据处理器获取到的所有联系人数量:", allContacts.length);
             }
 
             // 检测是否在手机页面上
@@ -200,95 +202,113 @@ window.XiaoxinWeChatContacts = (function () {
                 }
             }
 
-            var foundContact = null;
+            function findContactInList(list) {
+                var foundContact = null;
 
-            console.info("[小馨手机][添加朋友] 执行搜索，输入:", inputValue, "当前联系人数量:", contacts.length);
+                console.info("[小馨手机][添加朋友] 执行搜索，输入:", inputValue, "当前联系人数量:", list.length);
 
-            // 调试：打印所有联系人的信息
-            if (contacts.length > 0) {
-                console.info("[小馨手机][添加朋友] 联系人列表:", contacts.map(function(c) {
-                    return {
-                        id: c.id,
-                        phone: c.phone,
-                        phoneNumber: c.phoneNumber,
-                        wechatId: c.wechatId,
-                        wechat_id: c.wechat_id,
-                        wechatID: c.wechatID,
-                        nickname: c.nickname,
-                        avatar: c.avatar,
-                        allKeys: Object.keys(c)
-                    };
-                }));
+                // 调试：打印所有联系人的信息
+                if (list.length > 0) {
+                    console.info("[小馨手机][添加朋友] 联系人列表:", list.map(function(c) {
+                        return {
+                            id: c.id,
+                            phone: c.phone,
+                            phoneNumber: c.phoneNumber,
+                            wechatId: c.wechatId,
+                            wechat_id: c.wechat_id,
+                            wechatID: c.wechatID,
+                            nickname: c.nickname,
+                            avatar: c.avatar,
+                            allKeys: Object.keys(c)
+                        };
+                    }));
 
-                // 打印第一个联系人的完整信息用于调试
-                if (contacts[0]) {
-                    console.info("[小馨手机][添加朋友] 第一个联系人完整信息:", contacts[0]);
-                }
-            }
-
-            // 判断是手机号还是微信号
-            // 手机号：允许输入 10-11 位，但系统入库会强制裁剪为 10 位，所以搜索时也统一按“末 10 位”匹配
-            var isPhoneNumber = /^\d{10,11}$/.test(inputValue);
-
-            // 先尝试按手机号搜索（支持多种字段名）
-            if (isPhoneNumber) {
-                // 清洗输入值：只保留数字
-                var cleanInput = (inputValue || "").toString().replace(/[^\d]/g, "");
-                if (cleanInput.length > 10) {
-                    cleanInput = cleanInput.slice(-10);
-                }
-                console.info("[小馨手机][添加朋友] 清洗后的输入手机号:", cleanInput);
-
-                foundContact = contacts.find(function (c) {
-                    // 收集所有可能的手机号字段
-                    var phoneValues = [
-                        c.phone,
-                        c.phoneNumber,
-                        c.电话号码
-                    ].filter(function (v) {
-                        return v !== undefined && v !== null && String(v).trim() !== "";
-                    });
-
-                    // 打印当前联系人和所有号码值，方便调试
-                    console.info("[小馨手机][添加朋友] 检查联系人:", c.nickname || c.id, "原始电话号码字段值:", phoneValues);
-
-                    // 把所有号码都清洗成"纯数字字符串"再比较
-                    var hasMatch = phoneValues.some(function (phone) {
-                        // 清洗电话号码：只保留数字
-                        var cleanPhone = (phone || "").toString().replace(/[^\d]/g, "");
-                        if (cleanPhone.length > 10) {
-                            cleanPhone = cleanPhone.slice(-10);
-                        }
-                        var equal = cleanPhone === cleanInput;
-                        console.info(
-                            "[小馨手机][添加朋友] 比较号码:",
-                            "原始号码 =", phone,
-                            "清洗后 =", cleanPhone,
-                            "输入清洗后 =", cleanInput,
-                            "是否相等:", equal
-                        );
-                        return equal;
-                    });
-
-                    if (hasMatch) {
-                        console.info("[小馨手机][添加朋友] 找到匹配的联系人:", c);
+                    // 打印第一个联系人的完整信息用于调试
+                    if (list[0]) {
+                        console.info("[小馨手机][添加朋友] 第一个联系人完整信息:", list[0]);
                     }
-                    return hasMatch;
-                });
+                }
+
+                // 判断是手机号还是微信号
+                // 手机号：允许输入 10-11 位，但系统入库会强制裁剪为 10 位，所以搜索时也统一按“末 10 位”匹配
+                var isPhoneNumber = /^\d{10,11}$/.test(inputValue);
+
+                // 先尝试按手机号搜索（支持多种字段名）
+                if (isPhoneNumber) {
+                    // 清洗输入值：只保留数字
+                    var cleanInput = (inputValue || "").toString().replace(/[^\d]/g, "");
+                    if (cleanInput.length > 10) {
+                        cleanInput = cleanInput.slice(-10);
+                    }
+                    console.info("[小馨手机][添加朋友] 清洗后的输入手机号:", cleanInput);
+
+                    foundContact = list.find(function (c) {
+                        // 收集所有可能的手机号字段
+                        var phoneValues = [
+                            c.phone,
+                            c.phoneNumber,
+                            c.电话号码
+                        ].filter(function (v) {
+                            return v !== undefined && v !== null && String(v).trim() !== "";
+                        });
+
+                        // 打印当前联系人和所有号码值，方便调试
+                        console.info("[小馨手机][添加朋友] 检查联系人:", c.nickname || c.id, "原始电话号码字段值:", phoneValues);
+
+                        // 把所有号码都清洗成"纯数字字符串"再比较
+                        var hasMatch = phoneValues.some(function (phone) {
+                            // 清洗电话号码：只保留数字
+                            var cleanPhone = (phone || "").toString().replace(/[^\d]/g, "");
+                            if (cleanPhone.length > 10) {
+                                cleanPhone = cleanPhone.slice(-10);
+                            }
+                            var equal = cleanPhone === cleanInput;
+                            console.info(
+                                "[小馨手机][添加朋友] 比较号码:",
+                                "原始号码 =", phone,
+                                "清洗后 =", cleanPhone,
+                                "输入清洗后 =", cleanInput,
+                                "是否相等:", equal
+                            );
+                            return equal;
+                        });
+
+                        if (hasMatch) {
+                            console.info("[小馨手机][添加朋友] 找到匹配的联系人:", c);
+                        }
+                        return hasMatch;
+                    });
+                }
+
+                // 如果手机号搜索没找到，尝试按微信号搜索
+                if (!foundContact) {
+                    foundContact = list.find(function (c) {
+                        return (
+                            c.wechatId === inputValue ||
+                            c.wechat_id === inputValue ||
+                            c.wechatID === inputValue ||
+                            String(c.wechatId) === inputValue ||
+                            String(c.wechat_id) === inputValue ||
+                            String(c.wechatID) === inputValue
+                        );
+                    });
+                }
+
+                console.info("[小馨手机][添加朋友] 搜索输入:", inputValue, "找到联系人:", foundContact ? foundContact.nickname : "未找到");
+                return { foundContact: foundContact, isPhoneNumber: isPhoneNumber };
             }
 
-            // 如果手机号搜索没找到，尝试按微信号搜索
-            if (!foundContact) {
-                foundContact = contacts.find(function (c) {
-                    return (
-                        c.wechatId === inputValue ||
-                        c.wechat_id === inputValue ||
-                        c.wechatID === inputValue ||
-                        String(c.wechatId) === inputValue ||
-                        String(c.wechat_id) === inputValue ||
-                        String(c.wechatID) === inputValue
-                    );
-                });
+            // 先在“过滤后的联系人列表”里找
+            var result = findContactInList(contacts);
+            var foundContact = result.foundContact;
+            var isPhoneNumber = result.isPhoneNumber;
+
+            // 如果过滤后找不到，但全量联系人里存在（例如新解析的 [wx_contact] 还没被消息监听器纳入当前聊天ID列表），则回退再搜一次
+            if (!foundContact && allContacts && allContacts.length && contacts !== allContacts) {
+                console.warn("[小馨手机][添加朋友] 过滤后未找到联系人，回退到搜索全部联系人（无需刷新）");
+                var fallbackResult = findContactInList(allContacts);
+                foundContact = fallbackResult.foundContact;
+                isPhoneNumber = fallbackResult.isPhoneNumber;
             }
 
             console.info("[小馨手机][添加朋友] 搜索输入:", inputValue, "是否手机号:", isPhoneNumber, "找到联系人:", foundContact ? foundContact.nickname : "未找到");
@@ -3163,10 +3183,10 @@ window.XiaoxinWeChatContacts = (function () {
 
         // 创建弹窗遮罩层
         var $overlay = $('<div class="xiaoxin-wechat-edit-remark-overlay"></div>');
-        
+
         // 创建弹窗内容
         var $dialog = $('<div class="xiaoxin-wechat-edit-remark-dialog"></div>');
-        
+
         // 弹窗头部
         var $header = $('<div class="xiaoxin-wechat-edit-remark-header"></div>');
         var $cancelBtn = $('<div class="xiaoxin-wechat-edit-remark-btn xiaoxin-wechat-edit-remark-cancel">取消</div>');
@@ -3220,7 +3240,7 @@ window.XiaoxinWeChatContacts = (function () {
         // 确认按钮
         $confirmBtn.on("click", function() {
             var newRemark = $input.val().trim();
-            
+
             // 更新联系人备注
             if (window.XiaoxinWeChatDataHandler && typeof window.XiaoxinWeChatDataHandler.addContact === "function") {
                 var updatedContact = Object.assign({}, contact, {
@@ -3228,14 +3248,14 @@ window.XiaoxinWeChatContacts = (function () {
                 });
                 window.XiaoxinWeChatDataHandler.addContact(updatedContact);
                 console.info("[小馨手机][微信] 更新备注:", newRemark);
-                
+
                 if (window.toastr) {
                     toastr.success("备注已更新", "提示");
                 }
-                
+
                 // 关闭弹窗
                 closeDialog();
-                
+
                 // 刷新当前页面以显示更新后的备注
                 setTimeout(function() {
                     var $container = $root && $root.parent() ? $root.parent() : null;
