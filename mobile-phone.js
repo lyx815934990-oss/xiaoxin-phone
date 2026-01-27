@@ -1664,7 +1664,7 @@ MobilePhone.prototype.initHomeIndicatorGesture = function ($indicator) {
             // 保持水平居中，只改变垂直位置
             $indicator.css(
                 "transform",
-                "translate3d(-50%, " + -deltaY * 0.5 + "px, 0)"
+                "translate3d(0, " + -deltaY * 0.5 + "px, 0)"
             );
 
             // 如果超过阈值，触发返回主页
@@ -1680,8 +1680,8 @@ MobilePhone.prototype.initHomeIndicatorGesture = function ($indicator) {
 
         self.isHomeIndicatorDragging = false;
         $indicator.removeClass("dragging");
-        // 恢复水平居中
-        $indicator.css("transform", "translate3d(-50%, 0, 0)");
+        // 恢复位置（命中区为全宽，水平不再需要 -50% 偏移）
+        $indicator.css("transform", "translate3d(0, 0, 0)");
 
         // 兜底逻辑：如果用户点了一下或轻微上滑，而没有达到阈值，但当前不在主页，则也视为返回主页
         // 这样可以避免某些浏览器/主题导致的 move 事件丢失，出现“怎么滑都回不去”的情况
