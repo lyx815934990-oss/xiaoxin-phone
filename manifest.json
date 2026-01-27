@@ -6,7 +6,7 @@
     "js": "index.js",
     "css": "mobile-phone.css",
     "author": "小馨肥肉",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "homePage": "https://github.com/lyx815934990-oss/xiaoxin-phone",
     "description": "一个真实体验的悬浮手机插件，支持微信聊天、电话、短信、微博等功能，每张角色卡数据独立存储，实时消息监听和显示，支持自定义背景和生图API"
 }
