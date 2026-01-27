@@ -1,6 +1,6 @@
 // ==SillyTavern Extension==
 // @name         小馨手机
-// @version      0.1.7
+// @version      0.1.8
 // @description  一个真实体验的悬浮手机插件，支持微信聊天、电话、短信、微博等功能
 // @author       小馨肥肉
 
@@ -40,233 +40,128 @@ function initMobilePlugin() {
             return;
         }
 
-        // 加载工具函数（必须先加载 data-manager，其他模块依赖它）
-        loadScript(
-            "./scripts/extensions/third-party/xiaoxin-phone/utils/data-manager.js",
-            () => {
-                console.log("[小馨手机] 数据管理工具加载完成");
-                loadScript(
-                    "./scripts/extensions/third-party/xiaoxin-phone/utils/message-listener.js",
-                    () => {
-                        console.log("[小馨手机] 消息监听器加载完成");
-                        loadScript(
-                            "./scripts/extensions/third-party/xiaoxin-phone/utils/image-api.js",
-                            () => {
-                                // 加载手机核心脚本
-                                loadScript(
-                                    "./scripts/extensions/third-party/xiaoxin-phone/mobile-phone.js",
-                                    () => {
-                                        console.log(
-                                            "[小馨手机] 手机核心脚本加载完成"
-                                        );
-
-                                        // 初始化手机实例
-                                        if (
-                                            typeof MobilePhone !== "undefined"
-                                        ) {
-                                            window.mobilePhone =
-                                                new MobilePhone();
-                                            console.log(
-                                                "[小馨手机] 手机插件初始化完成"
-                                            );
-
-                                            // 加载设置应用的样式与脚本（用于 iOS 风格设置界面）
-                                            loadCss(
-                                                "./scripts/extensions/third-party/xiaoxin-phone/app/settings/settings-app.css"
-                                            );
-                                            loadScript(
-                                                "./scripts/extensions/third-party/xiaoxin-phone/app/settings/settings-app.js",
-                                                () => {
-                                                    // 设置面板加载完成后，初始化设置面板逻辑
-                                                    initExtensionSettingsPanel();
-                                                }
-                                            );
-
-                                            // 加载微信应用的样式与脚本（先加载 account，再加载 data-handler，最后加载主应用）
-                                            loadScript(
-                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/state/account.js",
-                                                () => {
-                                                    console.log(
-                                                        "[小馨手机] 微信账号管理模块加载完成"
-                                                    );
-                                                    loadScript(
-                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/api/data-handler.js",
-                                                        () => {
-                                                            console.log(
-                                                                "[小馨手机] 微信数据处理器加载完成"
-                                                            );
-                                                            // 加载解析器
-                                                            loadScript(
-                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/api/parser.js",
-                                                                () => {
-                                                                    console.log(
-                                                                        "[小馨手机] 微信解析器加载完成"
-                                                                    );
-                                                                    // 加载UI模块
-                                                                    loadCss(
-                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/contacts.css"
-                                                                    );
-                                                                    loadScript(
-                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/contacts.js",
-                                                                        () => {
-                                                                            console.log(
-                                                                                "[小馨手机] 通讯录UI模块加载完成"
-                                                                            );
-                                                                            // 加载聊天UI模块（chat.js 和 chat.css）
-                                                                            loadCss(
-                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/chat.css"
-                                                                            );
-                                                                            loadScript(
-                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/chat.js",
-                                                                                () => {
-                                                                                    console.log(
-                                                                                        "[小馨手机] 聊天UI模块加载完成"
-                                                                                    );
-                                                                                    // 加载AI生图模块（ai-image-generator.js）
-                                                                                    loadScript(
-                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/ai-image-generator.js",
-                                                                                        () => {
-                                                                                            console.log(
-                                                                                                "[小馨手机] AI生图模块加载完成"
-                                                                                            );
-                                                                                            // 加载照片消息模块（photo-message.js 和 photo-message.css）
-                                                                                            loadCss(
-                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/photo-message.css"
-                                                                                            );
-                                                                                            loadScript(
-                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/photo-message.js",
-                                                                                                () => {
-                                                                                                    console.log(
-                                                                                                        "[小馨手机] 照片消息模块加载完成"
-                                                                                                    );
-                                                                                                    // 加载红包UI模块（redpacket.js 和 redpacket.css）
-                                                                                                    loadCss(
-                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/redpacket.css"
-                                                                                                    );
-                                                                                                    loadScript(
-                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/redpacket.js",
-                                                                                                        () => {
-                                                                                                            console.log(
-                                                                                                                "[小馨手机] 红包UI模块加载完成"
-                                                                                                            );
-                                                                                                        }
-                                                                                                    );
-                                                                                                }
-                                                                                            );
-                                                                                        }
-                                                                                    );
-                                                                                    // 加载来电弹窗组件
-                                                                                    loadCss(
-                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/incoming-call.css"
-                                                                                    );
-                                                                                    loadCss(
-                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/dynamic-island-call.css"
-                                                                                    );
-                                                                                    loadScript(
-                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/incoming-call.js",
-                                                                                        () => {
-                                                                                            console.log(
-                                                                                                "[小馨手机] 来电弹窗组件加载完成"
-                                                                                            );
-                                                                                            // 加载灵动岛通话状态组件
-                                                                                            loadScript(
-                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/dynamic-island-call.js",
-                                                                                                () => {
-                                                                                                    console.log(
-                                                                                                        "[小馨手机] 灵动岛通话状态组件加载完成"
-                                                                                                    );
-                                                                                                }
-                                                                                            );
-                                                                                            // 加载消息队列管理器（独立运行，不依赖其他模块）
-                                                                                            loadScript(
-                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/message-queue.js",
-                                                                                                () => {
-                                                                                                    console.log(
-                                                                                                        "[小馨手机] 消息队列管理器加载完成"
-                                                                                                    );
-                                                                                                    // 加载微信主应用样式和脚本
-                                                                                                    loadCss(
-                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/wechat-app.css"
-                                                                                                    );
-                                                                                                    loadCss(
-                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/components.css"
-                                                                                                    );
-                                                                                                    // 加载朋友圈发布页面样式和脚本
-                                                                                                    loadCss(
-                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/moments.css"
-                                                                                                    );
-                                                                                                    loadScript(
-                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/moments.js",
-                                                                                                        () => {
-                                                                                                            console.log(
-                                                                                                                "[小馨手机] 朋友圈发布页面模块加载完成"
-                                                                                                            );
-                                                                                                            // 加载设置页面样式和脚本
-                                                                                                            loadCss(
-                                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/settings.css"
-                                                                                                            );
-                                                                                                            loadScript(
-                                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/settings.js",
-                                                                                                                () => {
-                                                                                                                    console.log(
-                                                                                                                        "[小馨手机] 设置页面模块加载完成"
-                                                                                                                    );
-                                                                                                                    // 加载钱包页面样式和脚本
-                                                                                                                    loadCss(
-                                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/wallet.css"
-                                                                                                                    );
-                                                                                                                    loadScript(
-                                                                                                                        "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/wallet.js",
-                                                                                                                        () => {
-                                                                                                                            console.log(
-                                                                                                                                "[小馨手机] 钱包页面模块加载完成"
-                                                                                                                            );
-                                                                                                                            loadScript(
-                                                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/components.js",
-                                                                                                                                () => {
-                                                                                                                                    loadScript(
-                                                                                                                                "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/wechat-app.js",
-                                                                                                                                () => {
-                                                                                                                                    console.log(
-                                                                                                                                        "[小馨手机] 微信应用加载完成"
-                                                                                                                                            );
-                                                                                                                                        }
-                                                                                                                                    );
-                                                                                                                                }
-                                                                                                                            );
-                                                                                                                        }
-                                                                                                                    );
-                                                                                                                }
-                                                                                                            );
-                                                                                                        }
-                                                                                                    );
-                                                                                                }
-                                                                                            );
-                                                                                        }
-                                                                                    );
-                                                                                }
-                                                                            );
-                                                                        }
-                                                                    );
-                                                                }
-                                                            );
-                                                        }
-                                                    );
-                                                }
-                                            );
-                                        } else {
-                                            console.error(
-                                                "[小馨手机] MobilePhone类未定义"
-                                            );
-                                        }
-                                    }
-                                );
-                            }
-                        );
-                    }
-                );
+        // 使用强壮加载器（移动端/慢环境更稳定）
+        loadScript("./scripts/extensions/third-party/xiaoxin-phone/utils/robust-loader.js", () => {
+            const loader = window.XiaoxinRobustLoader;
+            if (!loader) {
+                console.warn("[小馨手机] robust-loader 未能加载，回退到原始加载方式");
+                return;
             }
-        );
+
+            (async () => {
+                // 核心模块：失败会明显影响功能，增加重试+自检
+                await loader.loadScript({
+                    src: "./scripts/extensions/third-party/xiaoxin-phone/utils/data-manager.js",
+                    name: "data-manager",
+                    retries: 3,
+                    timeoutMs: 20000,
+                    test: () => !!window.XiaoxinDataManager,
+                    isCore: true
+                });
+
+                await loader.loadScript({
+                    src: "./scripts/extensions/third-party/xiaoxin-phone/utils/message-listener.js",
+                    name: "message-listener",
+                    retries: 3,
+                    timeoutMs: 20000,
+                    test: () => !!window.XiaoxinMessageListener,
+                    isCore: true
+                });
+
+                await loader.loadScript({
+                    src: "./scripts/extensions/third-party/xiaoxin-phone/utils/image-api.js",
+                    name: "image-api",
+                    retries: 2,
+                    timeoutMs: 20000,
+                    isCore: true
+                });
+
+                // 手机核心
+                await loader.loadScript({
+                    src: "./scripts/extensions/third-party/xiaoxin-phone/mobile-phone.js",
+                    name: "mobile-phone",
+                    retries: 3,
+                    timeoutMs: 25000,
+                    test: () => typeof window.MobilePhone !== "undefined",
+                    isCore: true
+                });
+
+                if (typeof window.MobilePhone !== "undefined") {
+                    window.mobilePhone = new MobilePhone();
+                    console.log("[小馨手机] 手机插件初始化完成（robust-loader）");
+                                        } else {
+                    console.error("[小馨手机] MobilePhone类未定义（robust-loader）");
+                    return;
+                }
+
+                // 下面这些属于 UI/扩展模块：失败不应该阻塞核心运行，使用较少重试，且允许继续
+                await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/settings/settings-app.css", name: "settings-app.css", isCore: false });
+                await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/settings/settings-app.js", name: "settings-app.js", retries: 2, timeoutMs: 20000, isCore: false });
+
+                // 微信基础依赖（核心模块）
+                await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/state/account.js", name: "wechat-account", retries: 2, timeoutMs: 20000, isCore: true });
+                await loader.loadScript({
+                    src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/api/data-handler.js",
+                    name: "wechat-data-handler",
+                    retries: 3,
+                    timeoutMs: 25000,
+                    test: () => !!window.XiaoxinWeChatDataHandler,
+                    isCore: true
+                });
+                await loader.loadScript({
+                    src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/api/parser.js",
+                    name: "wechat-parser",
+                    retries: 3,
+                    timeoutMs: 25000,
+                    test: () => !!window.XiaoxinWeChatParser,
+                    isCore: true
+                });
+
+                // 核心模块加载完成，检查状态并显示弹窗
+                showLoadStatusDialog(loader);
+
+                // 微信 UI（延迟一点再加载，减少首屏压力）
+                setTimeout(async () => {
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/contacts.css", name: "contacts.css", isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/contacts.js", name: "contacts.js", retries: 2, timeoutMs: 25000, isCore: false });
+
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/chat.css", name: "chat.css", isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/chat.js", name: "chat.js", retries: 2, timeoutMs: 30000, isCore: false });
+
+                    // 其他 UI 模块（更低优先级）
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/ai-image-generator.js", name: "ai-image-generator.js", retries: 1, timeoutMs: 25000, isCore: false });
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/photo-message.css", name: "photo-message.css", isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/photo-message.js", name: "photo-message.js", retries: 1, timeoutMs: 25000, isCore: false });
+
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/redpacket.css", name: "redpacket.css", isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/redpacket.js", name: "redpacket.js", retries: 1, timeoutMs: 25000, isCore: false });
+
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/incoming-call.css", name: "incoming-call.css", isCore: false });
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/dynamic-island-call.css", name: "dynamic-island-call.css", isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/incoming-call.js", name: "incoming-call.js", retries: 1, timeoutMs: 25000, isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/dynamic-island-call.js", name: "dynamic-island-call.js", retries: 1, timeoutMs: 25000, isCore: false });
+
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/message-queue.js", name: "message-queue.js", retries: 1, timeoutMs: 25000, isCore: false });
+
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/wechat-app.css", name: "wechat-app.css", isCore: false });
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/components.css", name: "components.css", isCore: false });
+
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/moments.css", name: "moments.css", isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/moments.js", name: "moments.js", retries: 1, timeoutMs: 30000, isCore: false });
+
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/settings.css", name: "wechat-settings.css", isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/settings.js", name: "wechat-settings.js", retries: 1, timeoutMs: 25000, isCore: false });
+
+                    await loader.loadCss({ href: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/wallet.css", name: "wallet.css", isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/wallet.js", name: "wallet.js", retries: 1, timeoutMs: 25000, isCore: false });
+
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/ui/components.js", name: "wechat-ui-components.js", retries: 1, timeoutMs: 25000, isCore: false });
+                    await loader.loadScript({ src: "./scripts/extensions/third-party/xiaoxin-phone/app/wechat/wechat-app.js", name: "wechat-app.js", retries: 1, timeoutMs: 30000, isCore: false });
+
+                    console.log("[小馨手机] 微信应用加载完成（robust-loader）");
+                }, 800);
+            })();
+        });
     } catch (error) {
         console.error("[小馨手机] 初始化失败:", error);
     }
@@ -311,8 +206,8 @@ function registerExtensionSettings() {
                             </div>
                             <div style="display:flex; justify-content: space-between; align-items:center; gap:8px; margin-bottom: 8px;">
                                 <button id="xiaoxin-update-btn" class="menu_button" style="flex:1;">
-                                    <i class="fa-solid fa-download"></i> 立即更新
-                                </button>
+                                <i class="fa-solid fa-download"></i> 立即更新
+                            </button>
                                 <button id="xiaoxin-release-notes-btn" class="menu_button menu_button-secondary" style="white-space: nowrap;">
                                     更新说明
                                 </button>
@@ -370,6 +265,22 @@ function registerExtensionSettings() {
                                 <span>自动检查更新</span>
                             </label>
                             <small>启用后会在启动时自动检查 GitHub 是否有新版本。如果网络无法访问 GitHub，建议关闭此选项以避免错误提示。</small>
+                        </div>
+                        <!-- 插件使用教程链接 -->
+                        <div class="form_group" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <i class="fa-solid fa-book" style="color: #4a9eff;"></i>
+                                <strong style="color: rgba(255, 255, 255, 0.9);">插件使用教程</strong>
+                            </div>
+                            <a href="https://www.notion.so/2ddd29002fd980b8bc5ddd61efffa292?source=copy_link"
+                               target="_blank"
+                               style="display: inline-flex; align-items: center; gap: 6px; color: #4a9eff; text-decoration: none; padding: 8px 12px; background: rgba(74, 158, 255, 0.1); border-radius: 6px; border: 1px solid rgba(74, 158, 255, 0.3); transition: all 0.2s;">
+                                <i class="fa-solid fa-external-link-alt"></i>
+                                <span>查看完整使用教程</span>
+                            </a>
+                            <small style="display: block; margin-top: 8px; color: rgba(255, 255, 255, 0.6);">
+                                包含插件安装、配置、功能使用等详细说明
+                            </small>
                         </div>
                     </div>
                 </details>
@@ -821,16 +732,42 @@ function performUpdate() {
     }
 
     const repoUrl = "https://github.com/lyx815934990-oss/xiaoxin-phone";
+    const extensionId = "xiaoxin-phone"; // 扩展文件夹名
 
     // 设置超时时间（60秒，因为 Git 克隆可能需要较长时间）
     const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error("更新超时，可能是网络连接问题")), 60000);
     });
 
-    // 尝试调用酒馆的扩展安装 API
-    // 使用 fetch 调用本地 API
-    Promise.race([
-        fetch("http://127.0.0.1:8000/api/extensions/install", {
+    // 优先使用酒馆助手提供的更新函数（已处理权限和地址适配）
+    let updatePromise;
+    let updateMethod = ""; // 记录使用的更新方式，用于错误提示
+
+    // 策略：优先使用 installExtension（从 GitHub 重新安装），这样可以覆盖本地文件安装的情况
+    if (typeof installExtension === "function") {
+        // 使用 installExtension 从 GitHub 重新安装（推荐，兼容本地文件和 Git 安装）
+        console.info("[小馨手机] 使用酒馆助手 installExtension 函数从 GitHub 重新安装");
+        updateMethod = "installExtension";
+        updatePromise = installExtension(repoUrl, "local");
+    } else if (typeof updateExtension === "function") {
+        // 如果 installExtension 不可用，尝试 updateExtension（仅适用于从 Git 安装的扩展）
+        console.info("[小馨手机] 使用酒馆助手 updateExtension 函数更新");
+        updateMethod = "updateExtension";
+        updatePromise = updateExtension(extensionId);
+    } else if (typeof reinstallExtension === "function") {
+        // 如果都不行，尝试 reinstallExtension
+        console.info("[小馨手机] 使用酒馆助手 reinstallExtension 函数重新安装");
+        updateMethod = "reinstallExtension";
+        updatePromise = reinstallExtension(extensionId);
+    } else {
+        // 回退到直接调用 API（兼容旧版本或未安装酒馆助手的情况）
+        console.warn("[小馨手机] ⚠️ 酒馆助手函数不可用，回退到直接调用 API（可能被 403 拦截）");
+        updateMethod = "direct_api";
+        const apiBaseUrl = window.location.origin;
+        const installApiUrl = apiBaseUrl + "/api/extensions/install";
+        console.info("[小馨手机] 更新请求地址:", installApiUrl);
+
+        updatePromise = fetch(installApiUrl, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -838,30 +775,54 @@ function performUpdate() {
             body: JSON.stringify({
                 url: repoUrl
             })
-        }),
+        });
+    }
+
+    Promise.race([
+        updatePromise,
         timeoutPromise
     ])
-    .then(response => {
-        if (response.ok) {
+    .then(async response => {
+        // 检查 response 是否是 Response 对象
+        if (response && typeof response.ok !== "undefined") {
+            // 这是 fetch 返回的 Response 对象
+            if (response.ok) {
+                if (typeof toastr !== "undefined") {
+                    toastr.success("更新成功！页面即将刷新...", "小馨手机", { timeOut: 2000 });
+                }
+                // 2秒后刷新页面
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+                return;
+            } else {
+                // 尝试读取错误信息
+                const text = await response.text();
+                let errorMsg = `更新失败: HTTP ${response.status}`;
+
+                // 根据状态码给出更明确的错误提示
+                if (response.status === 403) {
+                    errorMsg = "后端禁止网页端自动安装扩展（403 Forbidden）。请使用手动更新方式：下载 ZIP 文件后解压覆盖插件文件夹。";
+                } else if (response.status === 404) {
+                    errorMsg = "更新接口不存在（404）。可能是 SillyTavern 版本过旧，不支持自动更新。请使用手动更新方式。";
+                } else if (response.status === 500) {
+                    errorMsg = "服务器错误（500）。可能是后端无法从 GitHub 克隆仓库（网络问题）。请检查网络连接或使用手动更新方式。";
+                } else if (text.includes("Failed to connect") || text.includes("无法连接") || text.includes("443")) {
+                    errorMsg = "无法连接到酒馆后端服务器。请检查：1) 服务器是否正在运行；2) 网络连接是否正常；3) 地址是否正确。";
+                } else if (text.includes("500") || text.includes("Internal Server Error")) {
+                    errorMsg = "服务器内部错误。可能是后端无法从 GitHub 克隆仓库（网络问题）。建议使用手动更新方式。";
+                }
+
+                throw new Error(errorMsg);
+            }
+        } else {
+            // 可能是其他类型的响应，直接当作成功处理
             if (typeof toastr !== "undefined") {
                 toastr.success("更新成功！页面即将刷新...", "小馨手机", { timeOut: 2000 });
             }
-            // 2秒后刷新页面
             setTimeout(() => {
                 window.location.reload();
             }, 2000);
-        } else {
-            // 尝试读取错误信息
-            return response.text().then(text => {
-                let errorMsg = `更新失败: HTTP ${response.status}`;
-                // 检查是否是网络连接错误
-                if (text.includes("Failed to connect") || text.includes("无法连接") || text.includes("443")) {
-                    errorMsg = "无法连接到 GitHub，请检查网络连接或使用手动更新";
-                } else if (text.includes("500")) {
-                    errorMsg = "服务器错误，可能是网络问题导致无法从 GitHub 克隆仓库";
-                }
-                throw new Error(errorMsg);
-            });
         }
     })
     .catch(error => {
@@ -878,20 +839,32 @@ function performUpdate() {
                               errorMsg.includes("Connection was reset") ||
                               errorMsg.includes("Recv failure") ||
                               errorMsg.includes("连接被重置") ||
-                              errorMsg.includes("500") ||
-                              errorMsg.includes("Internal Server Error");
+                              errorMsg.includes("Failed to fetch") ||
+                              errorMsg.includes("NetworkError");
+
+        // 如果是直接调用 API 且出现 403，给出更明确的提示
+        if (updateMethod === "direct_api" && errorMsg.includes("403")) {
+            console.warn("[小馨手机] ⚠️ 后端禁止直接调用 API（403 Forbidden）");
+            console.info("[小馨手机] 💡 建议：安装酒馆助手以获得更好的更新体验");
+            console.info("[小馨手机] 检测到的函数状态:", {
+                updateExtension: typeof updateExtension !== "undefined",
+                reinstallExtension: typeof reinstallExtension !== "undefined",
+                installExtension: typeof installExtension !== "undefined",
+                getExtensionInstallationInfo: typeof getExtensionInstallationInfo !== "undefined"
+            });
+        }
 
         if (isNetworkError) {
             console.warn("[小馨手机] 网络连接失败，建议使用手动更新方式");
             console.info("[小馨手机] 提示: 如果经常遇到此问题，可以在设置中关闭「自动检查更新」选项");
         }
 
-        handleUpdateError(errorMsg);
+        handleUpdateError(errorMsg, updateMethod);
     });
 }
 
 // 处理更新错误（提示手动更新）
-function handleUpdateError(errorMsg) {
+function handleUpdateError(errorMsg, updateMethod) {
     const updateBtn = document.getElementById("xiaoxin-update-btn");
     if (updateBtn) {
         updateBtn.disabled = false;
@@ -914,10 +887,25 @@ function handleUpdateError(errorMsg) {
                         errorMsg.includes("Internal Server Error");
     }
 
-    if (isNetworkIssue) {
-        message = "❌ 无法连接到 GitHub（网络问题）<br><br>这是网络连接问题，不是插件问题。建议：";
+    // 根据错误类型给出更具体的提示
+    if (errorMsg.includes("403") || errorMsg.includes("Forbidden")) {
+        message = "❌ 后端禁止自动更新（403 Forbidden）<br><br>你的 SillyTavern 后端不允许网页端自动安装扩展。这是安全设置，不是插件问题。<br><br>建议使用手动更新方式：";
+    } else if (errorMsg.includes("404")) {
+        message = "❌ 更新接口不存在（404）<br><br>你的 SillyTavern 版本可能过旧，不支持自动更新功能。<br><br>建议使用手动更新方式：";
+    } else if (errorMsg.includes("500") || errorMsg.includes("服务器错误")) {
+        message = "❌ 服务器内部错误（500）<br><br>后端无法从 GitHub 克隆仓库，可能是网络问题或服务器配置问题。<br><br>建议使用手动更新方式：";
+    } else     // 根据更新方式和错误类型给出更具体的提示
+    if (updateMethod === "direct_api" && errorMsg.includes("403")) {
+        message = "❌ 后端禁止直接调用 API（403 Forbidden）<br><br>" +
+                  "你的 SillyTavern 后端不允许网页端直接调用扩展安装接口。<br><br>" +
+                  "<strong style='color: #4a9eff;'>💡 解决方案：</strong><br>" +
+                  "1. <strong>推荐：</strong>安装「酒馆助手」扩展，可以获得更好的自动更新体验<br>" +
+                  "2. <strong>备选：</strong>使用手动更新方式（见下方步骤）<br><br>" +
+                  "如果插件是通过 GitHub 链接安装的，安装酒馆助手后可以正常自动更新。";
+    } else if (isNetworkIssue) {
+        message = "❌ 网络连接失败<br><br>无法连接到酒馆后端服务器。请检查：<br>1) 服务器是否正在运行<br>2) 网络连接是否正常<br>3) 地址是否正确<br><br>建议使用手动更新方式：";
     } else {
-        message = "自动更新失败，建议使用手动更新：";
+        message = "❌ 自动更新失败<br><br>建议使用手动更新方式：";
     }
 
     const manualUpdateSteps = `
@@ -971,6 +959,195 @@ function compareVersions(version1, version2) {
         if (v1 < v2) return -1;
     }
     return 0;
+}
+
+// 显示加载状态弹窗
+function showLoadStatusDialog(loader) {
+    if (!loader || typeof loader.getLoadStatus !== "function") {
+        console.warn("[小馨手机] 无法获取加载状态，跳过弹窗显示");
+        return;
+    }
+
+    const status = loader.getLoadStatus();
+    const failedCore = status.failedCore || [];
+    const failedUI = status.failedUI || [];
+    const allCoreSuccess = status.allCoreSuccess;
+
+    // 创建弹窗HTML
+    const modalId = "xiaoxin-load-status-modal";
+    let existingModal = document.getElementById(modalId);
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    const modal = document.createElement("div");
+    modal.id = modalId;
+    modal.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif;
+    `;
+
+    let contentHtml = "";
+    let titleIcon = "";
+    let titleText = "";
+    let titleColor = "";
+
+    if (allCoreSuccess) {
+        // 全部核心模块加载成功
+        titleIcon = '<i class="fa-solid fa-circle-check" style="color: #4caf50;"></i>';
+        titleText = "✅ 插件加载完成";
+        titleColor = "#4caf50";
+        contentHtml = `
+            <div style="padding: 20px; text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
+                <h3 style="color: ${titleColor}; margin: 0 0 12px 0; font-size: 20px; font-weight: 600;">
+                    ${titleIcon} ${titleText}
+                </h3>
+                <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 20px 0; font-size: 14px; line-height: 1.6;">
+                    所有核心模块已成功加载，插件可以完全正常使用！<br>
+                    <small style="color: rgba(255, 255, 255, 0.6);">加载耗时: ${(status.totalTime / 1000).toFixed(1)} 秒</small>
+                </p>
+                <button id="xiaoxin-load-status-close" class="menu_button" style="min-width: 120px;">
+                    知道了
+                </button>
+            </div>
+        `;
+    } else {
+        // 有核心模块加载失败
+        titleIcon = '<i class="fa-solid fa-triangle-exclamation" style="color: #ff9800;"></i>';
+        titleText = "⚠️ 插件加载异常";
+        titleColor = "#ff9800";
+
+        let failedListHtml = "";
+        failedCore.forEach(function(mod) {
+            let errorMsg = mod.error || "未知错误";
+            if (errorMsg === "timeout") errorMsg = "加载超时（网络或设备性能问题）";
+            else if (errorMsg === "error") errorMsg = "脚本加载失败（文件不存在或网络错误）";
+            else if (errorMsg.indexOf("test_failed") !== -1) errorMsg = "全局对象未创建（脚本执行异常）";
+
+            failedListHtml += `
+                <div style="padding: 10px; margin-bottom: 8px; background: rgba(255, 152, 0, 0.15); border-left: 3px solid #ff9800; border-radius: 4px;">
+                    <div style="font-weight: 600; color: #ff9800; margin-bottom: 4px;">
+                        <i class="fa-solid fa-xmark-circle"></i> ${mod.name}
+                    </div>
+                    <div style="font-size: 12px; color: rgba(255, 255, 255, 0.8); line-height: 1.5;">
+                        错误原因: ${errorMsg}
+                    </div>
+                </div>
+            `;
+        });
+
+        if (failedUI.length > 0) {
+            failedListHtml += `
+                <div style="margin-top: 16px; padding: 8px; background: rgba(255, 255, 255, 0.05); border-radius: 4px;">
+                    <div style="font-size: 12px; color: rgba(255, 255, 255, 0.7); margin-bottom: 6px;">
+                        <strong>UI模块加载失败（不影响核心功能）:</strong>
+                    </div>
+            `;
+            failedUI.forEach(function(mod) {
+                let errorMsg = mod.error || "未知错误";
+                if (errorMsg === "timeout") errorMsg = "加载超时";
+                else if (errorMsg === "error") errorMsg = "加载失败";
+                failedListHtml += `
+                    <div style="font-size: 11px; color: rgba(255, 255, 255, 0.6); margin-left: 12px; margin-bottom: 4px;">
+                        • ${mod.name}: ${errorMsg}
+                    </div>
+                `;
+            });
+            failedListHtml += `</div>`;
+        }
+
+        contentHtml = `
+            <div style="padding: 20px; max-width: 500px;">
+                <h3 style="color: ${titleColor}; margin: 0 0 16px 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+                    ${titleIcon} ${titleText}
+                </h3>
+                <p style="color: rgba(255, 255, 255, 0.9); margin: 0 0 16px 0; font-size: 14px; line-height: 1.6;">
+                    以下核心模块加载失败，可能导致部分功能无法正常使用：
+                </p>
+                <div style="max-height: 300px; overflow-y: auto; margin-bottom: 16px;">
+                    ${failedListHtml}
+                </div>
+                <div style="padding: 12px; background: rgba(74, 158, 255, 0.15); border-left: 3px solid #4a9eff; border-radius: 4px; margin-bottom: 16px;">
+                    <div style="font-size: 12px; color: rgba(255, 255, 255, 0.9); line-height: 1.6;">
+                        <strong style="color: #4a9eff;">💡 建议解决方案：</strong><br>
+                        1. 检查网络连接是否正常<br>
+                        2. 尝试刷新页面重新加载<br>
+                        3. 如果问题持续，请检查浏览器控制台是否有更多错误信息<br>
+                        4. 确保插件文件完整，未被浏览器拦截或损坏
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button id="xiaoxin-load-status-retry" class="menu_button menu_button-secondary" style="min-width: 100px;">
+                        重试加载
+                    </button>
+                    <button id="xiaoxin-load-status-close" class="menu_button" style="min-width: 100px;">
+                        知道了
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+
+    modal.innerHTML = `
+        <div style="
+            background: #202533;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        ">
+            ${contentHtml}
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // 绑定关闭按钮
+    const closeBtn = document.getElementById("xiaoxin-load-status-close");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", function() {
+            modal.remove();
+        });
+    }
+
+    // 绑定重试按钮（仅失败时显示）
+    const retryBtn = document.getElementById("xiaoxin-load-status-retry");
+    if (retryBtn) {
+        retryBtn.addEventListener("click", function() {
+            modal.remove();
+            console.info("[小馨手机] 用户点击重试加载，刷新页面...");
+            setTimeout(function() {
+                window.location.reload();
+            }, 300);
+        });
+    }
+
+    // 点击背景关闭（仅成功时）
+    if (allCoreSuccess) {
+        modal.addEventListener("click", function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+
+    // 成功时3秒后自动关闭
+    if (allCoreSuccess) {
+        setTimeout(function() {
+            if (document.getElementById(modalId)) {
+                modal.remove();
+            }
+        }, 3000);
+    }
 }
 
 // 动态加载脚本的辅助函数
