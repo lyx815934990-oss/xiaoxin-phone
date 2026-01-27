@@ -84,6 +84,9 @@ window.XiaoxinMessageListener = (function () {
             s.indexOf("我换") !== -1 ||
             s.indexOf("换上") !== -1 ||
             s.indexOf("换了") !== -1 ||
+            s.indexOf("换好") !== -1 ||
+            s.indexOf("换好了") !== -1 ||
+            s.indexOf("已经换") !== -1 ||
             s.indexOf("可以") !== -1 ||
             s.indexOf("行") !== -1 ||
             s.indexOf("好") !== -1 ||
@@ -145,19 +148,116 @@ window.XiaoxinMessageListener = (function () {
             return false;
         }
         try {
-            window.XiaoxinWeChatDataHandler.addContact({
-                id: String(contactId).trim(),
-                avatar: String(url).trim(),
-            });
+            var cidTrimmed = String(contactId).trim();
+            var safeUrl = String(url).trim();
+
+            // 头像URL预加载校验：避免证书错误/404/跨域被拦截导致头像变成空白默认图
+            function _getPreviousAvatar() {
+                try {
+                    // 优先从当前聊天闭包对象取
+                    if (
+                        window.XiaoxinWeChatChatUI &&
+                        window.XiaoxinWeChatChatUI.contact &&
+                        String(window.XiaoxinWeChatChatUI.contact.id || "").trim() === cidTrimmed &&
+                        window.XiaoxinWeChatChatUI.contact.avatar
+                    ) {
+                        return String(window.XiaoxinWeChatChatUI.contact.avatar).trim();
+                    }
+                } catch (e) {}
+                try {
+                    // 再从联系人存储取
+                    if (window.XiaoxinWeChatDataHandler && typeof window.XiaoxinWeChatDataHandler.getContact === "function") {
+                        var c = window.XiaoxinWeChatDataHandler.getContact(cidTrimmed);
+                        if (c && c.avatar) return String(c.avatar).trim();
+                    }
+                } catch (e2) {}
+                return "";
+            }
+
+            function _notifyAvatarBad(reason) {
+                var msg =
+                    "头像链接无法加载（" +
+                    (reason || "未知原因") +
+                    "），已保留原头像。建议换一个可直连的 https 图片链接。";
+                try {
+                    if (window.toastr) toastr.warning(msg, "小馨手机");
+                } catch (e) {}
+                console.warn("[小馨手机][头像更换] 头像链接加载失败:", reason, safeUrl);
+            }
+
+            function _validateImageUrl(u, cb) {
+                var done = false;
+                function finish(ok, reason) {
+                    if (done) return;
+                    done = true;
+                    cb(ok, reason);
+                }
+                try {
+                    var img = new Image();
+                    var timer = setTimeout(function () {
+                        finish(false, "加载超时");
+                    }, 6000);
+                    img.onload = function () {
+                        try { clearTimeout(timer); } catch (e) {}
+                        // 宽高为0一般也是失败/被拦截
+                        if (img.naturalWidth > 0 && img.naturalHeight > 0) finish(true);
+                        else finish(false, "图片尺寸无效");
+                    };
+                    img.onerror = function () {
+                        try { clearTimeout(timer); } catch (e) {}
+                        finish(false, "网络/证书/跨域错误");
+                    };
+                    // cache-bust，避免拿到坏缓存（但不破坏 data:）
+                    var finalUrl = u;
+                    if (finalUrl && typeof finalUrl === "string" && finalUrl.indexOf("data:image") !== 0) {
+                        finalUrl += (finalUrl.indexOf("?") === -1 ? "?" : "&") + "_t=" + Date.now();
+                    }
+                    img.referrerPolicy = "no-referrer";
+                    img.src = finalUrl;
+                } catch (e) {
+                    finish(false, "校验异常");
+                }
+            }
+
+            var previousAvatar = _getPreviousAvatar();
+
+            // 如果是明显不安全的 https 链接（比如证书错误经常出现的缩略图域），先提示并校验
+            _validateImageUrl(safeUrl, function (ok, reason) {
+                if (!ok) {
+                    _notifyAvatarBad(reason);
+                    // 失败：保持原头像（顺便把当前聊天 UI 的 avatar 也回写）
+                    try {
+                        if (
+                            previousAvatar &&
+                            window.XiaoxinWeChatChatUI &&
+                            window.XiaoxinWeChatChatUI.contact &&
+                            String(window.XiaoxinWeChatChatUI.contact.id || "").trim() === cidTrimmed
+                        ) {
+                            window.XiaoxinWeChatChatUI.contact.avatar = previousAvatar;
+                        }
+                    } catch (e2) {}
+                    return;
+                }
+
+                // 通过校验才写入联系人头像
+                try {
+                    window.XiaoxinWeChatDataHandler.addContact({
+                        id: cidTrimmed,
+                        avatar: safeUrl,
+                    });
+                } catch (e3) {
+                    console.warn("[小馨手机][头像更换] 写入联系人头像失败:", e3);
+                    return;
+                }
 
             // 如果当前正打开该聊天，顺便刷新一下 UI（chat.js 的 contact 对象是局部变量，尽量同步）
             try {
                 if (
                     window.XiaoxinWeChatChatUI &&
                     window.XiaoxinWeChatChatUI.contact &&
-                    String(window.XiaoxinWeChatChatUI.contact.id || "").trim() === String(contactId).trim()
+                    String(window.XiaoxinWeChatChatUI.contact.id || "").trim() === cidTrimmed
                 ) {
-                    window.XiaoxinWeChatChatUI.contact.avatar = String(url).trim();
+                    window.XiaoxinWeChatChatUI.contact.avatar = safeUrl;
                     if (typeof window.XiaoxinWeChatChatUI.refreshMessageList === "function") {
                         window.XiaoxinWeChatChatUI.refreshMessageList();
                     }
@@ -167,9 +267,7 @@ window.XiaoxinMessageListener = (function () {
             // 兜底：直接更新当前聊天页面中“对方消息”的头像 DOM（避免必须切换页面才刷新）
             try {
                 if (typeof window.$ === "function") {
-                    var cid = String(contactId).trim();
-                    var safeUrl = String(url).trim();
-                    var $screen = $('.xiaoxin-wechat-chat-screen[data-user-id="' + cid + '"]');
+                    var $screen = $('.xiaoxin-wechat-chat-screen[data-user-id="' + cidTrimmed + '"]');
                     if ($screen && $screen.length) {
                         $screen
                             .find(".xiaoxin-wechat-chat-message-contact .xiaoxin-wechat-chat-message-avatar")
@@ -178,7 +276,54 @@ window.XiaoxinMessageListener = (function () {
                 }
             } catch (e3) {}
 
+            // 通知聊天页“联系人头像已更新”，让 chat.js 可以用 refreshChatScreen 强制重绘（跨 iframe）
+            try {
+                var detail = {
+                    contactId: cidTrimmed,
+                    avatarUrl: safeUrl,
+                };
+
+                // 注意：CustomEvent 不能跨 window 直接复用（不同 realm），需要为每个 window 重新 new
+                function _dispatchToWin(w) {
+                    if (!w || !w.dispatchEvent) return;
+                    try {
+                        var EvtCtor = w.CustomEvent || CustomEvent;
+                        w.dispatchEvent(
+                            new EvtCtor("xiaoxin-contact-avatar-updated", {
+                                detail: detail,
+                            })
+                        );
+                    } catch (e) {}
+                    // 如果目标 window 内有刷新接口，直接调用（最稳）
+                    try {
+                        if (w.XiaoxinWeChatChatUI && typeof w.XiaoxinWeChatChatUI.refreshChatScreen === "function") {
+                            w.XiaoxinWeChatChatUI.refreshChatScreen(String(detail.contactId));
+                        }
+                    } catch (e2) {}
+                }
+
+                _dispatchToWin(window);
+                try { _dispatchToWin(window.parent); } catch (e4) {}
+                try { _dispatchToWin(window.top); } catch (e5) {}
+
+                // 尝试把事件投递到可访问的 iframe（手机界面通常在 iframe 内）
+                try {
+                    var frames = (window.top && window.top.document)
+                        ? window.top.document.querySelectorAll("iframe")
+                        : document.querySelectorAll("iframe");
+                    for (var i = 0; i < frames.length; i++) {
+                        try {
+                            var fw = frames[i].contentWindow;
+                            _dispatchToWin(fw);
+                        } catch (e6) {}
+                    }
+                } catch (e7) {}
+            } catch (e7) {}
+
             console.info("[小馨手机][头像更换] 已更新联系人头像:", contactId, url);
+            return true;
+            }); // end validate callback
+            // 异步校验：先返回 true，真正写入在回调里进行
             return true;
         } catch (e) {
             console.warn("[小馨手机][头像更换] 更新联系人头像失败:", e);
@@ -3693,6 +3838,98 @@ window.XiaoxinMessageListener = (function () {
                     "isAIMessage:",
                     isAIMessage
                 );
+
+                // ====== 头像更换：角色普通文本回复也触发（不依赖 [MSG]） ======
+                // 你截图里的“换好了”属于这种情况：它不是 [MSG] 私聊结构化块，因此不会走下面的 parsedMessages 分支。
+                // 逻辑：
+                // - 若当前正处于某个微信聊天页（XiaoxinWeChatChatUI.chatUserId 存在）
+                // - 且该联系人存在候选头像
+                // - 且本条 AI 文本表示同意/拒绝
+                // 则立刻应用/清理并强制刷新聊天页
+                try {
+                    if (isAIMessage === true) {
+                        // 从所有可访问窗口中找出当前激活的聊天ID（微信聊天页在 iframe 内时，监听器可能运行在 top）
+                        function _findActiveChatIdAnyWin() {
+                            function pick(w) {
+                                try {
+                                    if (w && w.XiaoxinWeChatChatUI && w.XiaoxinWeChatChatUI.chatUserId) {
+                                        return String(w.XiaoxinWeChatChatUI.chatUserId).trim();
+                                    }
+                                } catch (e) {}
+                                return "";
+                            }
+                            var id = pick(window) || "";
+                            if (id) return id;
+                            try { id = pick(window.parent); } catch (e2) {}
+                            if (id) return id;
+                            try { id = pick(window.top); } catch (e3) {}
+                            if (id) return id;
+                            // 扫描 iframe
+                            try {
+                                var frames = (window.top && window.top.document)
+                                    ? window.top.document.querySelectorAll("iframe")
+                                    : document.querySelectorAll("iframe");
+                                for (var i = 0; i < frames.length; i++) {
+                                    try {
+                                        id = pick(frames[i].contentWindow);
+                                        if (id) return id;
+                                    } catch (e4) {}
+                                }
+                            } catch (e5) {}
+                            return "";
+                        }
+
+                        var activeChatId = _findActiveChatIdAnyWin();
+                        if (activeChatId) {
+                            var cand2 = _getAvatarCandidate(activeChatId);
+                            if (cand2 && cand2.url) {
+                                var aiText = String(content || "").trim();
+                                // 过期保护
+                                try {
+                                    var createdAt2 = cand2.created_at || 0;
+                                    if (createdAt2 && Date.now() - createdAt2 > 6 * 60 * 60 * 1000) {
+                                        _clearAvatarCandidate(activeChatId);
+                                        cand2 = null;
+                                    }
+                                } catch (e_exp2) {}
+
+                                if (cand2 && cand2.url) {
+                                    var accept2 = _isRoleAcceptAvatar(aiText);
+                                    var reject2 = _isRoleRejectAvatar(aiText);
+                                    if (accept2) {
+                                        _applyContactAvatar(activeChatId, cand2.url);
+                                        _clearAvatarCandidate(activeChatId);
+                                        // 直接刷新（不等事件）：对每个可访问 window 调用 refreshChatScreen
+                                        try {
+                                            function _refreshAnyWin(w) {
+                                                try {
+                                                    if (w && w.XiaoxinWeChatChatUI && typeof w.XiaoxinWeChatChatUI.refreshChatScreen === "function") {
+                                                        w.XiaoxinWeChatChatUI.refreshChatScreen(activeChatId);
+                                                    }
+                                                } catch (e) {}
+                                            }
+                                            _refreshAnyWin(window);
+                                            try { _refreshAnyWin(window.parent); } catch (e2) {}
+                                            try { _refreshAnyWin(window.top); } catch (e3) {}
+                                            try {
+                                                var frames2 = (window.top && window.top.document)
+                                                    ? window.top.document.querySelectorAll("iframe")
+                                                    : document.querySelectorAll("iframe");
+                                                for (var j = 0; j < frames2.length; j++) {
+                                                    try { _refreshAnyWin(frames2[j].contentWindow); } catch (e4) {}
+                                                }
+                                            } catch (e5) {}
+                                        } catch (e_rf) {}
+                                    } else if (reject2) {
+                                        _clearAvatarCandidate(activeChatId);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e_avatar_plain) {
+                    console.warn("[小馨手机][头像更换] 普通文本触发处理失败（忽略）:", e_avatar_plain);
+                }
 
                 console.info(
                     "[小馨手机][消息监听] processMessage: 发现微信私聊消息标签，开始解析，消息ID:",
@@ -8569,7 +8806,7 @@ window.XiaoxinMessageListener = (function () {
                     // 注意：需要复用上面的 contactId 匹配逻辑，确保使用相同的 contactId
                     var contactMessagesMap = {};
                     parsedMessages.forEach(function (msgObj) {
-                        // 确定聊天对象（联系人）的ID（使用相同的匹配逻辑）
+                        // 确定聊天对象（联系人）的ID（使用与写入聊天记录时相同的匹配逻辑）
                         var messageContactWechatId = null;
                         var msgFromStr = String(msgObj.from || "").trim();
                         var msgToStr = String(msgObj.to || "").trim();
@@ -8577,9 +8814,16 @@ window.XiaoxinMessageListener = (function () {
                             playerWechatId || ""
                         ).trim();
 
-                        if (msgFromStr === playerWechatIdStr) {
+                        // from 为玩家（包括 "player" / "user" / "0" / 实际 wechatId）时，聊天对象应为 to
+                        var isFromPlayerSide =
+                            msgFromStr === playerWechatIdStr ||
+                            msgFromStr === "player" ||
+                            msgFromStr === "user" ||
+                            msgFromStr === "0";
+                        if (isFromPlayerSide && msgToStr) {
                             messageContactWechatId = msgToStr;
                         } else {
+                            // 否则视为角色/系统消息，聊天对象取 from
                             messageContactWechatId = msgFromStr;
                         }
 
