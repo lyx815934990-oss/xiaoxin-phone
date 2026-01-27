@@ -11200,9 +11200,14 @@ window.XiaoxinMessageListener = (function () {
     function init() {
         console.info("[小馨手机][消息监听] 初始化消息监听器");
 
+        var started = false;
+        var startTime = Date.now();
+
         // 等待数据处理器和解析器加载完成
         var checkInterval = setInterval(function () {
             if (window.XiaoxinWeChatDataHandler && window.XiaoxinWeChatParser) {
+                if (started) return; // 避免重复启动
+                started = true;
                 clearInterval(checkInterval);
                 console.info(
                     "[小馨手机][消息监听] 数据处理器和解析器已加载，开始监听"
@@ -11217,7 +11222,8 @@ window.XiaoxinMessageListener = (function () {
                         var detail = event.detail || {};
                         var contact = detail.contact;
                         var status = detail.status;
-                        var skipFriendAddedFlow = detail.skipFriendAddedFlow || false;
+                        var skipFriendAddedFlow =
+                            detail.skipFriendAddedFlow || false;
 
                         // 如果标记了跳过好友添加流程（pending_verify 状态），不扫描
                         if (skipFriendAddedFlow) {
@@ -11246,27 +11252,23 @@ window.XiaoxinMessageListener = (function () {
                     }
                 );
             } else {
-                if (!window.XiaoxinWeChatDataHandler) {
+                // 还没准备好时，最多每秒打一条等待日志，避免刷屏
+                var elapsed = Date.now() - startTime;
+                if (!window.XiaoxinWeChatDataHandler && elapsed % 1000 < 100) {
                     console.info("[小馨手机][消息监听] 等待数据处理器加载...");
                 }
-                if (!window.XiaoxinWeChatParser) {
+                if (!window.XiaoxinWeChatParser && elapsed % 1000 < 100) {
                     console.info("[小馨手机][消息监听] 等待解析器加载...");
+                }
+
+                // 超过 15 秒仍未就绪时给出一次显式警告，但继续等待，避免永远不启动
+                if (elapsed > 15000 && !started) {
+                    console.warn(
+                        "[小馨手机][消息监听] 数据处理器或解析器长时间未加载完成，可能是网络或脚本加载缓慢，将继续等待。"
+                    );
                 }
             }
         }, 100);
-
-        // 10秒后停止检查
-        setTimeout(function () {
-            clearInterval(checkInterval);
-            if (!window.XiaoxinWeChatDataHandler) {
-                console.warn(
-                    "[小馨手机][消息监听] 数据处理器未在10秒内加载完成"
-                );
-            }
-            if (!window.XiaoxinWeChatParser) {
-                console.warn("[小馨手机][消息监听] 解析器未在10秒内加载完成");
-            }
-        }, 10000);
     }
 
     // 暴露一个手动触发玩家历史朋友圈生成的入口，便于其他模块/页面兜底调用
