@@ -11263,10 +11263,10 @@ window.XiaoxinMessageListener = (function () {
 
                 // 超过 15 秒仍未就绪时给出一次显式警告，但继续等待，避免永远不启动
                 if (elapsed > 15000 && !started) {
-                    console.warn(
+                console.warn(
                         "[小馨手机][消息监听] 数据处理器或解析器长时间未加载完成，可能是网络或脚本加载缓慢，将继续等待。"
-                    );
-                }
+                );
+            }
             }
         }, 100);
     }
