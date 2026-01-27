@@ -786,17 +786,17 @@ function performUpdate() {
         // 检查 response 是否是 Response 对象
         if (response && typeof response.ok !== "undefined") {
             // 这是 fetch 返回的 Response 对象
-            if (response.ok) {
-                if (typeof toastr !== "undefined") {
-                    toastr.success("更新成功！页面即将刷新...", "小馨手机", { timeOut: 2000 });
-                }
-                // 2秒后刷新页面
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
+        if (response.ok) {
+            if (typeof toastr !== "undefined") {
+                toastr.success("更新成功！页面即将刷新...", "小馨手机", { timeOut: 2000 });
+            }
+            // 2秒后刷新页面
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
                 return;
-            } else {
-                // 尝试读取错误信息
+        } else {
+            // 尝试读取错误信息
                 const text = await response.text();
                 let errorMsg = `更新失败: HTTP ${response.status}`;
 
@@ -1131,14 +1131,12 @@ function showLoadStatusDialog(loader) {
         });
     }
 
-    // 点击背景关闭（仅成功时）
-    if (allCoreSuccess) {
-        modal.addEventListener("click", function(e) {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
+    // 点击背景关闭（成功时允许，失败时也允许，避免一直遮挡界面）
+    modal.addEventListener("click", function(e) {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 
     // 成功时3秒后自动关闭
     if (allCoreSuccess) {
