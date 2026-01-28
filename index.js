@@ -1,6 +1,6 @@
 // ==SillyTavern Extension==
 // @name         小馨手机
-// @version      0.1.10
+// @version      0.1.11
 // @description  一个真实体验的悬浮手机插件，支持微信聊天、电话、短信、微博等功能
 // @author       小馨肥肉
 
@@ -230,7 +230,7 @@ function registerExtensionSettings() {
                                         关闭
                                     </button>
                                 </div>
-                                <div id="xiaoxin-release-modal-content" style="flex:1; overflow-y:auto; padding:8px; margin-top:4px; background: rgba(0,0,0,0.25); border-radius:4px; font-size:0.9em; line-height:1.5; font-family: 'SimHei', 'Microsoft YaHei', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;"></div>
+                                <div id="xiaoxin-release-modal-content" style="flex:1; overflow-y:auto; padding:8px; margin-top:4px; background: rgba(0,0,0,0.25); border-radius:4px; font-size:0.9em; line-height:1.5;"></div>
                                 <div style="margin-top:8px; font-size:0.8em; color:rgba(255,255,255,0.7);">
                                     提示：仅显示你当前版本（含）之后、最新版本（含）之间的所有更新记录。完整内容请前往 GitHub 查看。
                                 </div>
@@ -695,7 +695,7 @@ function showUpdateNotice(currentVersion, latestVersion, releases) {
                             <strong style="color:#4a9eff;">${title}</strong>
                             <span style="font-size:0.8em; color:rgba(255,255,255,0.6);">${date}</span>
                         </div>
-                        <pre style="margin:0; white-space: pre-wrap; font-family: inherit; color: rgba(255,255,255,0.88);">${body}</pre>
+                        <pre style="margin:0; white-space: pre-wrap; color: rgba(255,255,255,0.88);">${body}</pre>
                     </div>
                 `;
             });
@@ -991,6 +991,10 @@ function showLoadStatusDialog(loader) {
         align-items: center;
         justify-content: center;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Microsoft YaHei', sans-serif;
+        padding: 20px;
+        box-sizing: border-box;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
     `;
 
     let contentHtml = "";
@@ -1004,7 +1008,17 @@ function showLoadStatusDialog(loader) {
         titleText = "✅ 插件加载完成";
         titleColor = "#4caf50";
         contentHtml = `
-            <div style="padding: 20px; text-align: center;">
+            <!-- 可滚动的内容区域 -->
+            <div style="
+                flex: 1 1 auto;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding: 20px;
+                padding-bottom: 16px;
+                -webkit-overflow-scrolling: touch;
+                min-height: 0;
+                text-align: center;
+            ">
                 <div style="font-size: 48px; margin-bottom: 16px;">🎉</div>
                 <h3 style="color: ${titleColor}; margin: 0 0 12px 0; font-size: 20px; font-weight: 600;">
                     ${titleIcon} ${titleText}
@@ -1013,7 +1027,16 @@ function showLoadStatusDialog(loader) {
                     所有核心模块已成功加载，插件可以完全正常使用！<br>
                     <small style="color: rgba(255, 255, 255, 0.6);">加载耗时: ${(status.totalTime / 1000).toFixed(1)} 秒</small>
                 </p>
-                <button id="xiaoxin-load-status-close" class="menu_button" style="min-width: 120px;">
+            </div>
+            <!-- 固定在底部的按钮区域 -->
+            <div style="
+                padding: 16px 20px 20px 20px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                background: #202533;
+                flex-shrink: 0;
+                text-align: center;
+            ">
+                <button id="xiaoxin-load-status-close" class="menu_button" style="min-width: 120px; touch-action: manipulation;">
                     知道了
                 </button>
             </div>
@@ -1064,7 +1087,18 @@ function showLoadStatusDialog(loader) {
         }
 
         contentHtml = `
-            <div style="padding: 20px; max-width: 500px;">
+            <!-- 可滚动的内容区域 -->
+            <div style="
+                flex: 1 1 auto;
+                overflow-y: auto;
+                overflow-x: hidden;
+                padding: 20px;
+                padding-bottom: 16px;
+                -webkit-overflow-scrolling: touch;
+                min-height: 0;
+                max-width: 500px;
+                margin: 0 auto;
+            ">
                 <h3 style="color: ${titleColor}; margin: 0 0 16px 0; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
                     ${titleIcon} ${titleText}
                 </h3>
@@ -1083,14 +1117,23 @@ function showLoadStatusDialog(loader) {
                         4. 确保插件文件完整，未被浏览器拦截或损坏
                     </div>
                 </div>
-                <div style="display: flex; gap: 8px; justify-content: flex-end;">
-                    <button id="xiaoxin-load-status-retry" class="menu_button menu_button-secondary" style="min-width: 100px;">
-                        重试加载
-                    </button>
-                    <button id="xiaoxin-load-status-close" class="menu_button" style="min-width: 100px;">
-                        知道了
-                    </button>
-                </div>
+            </div>
+            <!-- 固定在底部的按钮区域 -->
+            <div style="
+                padding: 16px 20px 20px 20px;
+                border-top: 1px solid rgba(255, 255, 255, 0.1);
+                background: #202533;
+                flex-shrink: 0;
+                display: flex;
+                gap: 8px;
+                justify-content: flex-end;
+            ">
+                <button id="xiaoxin-load-status-retry" class="menu_button menu_button-secondary" style="min-width: 100px; touch-action: manipulation;">
+                    重试加载
+                </button>
+                <button id="xiaoxin-load-status-close" class="menu_button" style="min-width: 100px; touch-action: manipulation;">
+                    知道了
+                </button>
             </div>
         `;
     }
@@ -1101,9 +1144,13 @@ function showLoadStatusDialog(loader) {
             border-radius: 12px;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
             max-width: 600px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
+            width: 100%;
+            max-height: calc(100vh - 40px);
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: auto;
         ">
             ${contentHtml}
         </div>
