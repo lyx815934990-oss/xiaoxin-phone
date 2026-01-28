@@ -137,8 +137,50 @@ function MobilePhone() {
     this.updateTime();
     setInterval(() => this.updateTime(), 1000);
     // 定期自愈：有些情况下（主题注入/动画/某些浏览器渲染 bug）状态栏/灵动岛/Home 条会被遮挡或意外消失
-    // 这里每 2 秒检查一次，避免用户必须刷新酒馆页面
-    setInterval(() => this.ensureSystemOverlays(), 2000);
+    // 这里每 1 秒检查一次，避免用户必须刷新酒馆页面（提高检查频率，更快发现问题）
+    setInterval(() => this.ensureSystemOverlays(), 1000);
+    
+    // 在页面切换、DOM变化时也立即检查（使用MutationObserver监听DOM变化）
+    if (typeof MutationObserver !== "undefined") {
+        var self = this;
+        var observer = new MutationObserver(function(mutations) {
+            // 检查是否有元素被移除或添加
+            var shouldCheck = false;
+            mutations.forEach(function(mutation) {
+                if (mutation.type === "childList" && (mutation.removedNodes.length > 0 || mutation.addedNodes.length > 0)) {
+                    // 检查是否涉及手机容器
+                    var removed = Array.from(mutation.removedNodes);
+                    var added = Array.from(mutation.addedNodes);
+                    if (removed.some(function(node) {
+                        return node.nodeType === 1 && (
+                            node.classList && node.classList.contains("xiaoxin-phone-container") ||
+                            (self.$phoneContainer && self.$phoneContainer[0] === node) ||
+                            (self.$phoneContainer && self.$phoneContainer.find(node).length > 0)
+                        );
+                    }) || added.some(function(node) {
+                        return node.nodeType === 1 && node.classList && node.classList.contains("xiaoxin-phone-container");
+                    })) {
+                        shouldCheck = true;
+                    }
+                }
+            });
+            if (shouldCheck) {
+                // 延迟一点执行，避免频繁触发
+                setTimeout(function() {
+                    self.ensureSystemOverlays();
+                }, 100);
+            }
+        });
+        
+        // 监听body的DOM变化
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // 保存observer引用，以便后续清理
+        this._domObserver = observer;
+    }
     // 初始化一次状态栏明暗主题
     this.updateStatusBarTheme();
 
@@ -760,19 +802,59 @@ MobilePhone.prototype.initPhoneContainer = function () {
 // 确保状态栏/灵动岛/底部 Home 条存在且可见（自愈）
 MobilePhone.prototype.ensureSystemOverlays = function () {
     try {
-        if (!this.$phoneContainer || !this.$phoneContainer.length) return;
+        // ⚠️ 首先检查手机外壳容器本身是否存在且可见
+        if (!this.$phoneContainer || !this.$phoneContainer.length) {
+            console.warn("[小馨手机][自愈] 手机容器不存在，尝试恢复");
+            // 如果容器被移除，尝试重新初始化（仅在容器完全丢失时）
+            if (this.$phoneContainer && !this.$phoneContainer.length) {
+                // 容器引用存在但DOM中不存在，尝试重新创建
+                console.warn("[小馨手机][自愈] 手机容器DOM丢失，需要重新初始化");
+                return;
+            }
+            return;
+        }
+
+        // 检查手机容器是否在DOM中
+        if (!this.$phoneContainer.parent().length && !$("body").find(this.$phoneContainer).length) {
+            console.warn("[小馨手机][自愈] 手机容器不在DOM中，重新添加到body");
+            $("body").append(this.$phoneContainer);
+        }
+
+        // 强制确保手机容器可见（如果手机是显示状态）
+        if (this.$phoneContainer.hasClass("visible")) {
+            this.$phoneContainer[0].style.setProperty("display", "block", "important");
+            this.$phoneContainer[0].style.setProperty("visibility", "visible", "important");
+            this.$phoneContainer[0].style.setProperty("opacity", "1", "important");
+            this.$phoneContainer[0].style.setProperty("pointer-events", "auto", "important");
+        }
+
+        // 检查手机框架
+        var $phoneFrame = this.$phoneContainer.find(".xiaoxin-phone-frame");
+        if (!$phoneFrame.length) {
+            console.warn("[小馨手机][自愈] 手机框架不存在");
+            return;
+        }
+
         var $screen = this.$phoneContainer.find(".xiaoxin-phone-screen");
-        if (!$screen.length) return;
+        if (!$screen.length) {
+            console.warn("[小馨手机][自愈] 手机屏幕不存在");
+            return;
+        }
 
         // 状态栏
         var $statusBar = $screen.children(".xiaoxin-status-bar");
         if (!$statusBar.length) {
+            console.warn("[小馨手机][自愈] 状态栏不存在，尝试恢复");
             // 尝试从缓存引用恢复
             if (this.$statusBar && this.$statusBar.length) {
                 $statusBar = this.$statusBar;
-                $screen.append($statusBar);
+                // 检查是否在DOM中
+                if (!$statusBar.parent().length) {
+                    $screen.append($statusBar);
+                }
             } else {
                 // 极端情况：重建一个最小状态栏
+                console.warn("[小馨手机][自愈] 重建状态栏");
                 $statusBar = $('<div class="xiaoxin-status-bar status-dark"></div>');
                 var $statusLeft = $('<div class="xiaoxin-status-left"></div>');
                 var $time = $('<span class="xiaoxin-time">9:41</span>');
@@ -790,9 +872,44 @@ MobilePhone.prototype.ensureSystemOverlays = function () {
             }
         }
 
+        // 检查灵动岛是否在状态栏中
+        var $dynamicIsland = $statusBar.find(".xiaoxin-dynamic-island");
+        if (!$dynamicIsland.length) {
+            console.warn("[小馨手机][自愈] 灵动岛不存在，尝试恢复");
+            if (this.$dynamicIsland && this.$dynamicIsland.length) {
+                // 尝试从缓存恢复
+                if (!this.$dynamicIsland.parent().length) {
+                    var $statusLeft = $statusBar.find(".xiaoxin-status-left");
+                    var $statusRight = $statusBar.find(".xiaoxin-status-right");
+                    if ($statusLeft.length && $statusRight.length) {
+                        $statusLeft.after(this.$dynamicIsland);
+                    } else {
+                        $statusBar.append(this.$dynamicIsland);
+                    }
+                }
+            } else {
+                // 重建灵动岛
+                console.warn("[小馨手机][自愈] 重建灵动岛");
+                $dynamicIsland = $('<div class="xiaoxin-dynamic-island"></div>');
+                var $statusLeft = $statusBar.find(".xiaoxin-status-left");
+                var $statusRight = $statusBar.find(".xiaoxin-status-right");
+                if ($statusLeft.length && $statusRight.length) {
+                    $statusLeft.after($dynamicIsland);
+                } else {
+                    $statusBar.append($dynamicIsland);
+                }
+                this.$dynamicIsland = $dynamicIsland;
+                this.initDynamicIslandDrag($dynamicIsland);
+            }
+        } else {
+            // 更新缓存引用
+            this.$dynamicIsland = $dynamicIsland;
+        }
+
         // Home 条
         var $homeIndicator = $screen.children(".xiaoxin-home-indicator");
         if (!$homeIndicator.length) {
+            console.warn("[小馨手机][自愈] Home条不存在，重建");
             $homeIndicator = $('<div class="xiaoxin-home-indicator"></div>');
             $screen.append($homeIndicator);
             this.initHomeIndicatorGesture($homeIndicator);
@@ -803,12 +920,34 @@ MobilePhone.prototype.ensureSystemOverlays = function () {
         $screen.append($statusBar);
         $screen.append($homeIndicator);
 
-        // 强制可见（避免被异常样式覆盖）
-        $statusBar.css({ display: "flex", visibility: "visible", opacity: 1 });
-        $homeIndicator.css({
-            display: "block",
-            visibility: "visible",
-            opacity: 1,
+        // 强制可见（避免被异常样式覆盖）- 使用CSS优先级和直接设置样式
+        // 注意：jQuery的css()方法无法直接设置!important，需要通过setProperty
+        if ($statusBar.length) {
+            $statusBar[0].style.setProperty("display", "flex", "important");
+            $statusBar[0].style.setProperty("visibility", "visible", "important");
+            $statusBar[0].style.setProperty("opacity", "1", "important");
+            $statusBar[0].style.setProperty("z-index", "99999", "important");
+        }
+        
+        if ($dynamicIsland && $dynamicIsland.length) {
+            $dynamicIsland[0].style.setProperty("display", "block", "important");
+            $dynamicIsland[0].style.setProperty("visibility", "visible", "important");
+            $dynamicIsland[0].style.setProperty("opacity", "1", "important");
+            $dynamicIsland[0].style.setProperty("z-index", "99999", "important");
+        }
+        
+        if ($homeIndicator.length) {
+            $homeIndicator[0].style.setProperty("display", "block", "important");
+            $homeIndicator[0].style.setProperty("visibility", "visible", "important");
+            $homeIndicator[0].style.setProperty("opacity", "1", "important");
+            $homeIndicator[0].style.setProperty("z-index", "99999", "important");
+        }
+
+        // 确保手机框架可见
+        $phoneFrame.css({
+            "display": "block",
+            "visibility": "visible",
+            "opacity": "1"
         });
     } catch (e) {
         console.warn("[小馨手机] ensureSystemOverlays 出错:", e);
@@ -1300,6 +1439,9 @@ MobilePhone.prototype.openApp = function (appName) {
     if (this.currentPage === appName) return;
 
     var self = this;
+    
+    // 页面切换时立即检查系统覆盖层
+    this.ensureSystemOverlays();
 
     // 已开发的应用列表
     var developedApps = ["设置", "微信"];
