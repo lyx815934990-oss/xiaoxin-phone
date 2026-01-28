@@ -2029,13 +2029,161 @@ window.XiaoxinWeChatContacts = (function () {
                     var $avatar = $(
                         '<div class="xiaoxin-wechat-new-friends-avatar"></div>'
                     );
+                    
+                    // ⚠️ 优先从最新联系人信息中获取头像和备注（确保显示最新数据）
+                    var latestContact = null;
+                    var roleId = String(req.roleId || "").trim().replace(/^contact_/, "");
+                    if (roleId && window.XiaoxinWeChatDataHandler && typeof window.XiaoxinWeChatDataHandler.getContact === "function") {
+                        try {
+                            // 尝试通过角色ID获取最新联系人信息
+                            latestContact = window.XiaoxinWeChatDataHandler.getContact(roleId);
+                            // 如果找不到，尝试通过contactId查找
+                            if (!latestContact && req.contactId) {
+                                var contactId = String(req.contactId || "").trim().replace(/^contact_/, "");
+                                latestContact = window.XiaoxinWeChatDataHandler.getContact(contactId);
+                            }
+                        } catch (e) {
+                            console.warn("[小馨手机][微信] 获取最新联系人信息失败:", e);
+                        }
+                    }
+                    
+                    // ⚠️ 从消息历史中扫描最新的联系方式数据块，获取最新的头像和备注
+                    var latestContactFromMessages = null;
+                    try {
+                        // 获取所有聊天消息
+                        var allMessages = [];
+                        if (typeof getChatMessages === "function") {
+                            allMessages = getChatMessages() || [];
+                        } else if (window.SillyTavern && Array.isArray(window.SillyTavern.chat)) {
+                            allMessages = window.SillyTavern.chat || [];
+                        }
+                        
+                        // 从后往前扫描，找到最新的联系方式数据块
+                        for (var msgIdx = allMessages.length - 1; msgIdx >= 0; msgIdx--) {
+                            var msg = allMessages[msgIdx];
+                            if (!msg) continue;
+                            
+                            // ⚠️ 优先使用原始消息内容（original/originalMes），避免重新生成回复时旧回复的内容被处理
+                            var msgContent = null;
+                            
+                            // 优先使用原始消息字段（这些字段在重新生成时不会被更新）
+                            if (msg.original && typeof msg.original === "string" && msg.original.trim()) {
+                                msgContent = msg.original;
+                            } else if (msg.originalMes && typeof msg.originalMes === "string" && msg.originalMes.trim()) {
+                                msgContent = msg.originalMes;
+                            } else if (msg.originalText && typeof msg.originalText === "string" && msg.originalText.trim()) {
+                                msgContent = msg.originalText;
+                            } else if (msg.raw && typeof msg.raw === "string" && msg.raw.trim()) {
+                                msgContent = msg.raw;
+                            } else {
+                                // 如果原始字段不存在，使用当前消息字段（可能是新消息）
+                                msgContent = msg.mes || msg.text || msg.content || "";
+                            }
+                            
+                            if (!msgContent || typeof msgContent !== "string") continue;
+                            
+                            // 检查是否包含联系方式数据块
+                            if (msgContent.indexOf("[wx_contact]") === -1) continue;
+                            
+                            // 解析联系方式数据块
+                            var contactRegex = /\[wx_contact\]([\s\S]*?)\[\/wx_contact\]/gi;
+                            var contactMatch;
+                            while ((contactMatch = contactRegex.exec(msgContent)) !== null) {
+                                var contactContent = contactMatch[1];
+                                if (!contactContent) continue;
+                                 
+                                // 解析字段
+                                var contactData = {};
+                                var contactRoleId = null;
+                                var lines = contactContent.split("\n");
+                                
+                                // 先解析所有字段
+                                for (var lineIdx = 0; lineIdx < lines.length; lineIdx++) {
+                                    var line = lines[lineIdx].trim();
+                                    if (!line) continue;
+                                    
+                                    // 处理等号分隔的字段
+                                    var equalIdx = line.indexOf("=");
+                                    if (equalIdx === -1) {
+                                        // 尝试处理中文冒号
+                                        var colonIdx = line.indexOf("：");
+                                        if (colonIdx !== -1) {
+                                            line = line.substring(0, colonIdx) + "=" + line.substring(colonIdx + 1);
+                                            equalIdx = colonIdx;
+                                        } else {
+                                            var colonIdx2 = line.indexOf(":");
+                                            if (colonIdx2 !== -1 && line.indexOf("://") === -1) {
+                                                line = line.substring(0, colonIdx2) + "=" + line.substring(colonIdx2 + 1);
+                                                equalIdx = colonIdx2;
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (equalIdx === -1) continue;
+                                    
+                                    var fieldName = line.substring(0, equalIdx).trim();
+                                    var fieldValue = line.substring(equalIdx + 1).trim();
+                                    
+                                    if (!fieldName || !fieldValue) continue;
+                                    
+                                    // 解析角色ID
+                                    if (fieldName === "角色ID" || fieldName === "角色id" || fieldName === "characterId") {
+                                        contactRoleId = String(fieldValue).trim().replace(/^contact_/, "");
+                                        contactData.characterId = contactRoleId;
+                                    }
+                                    
+                                    // 解析头像URL
+                                    if ((fieldName === "头像URL" || fieldName === "头像" || fieldName === "avatar" || fieldName === "avatarURL") && fieldValue) {
+                                        contactData.avatar = fieldValue;
+                                    }
+                                    
+                                    // 解析微信昵称
+                                    if ((fieldName === "微信昵称" || fieldName === "昵称" || fieldName === "nickname") && fieldValue) {
+                                        contactData.nickname = fieldValue;
+                                    }
+                                    
+                                    // 解析备注（如果有）
+                                    if ((fieldName === "备注" || fieldName === "remark") && fieldValue) {
+                                        contactData.remark = fieldValue;
+                                    }
+                                }
+                                
+                                // 检查角色ID是否匹配
+                                if (contactRoleId) {
+                                    var reqRoleId = String(roleId).trim();
+                                    if (contactRoleId === reqRoleId || String(contactRoleId) === String(reqRoleId)) {
+                                        // 角色ID匹配，保存这个联系方式数据块
+                                        latestContactFromMessages = contactData;
+                                        console.info("[小馨手机][微信] 从消息历史中找到最新的联系方式数据块，角色ID:", roleId, "头像:", contactData.avatar, "昵称:", contactData.nickname);
+                                        break;
+                                    }
+                                }
+                            }
+                            
+                            // 如果已经找到匹配的联系方式数据块，停止扫描
+                            if (latestContactFromMessages && latestContactFromMessages.characterId) {
+                                break;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn("[小馨手机][微信] 从消息历史扫描联系方式数据块失败:", e);
+                    }
+                    
+                    // 优先使用消息历史中的最新联系方式数据，然后是联系人信息，最后是好友申请记录
                     var avatarUrl =
-                        req.avatar ||
+                        (latestContactFromMessages && latestContactFromMessages.avatar) ||
+                        (latestContact && latestContact.avatar) ||
                         (req.contact && req.contact.avatar) ||
+                        req.avatar ||
                         "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
                     $avatar.css("background-image", "url(" + avatarUrl + ")");
 
+                    // 优先使用消息历史中的最新联系方式数据，然后是联系人信息，最后是好友申请记录
                     var displayName =
+                        (latestContactFromMessages && latestContactFromMessages.remark && latestContactFromMessages.remark.trim()) ||
+                        (latestContactFromMessages && latestContactFromMessages.nickname) ||
+                        (latestContact && latestContact.remark && latestContact.remark.trim()) ||
+                        (latestContact && latestContact.nickname) ||
                         (req.remark && req.remark.trim()) ||
                         (req.contact && req.contact.remark) ||
                         (req.contact && req.contact.nickname) ||
@@ -2276,14 +2424,50 @@ window.XiaoxinWeChatContacts = (function () {
             }, 100);
         }
 
+        // 监听联系人更新事件（头像、备注等更新时自动刷新）
+        function handleContactUpdated(event) {
+            console.info("[小馨手机][微信] 收到联系人更新事件，刷新新的朋友页面");
+            // 仅当当前仍停留在"新的朋友"页面时才刷新
+            try {
+                var isNewFriendsPage = $root && $root.find(".xiaoxin-wechat-new-friends-main").length > 0;
+                var isVerifyPage = $root && $root.find(".xiaoxin-wechat-friend-apply-main").length > 0;
+
+                if (!isNewFriendsPage || isVerifyPage) {
+                    return;
+                }
+            } catch (e) {
+                // ignore
+            }
+            setTimeout(function () {
+                // 再次检查，避免在延迟期间页面已切换
+                try {
+                    var isNewFriendsPage = $root && $root.find(".xiaoxin-wechat-new-friends-main").length > 0;
+                    var isVerifyPage = $root && $root.find(".xiaoxin-wechat-friend-apply-main").length > 0;
+                    if (isNewFriendsPage && !isVerifyPage) {
+                        renderNewFriendsPage($root, mobilePhone);
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }, 100);
+        }
+
         // 移除之前的事件监听器（如果存在）
         var oldHandler = $root.data("friendRequestUpdateHandler");
         if (oldHandler) {
             window.removeEventListener("xiaoxin-friend-request-updated", oldHandler);
         }
+        var oldContactHandler = $root.data("contactUpdateHandler");
+        if (oldContactHandler) {
+            window.removeEventListener("xiaoxin-contact-updated", oldContactHandler);
+            window.removeEventListener("xiaoxin-contact-avatar-updated", oldContactHandler);
+        }
 
         window.addEventListener("xiaoxin-friend-request-updated", handleFriendRequestUpdated);
+        window.addEventListener("xiaoxin-contact-updated", handleContactUpdated);
+        window.addEventListener("xiaoxin-contact-avatar-updated", handleContactUpdated);
         $root.data("friendRequestUpdateHandler", handleFriendRequestUpdated);
+        $root.data("contactUpdateHandler", handleContactUpdated);
     }
 
     // ========== 渲染标签选择弹窗 ==========
