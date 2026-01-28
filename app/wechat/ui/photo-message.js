@@ -99,7 +99,14 @@ window.XiaoxinPhotoMessage = (function () {
                 "</div>"
         );
 
-        $("body").append($photoDialog);
+        // 优先挂载到手机容器内，保证在手机页面范围内自适应显示
+        var $phoneContainer = $(".xiaoxin-phone-container");
+        if ($phoneContainer.length > 0) {
+            $phoneContainer.append($photoDialog);
+        } else {
+            // 兜底：PC 调试场景
+            $("body").append($photoDialog);
+        }
 
         // 获取元素引用
         var $preview = $photoDialog.find(".xiaoxin-photo-message-preview");
