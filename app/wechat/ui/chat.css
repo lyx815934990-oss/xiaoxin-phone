@@ -886,8 +886,11 @@ select.xiaoxin-wechat-history-chat-select:visited {
     background: transparent !important;
     border-radius: 4px !important;
     overflow: hidden;
-    max-width: 120px;
-    max-height: 120px;
+    max-width: 160px;
+    max-height: 160px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* 表情包消息禁用默认气泡的小三角 */
@@ -903,9 +906,11 @@ select.xiaoxin-wechat-history-chat-select:visited {
 }
 
 .xiaoxin-wechat-chat-message-emoji-img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
     display: block;
 }
 
@@ -1952,10 +1957,10 @@ select.xiaoxin-wechat-history-chat-select:visited {
 /* ========== 表情包面板 ========== */
 .xiaoxin-wechat-chat-sticker-bar {
     position: absolute;
-    bottom: 20px; /* 位于输入框下方，往上移动20px避免遮挡home条 */
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)); /* 兼容刘海/底栏 */
     left: 0;
     right: 0;
-    height: 240px; /* 增加高度以容纳标签栏 */
+    height: clamp(200px, 38vh, 260px); /* 随屏幕高度自适应 */
     background: #f2f2f2;
     border-top: 0.5px solid #d1d1d6;
     display: none; /* 初始隐藏，展开时改为 flex */
@@ -1970,8 +1975,8 @@ select.xiaoxin-wechat-history-chat-select:visited {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-    padding: 8px 12px;
-    gap: 8px;
+    padding: 8px 10px;
+    gap: 6px;
     border-bottom: 0.5px solid #d1d1d6;
     background: #f2f2f2;
     overflow-x: auto;
@@ -1986,8 +1991,8 @@ select.xiaoxin-wechat-history-chat-select:visited {
 }
 
 .xiaoxin-wechat-chat-sticker-tab {
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2087,6 +2092,26 @@ select.xiaoxin-wechat-history-chat-select:visited {
     flex-direction: column;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
     overflow: hidden;
+}
+
+/* 在手机容器内显示“创建表情包分组”弹窗时，自适应手机屏幕并稍微下移 */
+.xiaoxin-phone-container .xiaoxin-sticker-category-dialog {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: 40px;  /* 向下移动一些，避免贴着手机顶部 */
+    padding-bottom: 40px;
+    box-sizing: border-box;
+    overflow: hidden;   /* 防止弹窗超出手机容器 */
+}
+
+.xiaoxin-phone-container .xiaoxin-sticker-category-dialog-content {
+    width: 80%;
+    max-width: 320px;
+    max-height: 70vh;
+    margin: auto;       /* 在手机容器内部水平垂直居中 */
 }
 
 .xiaoxin-sticker-category-dialog-header {
@@ -2475,16 +2500,16 @@ select.xiaoxin-wechat-history-chat-select:visited {
 
 .xiaoxin-wechat-chat-sticker-grid {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* 4列布局 */
-    gap: 8px 6px; /* 减小间距：行间距8px，列间距6px */
+    grid-template-columns: repeat(4, 1fr); /* 固定每行4格 */
+    gap: 6px 6px;
     width: 100%;
-    padding: 2px 0; /* 只保留上下内边距，左右由内容区域控制 */
+    padding: 2px 2px; /* 略微增加左右缓冲，防止贴边 */
     box-sizing: border-box;
 }
 
 .xiaoxin-wechat-chat-sticker-item {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    min-height: 64px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -2503,10 +2528,10 @@ select.xiaoxin-wechat-history-chat-select:visited {
 }
 
 .xiaoxin-wechat-chat-sticker-img {
-    width: 100%;
-    height: 100%;
-    max-width: 70px; /* 限制最大尺寸，确保一行4个 */
-    max-height: 70px;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
     pointer-events: none;
 }
@@ -2831,6 +2856,26 @@ select.xiaoxin-wechat-history-chat-select:visited {
     flex-direction: column;
     z-index: 2;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+/* 在手机容器内显示添加表情包弹窗时，自适应手机屏幕并略微下移 */
+.xiaoxin-phone-container .xiaoxin-add-sticker-dialog {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding-top: 40px; /* 向下移动一些，避免顶到手机状态栏 */
+    padding-bottom: 40px;
+    box-sizing: border-box;
+    overflow: hidden; /* 确保弹窗不超出手机容器 */
+}
+
+.xiaoxin-phone-container .xiaoxin-add-sticker-dialog-content {
+    width: 80%;
+    max-width: 320px;
+    max-height: 70vh;
+    margin: auto; /* 在手机容器内部居中 */
 }
 
 .xiaoxin-add-sticker-dialog-header {
