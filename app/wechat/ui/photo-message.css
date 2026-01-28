@@ -14,6 +14,19 @@
     transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
+/* 手机容器内：限制在手机壳范围内，并向下移动一些（对齐“添加表情包”弹窗的体验） */
+.xiaoxin-phone-container .xiaoxin-photo-message-dialog {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    padding-top: 40px;
+    padding-bottom: 40px;
+    box-sizing: border-box;
+    overflow: hidden; /* 避免弹窗超出手机容器 */
+}
+
 .xiaoxin-photo-message-dialog.show {
     opacity: 1;
     visibility: visible;
@@ -39,6 +52,14 @@
     flex-direction: column;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     z-index: 10001;
+}
+
+.xiaoxin-phone-container .xiaoxin-photo-message-dialog-content {
+    width: 80%;
+    max-width: 320px;
+    max-height: 70vh;
+    margin: auto; /* 在手机容器内居中 */
+    overflow: hidden; /* 配合内部 body 滚动 */
 }
 
 .xiaoxin-photo-message-dialog-header {
