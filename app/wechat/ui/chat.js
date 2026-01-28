@@ -4847,15 +4847,6 @@ note=${playerName}对${charRealName}发起了语音通话
                 // ⚠️ 重要：红包消息不应该被过滤，直接跳过 [MSG] 标签检查
                 if (message.type === "redpacket") {
                     // 红包消息直接渲染，不检查 [MSG] 标签
-                    console.info(
-                        "[小馨手机][微信聊天UI] 检测到红包消息，跳过 [MSG] 标签检查:",
-                        "消息ID:",
-                        message.id,
-                        "type:",
-                        message.type,
-                        "redpacket_id:",
-                        message.redpacket_id
-                    );
                     // 继续执行后续的渲染逻辑
                 } else {
                     // 检查消息内容是否包含 [MSG] 标签，如果包含则完全隐藏
@@ -6127,27 +6118,6 @@ note=${playerName}对${charRealName}发起了语音通话
     }
 
     function renderMessage(message, playerNickname, contact, showTimestamp) {
-        // 调试：记录所有消息的类型，特别是红包消息
-        if (message.type === "redpacket" || (message.content && typeof message.content === "string" && message.content.indexOf("type=redpacket") !== -1)) {
-            console.info(
-                "[小馨手机][微信聊天UI] renderMessage 收到消息:",
-                "消息ID:",
-                message.id,
-                "type:",
-                message.type,
-                "content包含type=redpacket:",
-                message.content && typeof message.content === "string" && message.content.indexOf("type=redpacket") !== -1,
-                "完整消息对象:",
-                JSON.stringify({
-                    id: message.id,
-                    type: message.type,
-                    content: message.content ? (message.content.length > 100 ? message.content.substring(0, 100) + "..." : message.content) : "",
-                    redpacket_id: message.redpacket_id,
-                    amount: message.amount,
-                    note: message.note
-                })
-            );
-        }
         var $messageItem = $(
             '<div class="xiaoxin-wechat-chat-message-item"></div>'
         );
@@ -6318,10 +6288,6 @@ note=${playerName}对${charRealName}发起了语音通话
         // 这个检查需要在 $avatar 创建之后，因为我们需要使用 $avatar
         if (message.type === "redpacket" && message._processed === true) {
             // 历史红包消息已处理，直接渲染，不再重复处理
-            console.info(
-                "[小馨手机][微信聊天UI] 历史红包消息已处理，直接渲染:",
-                message.id
-            );
             // 直接渲染红包，不再执行后续处理
             $bubble.addClass("xiaoxin-wechat-chat-message-redpacket");
             // 渲染红包内容（使用已有数据）
@@ -6418,10 +6384,6 @@ note=${playerName}对${charRealName}发起了语音通话
             $messageItem.append($messageContent);
 
             // ⚠️ 重要：确保返回 $messageItem，否则消息不会被添加到 DOM
-            console.info(
-                "[小馨手机][微信聊天UI] 历史红包消息渲染完成，返回消息项:",
-                message.id
-            );
             return $messageItem; // 返回消息项，确保消息被添加到 DOM
         }
 
@@ -8946,38 +8908,75 @@ note=${playerName}对${charRealName}发起了语音通话
                                 currentWorldTimestamp
                             );
                         } else {
-                            // 如果聊天历史中没有消息，使用消息本身的时间作为基准
-                            currentWorldTimestamp = messageTimestamp;
+                            // ⚠️ 如果聊天历史中没有消息，不应该使用消息本身的时间作为基准
+                            // 因为这样会导致 daysDiff = 0，历史消息会显示为"当天"
+                            // 应该使用全局世界观时钟时间，如果也不可用，才使用消息时间
+                            if (
+                                window.XiaoxinWorldClock &&
+                                window.XiaoxinWorldClock.currentTimestamp &&
+                                window.XiaoxinWorldClock.currentTimestamp > 0
+                            ) {
+                                currentWorldTimestamp = window.XiaoxinWorldClock.currentTimestamp;
+                                console.info(
+                                    "[小馨手机][微信聊天UI] 手机页面模式，聊天历史为空，使用全局世界观时钟时间作为基准:",
+                                    currentWorldTimestamp
+                                );
+                            } else {
+                                // 最后才使用消息本身的时间作为基准（不推荐，但总比没有好）
+                                currentWorldTimestamp = messageTimestamp;
+                                console.warn(
+                                    "[小馨手机][微信聊天UI] 手机页面模式，无法获取世界观时间，使用消息本身时间作为基准（可能导致历史消息显示错误）:",
+                                    currentWorldTimestamp
+                                );
+                            }
+                        }
+                    } else {
+                        // 如果数据处理器不可用，尝试使用全局世界观时钟时间
+                        if (
+                            window.XiaoxinWorldClock &&
+                            window.XiaoxinWorldClock.currentTimestamp &&
+                            window.XiaoxinWorldClock.currentTimestamp > 0
+                        ) {
+                            currentWorldTimestamp = window.XiaoxinWorldClock.currentTimestamp;
                             console.info(
-                                "[小馨手机][微信聊天UI] 手机页面模式，使用消息本身时间作为基准:",
+                                "[小馨手机][微信聊天UI] 手机页面模式，数据处理器不可用，使用全局世界观时钟时间作为基准:",
+                                currentWorldTimestamp
+                            );
+                        } else {
+                            // 最后才使用消息本身的时间作为基准
+                            currentWorldTimestamp = messageTimestamp;
+                            console.warn(
+                                "[小馨手机][微信聊天UI] 手机页面模式，数据处理器和世界观时钟都不可用，使用消息本身时间作为基准（可能导致历史消息显示错误）:",
                                 currentWorldTimestamp
                             );
                         }
-                    } else {
-                        // 如果数据处理器不可用，使用消息本身的时间作为基准
-                        currentWorldTimestamp = messageTimestamp;
-                        console.info(
-                            "[小馨手机][微信聊天UI] 手机页面模式，数据处理器不可用，使用消息本身时间作为基准:",
-                            currentWorldTimestamp
-                        );
                     }
                 } catch (e) {
                     console.warn(
                         "[小馨手机][微信聊天UI] 手机页面模式，获取聊天历史时间失败:",
                         e
                     );
-                    currentWorldTimestamp = messageTimestamp;
+                    // 尝试使用全局世界观时钟时间
+                    if (
+                        window.XiaoxinWorldClock &&
+                        window.XiaoxinWorldClock.currentTimestamp &&
+                        window.XiaoxinWorldClock.currentTimestamp > 0
+                    ) {
+                        currentWorldTimestamp = window.XiaoxinWorldClock.currentTimestamp;
+                    } else {
+                        currentWorldTimestamp = messageTimestamp;
+                    }
                 }
             } else {
                 // 世界观时间存在，检查是否合理（不应该比消息时间早太多）
-                // 如果世界观时间比消息时间早超过1天，可能不合理，使用消息时间作为基准
+                // 如果世界观时间比消息时间早超过1天，可能不合理，但不要使用消息时间作为基准
+                // 因为世界观时间可能是正确的（历史消息场景）
                 var timeDiff = currentWorldTimestamp - messageTimestamp;
                 if (timeDiff < -86400000) {
-                    // 世界观时间比消息时间早超过1天
-                    console.warn(
-                        "[小馨手机][微信聊天UI] 手机页面模式，世界观时间看起来不合理，使用消息本身时间作为基准"
+                    // 世界观时间比消息时间早超过1天，可能是历史消息场景，这是正常的
+                    console.info(
+                        "[小馨手机][微信聊天UI] 手机页面模式，世界观时间比消息时间早，可能是历史消息场景，继续使用世界观时间作为基准"
                     );
-                    currentWorldTimestamp = messageTimestamp;
                 }
             }
         } else {
