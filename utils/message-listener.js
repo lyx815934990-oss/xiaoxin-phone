@@ -763,6 +763,23 @@ window.XiaoxinMessageListener = (function () {
         }
     }
 
+    // 规范化包含数据块的文本：解码实体、去掉 Markdown 代码块/反引号、去掉转义括号
+    function normalizeDataBlockText(text) {
+        var s = decodeHtmlEntities(text || "");
+        // 去掉三反引号围起来的代码块标记，保留内部内容
+        s = s.replace(/```[\s\S]*?```/g, function (m) {
+            // 去掉首尾 ``` 仅保留内容
+            return m.replace(/^```[^\n]*\n?/, "").replace(/```$/, "");
+        });
+        // 去掉行内反引号，保留内容
+        s = s.replace(/`([^`]*)`/g, "$1");
+        // 去掉对方可能添加的反斜杠转义
+        s = s.replace(/\\\[/g, "[").replace(/\\\]/g, "]");
+        // 去掉多余的零宽字符
+        s = s.replace(/\u200b/g, "");
+        return s;
+    }
+
     // 清理字段值中的 HTML 标签和多余内容（并解码实体，避免头像URL等被 &amp; 破坏）
     function cleanFieldValue(value) {
         if (!value) return "";
@@ -2091,8 +2108,11 @@ window.XiaoxinMessageListener = (function () {
                             rawContent = "";
                         }
 
+                        // 对可能被包裹成代码块/带实体的内容做一次规范化，再检查标签
+                        var normalizedContent = normalizeDataBlockText(rawContent);
+
                         // 使用通用函数检查是否包含任何数据块标签
-                        var hasAnyTag = hasAnyDataBlockTag(rawContent);
+                        var hasAnyTag = hasAnyDataBlockTag(normalizedContent);
 
                         if (!hasAnyTag) {
                             // 尝试从消息对象的所有字段中查找包含标签的内容
@@ -2102,13 +2122,16 @@ window.XiaoxinMessageListener = (function () {
                                     typeof msg[key] === "string"
                                 ) {
                                     var fieldContent = msg[key];
-                                    if (hasAnyDataBlockTag(fieldContent)) {
+                                    var normalizedField = normalizeDataBlockText(
+                                        fieldContent
+                                    );
+                                    if (hasAnyDataBlockTag(normalizedField)) {
                                         console.info(
                                             "[小馨手机][消息监听] getRawMessageContentFromData: 在字段",
                                             key,
                                             "中找到数据块标签"
                                         );
-                                        rawContent = fieldContent;
+                                        rawContent = normalizedField;
                                         hasAnyTag = true;
                                         break;
                                     }
@@ -2157,8 +2180,8 @@ window.XiaoxinMessageListener = (function () {
                                 );
                             }
 
-                            // 使用通用函数检查是否包含任何数据块标签
-                            var hasTag = hasAnyDataBlockTag(rawContent);
+                            // 使用通用函数检查是否包含任何数据块标签（在规范化后）
+                            var hasTag = hasAnyDataBlockTag(normalizeDataBlockText(rawContent));
 
                             console.info(
                                 "[小馨手机][消息监听] getRawMessageContentFromData: 消息",
@@ -2172,7 +2195,8 @@ window.XiaoxinMessageListener = (function () {
                                     "[小馨手机][消息监听] 从酒馆消息数据中获取到原始消息内容，消息索引:",
                                     i
                                 );
-                                return rawContent;
+                                // 始终返回规范化后的内容，确保数据块可被解析
+                                return normalizeDataBlockText(rawContent);
                             }
                         }
                     }
