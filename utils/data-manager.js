@@ -491,25 +491,38 @@ window.XiaoxinDataManager = (function () {
                     overflow: visible;
                     padding: 0;
                     box-sizing: border-box;
+                    -webkit-overflow-scrolling: touch;
                 ">
                     <div style="
                         background: white;
-                        padding: 24px;
                         border-radius: 12px;
                         max-width: 500px;
                         width: calc(100vw - 40px);
                         max-height: calc(100vh - 40px);
-                        overflow-y: auto;
+                        min-height: 200px;
                         box-shadow: 0 4px 20px rgba(0,0,0,0.3);
                         margin: 20px;
                         position: relative;
+                        display: flex;
+                        flex-direction: column;
+                        overflow: hidden;
                     ">
-                        <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: #333;">
-                            选择/输入角色卡标识
-                        </h3>
-                        <p style="color: #666; font-size: 14px; line-height: 1.5; margin: 0 0 20px 0;">
-                            不同角色卡的数据会独立存储。请输入或选择一个角色卡标识（建议使用角色卡名称，如"角色A"、"角色B"等）。
-                        </p>
+                        <!-- 可滚动的内容区域 -->
+                        <div style="
+                            flex: 1 1 auto;
+                            overflow-y: auto;
+                            overflow-x: hidden;
+                            padding: 24px;
+                            padding-bottom: 16px;
+                            -webkit-overflow-scrolling: touch;
+                            min-height: 0;
+                        ">
+                            <h3 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 600; color: #333;">
+                                选择/输入角色卡标识
+                            </h3>
+                            <p style="color: #666; font-size: 14px; line-height: 1.5; margin: 0 0 20px 0;">
+                                不同角色卡的数据会独立存储。请输入或选择一个角色卡标识（建议使用角色卡名称，如"角色A"、"角色B"等）。
+                            </p>
 
                         ${
                             existingIds.length > 0
@@ -579,7 +592,7 @@ window.XiaoxinDataManager = (function () {
                                 : ""
                         }
 
-                        <div style="margin: 0 0 24px 0;">
+                        <div style="margin: 0 0 0 0;">
                             <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #333; font-size: 14px;">
                                 输入新的角色卡标识：
                             </label>
@@ -602,7 +615,18 @@ window.XiaoxinDataManager = (function () {
                             }">
                         </div>
 
-                        <div style="margin-top: 24px; text-align: right; display: flex; gap: 10px; justify-content: flex-end;">
+                        </div>
+                        
+                        <!-- 固定在底部的按钮区域 -->
+                        <div style="
+                            padding: 16px 24px 24px 24px;
+                            border-top: 1px solid #f0f0f0;
+                            background: white;
+                            flex-shrink: 0;
+                            display: flex;
+                            gap: 10px;
+                            justify-content: flex-end;
+                        ">
                             <button id="xiaoxin-char-id-cancel" style="
                                 padding: 10px 20px;
                                 background: #f0f0f0 !important;
@@ -612,6 +636,8 @@ window.XiaoxinDataManager = (function () {
                                 font-size: 14px;
                                 color: #333 !important;
                                 transition: none !important;
+                                min-width: 80px;
+                                touch-action: manipulation;
                             ">
                                 取消
                             </button>
@@ -625,6 +651,8 @@ window.XiaoxinDataManager = (function () {
                                 font-size: 14px;
                                 font-weight: 500;
                                 transition: none !important;
+                                min-width: 80px;
+                                touch-action: manipulation;
                             ">
                                 确认
                             </button>
