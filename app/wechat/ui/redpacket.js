@@ -71,6 +71,21 @@ window.XiaoxinWeChatRedPacketUI = (function () {
             var $dot = $('<span class="xiaoxin-wechat-redpacket-dot">•</span>');
             $moreBtn.append($dot);
         }
+        // 添加点击事件，跳转到"收到的红包"页面
+        $moreBtn.on("click", function() {
+            // 关闭键盘（如果打开）
+            hideKeyboard();
+            // 跳转到红包汇总页面
+            renderRedPacketSummaryPage($container, {
+                onBack: function() {
+                    // 返回时重新渲染发红包页面
+                    renderSendRedPacketPage($container, {
+                        userId: userId,
+                        onBack: onBack
+                    });
+                }
+            });
+        });
         $headerRight.append($moreBtn);
 
         $headerBar.append($headerLeft, $headerTitle, $headerRight);
@@ -745,7 +760,7 @@ window.XiaoxinWeChatRedPacketUI = (function () {
                     if (currentCategory.id === "default") {
                         // 默认分组：直接是文件名，加上路径前缀
                         url =
-                            "/scripts/extensions/third-party/小馨手机/image/表情包/" +
+                            "/scripts/extensions/third-party/xiaoxin-phone/image/表情包/" +
                             item;
                         description = "表情包";
                     } else {
@@ -1185,7 +1200,7 @@ window.XiaoxinWeChatRedPacketUI = (function () {
         // 获取发送者信息（如果contact为空，根据message.from查找）
         var senderContact = contact;
         var senderName = "未知用户";
-        var senderAvatar = "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+        var senderAvatar = "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
 
         // 如果contact为空或没有信息，尝试根据message.from或message.sender查找
         var senderId = message.from || message.sender || "";
@@ -1329,7 +1344,7 @@ window.XiaoxinWeChatRedPacketUI = (function () {
             // 获取领取者信息
             var claimerContact = null;
             var claimerName = "未知用户";
-            var claimerAvatar = "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            var claimerAvatar = "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
             var claimTime = message.claimed_time || message.timestamp || Date.now();
 
             // 先检查是否是玩家领取的
@@ -1741,7 +1756,7 @@ window.XiaoxinWeChatRedPacketUI = (function () {
 
         var playerWechatId = "player";
         var playerName = "我";
-        var playerAvatar = "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+        var playerAvatar = "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
 
         if (currentAccount) {
             // 优先使用账号的 id 字段（微信注册时保存的微信ID）
