@@ -147,18 +147,20 @@
 
 /* ========== 状态栏 ========== */
 .xiaoxin-status-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 54px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start; /* 右侧图标删除后只保留左侧时间 */
-    padding: 0 20px;
-    z-index: 99999; /* 最高层级，确保时间始终显示在最上层 */
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 54px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important; /* 右侧图标删除后只保留左侧时间 */
+    padding: 0 20px !important;
+    z-index: 99999 !important; /* 最高层级，确保时间始终显示在最上层 */
     /* 去掉顶部阴影视觉遮罩，保持纯净的 iOS 风格 */
-    background: transparent;
+    background: transparent !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .xiaoxin-status-left {
@@ -179,19 +181,22 @@
 
 /* 灵动岛 (Dynamic Island) */
 .xiaoxin-dynamic-island {
-    position: absolute;
-    left: 50%;
-    top: 12px;
-    transform: translateX(-50%);
-    width: 126px;
-    height: 37px;
-    background: #000;
-    border-radius: 19px;
-    z-index: 99999; /* 最高层级，确保灵动岛始终显示在最上层 */
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    cursor: grab; /* 显示可拖动光标 */
-    user-select: none; /* 防止拖动时选中文字 */
-    -webkit-user-select: none;
+    position: absolute !important;
+    left: 50% !important;
+    top: 12px !important;
+    transform: translateX(-50%) !important;
+    width: 126px !important;
+    height: 37px !important;
+    background: #000 !important;
+    border-radius: 19px !important;
+    z-index: 99999 !important; /* 最高层级，确保灵动岛始终显示在最上层 */
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+    cursor: grab !important; /* 显示可拖动光标 */
+    user-select: none !important; /* 防止拖动时选中文字 */
+    -webkit-user-select: none !important;
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 .xiaoxin-dynamic-island:active {
@@ -631,6 +636,10 @@
 
 /* ========== 底部 Home Indicator ========== */
 .xiaoxin-home-indicator {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    z-index: 20000 !important;
     position: absolute;
     /*
      * 命中区扩展：
