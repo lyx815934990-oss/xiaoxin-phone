@@ -70,17 +70,26 @@ window.XiaoxinMessageListener = (function () {
     function _isRoleAcceptAvatar(text) {
         var s = String(text || "").trim().toLowerCase();
         if (!s) return false;
-        // 否定优先（避免“可以不换吗”这类误判）
+        // 否定优先（避免"可以不换吗"、"还是不要"这类误判）
         var hasNeg =
             s.indexOf("不换") !== -1 ||
             s.indexOf("不需要") !== -1 ||
             s.indexOf("不要") !== -1 ||
             s.indexOf("不用") !== -1 ||
             s.indexOf("不行") !== -1 ||
-            s.indexOf("拒绝") !== -1;
+            s.indexOf("拒绝") !== -1 ||
+            s.indexOf("还是不要") !== -1 ||
+            s.indexOf("还是不用") !== -1 ||
+            s.indexOf("还是不行") !== -1 ||
+            s.indexOf("还是别") !== -1 ||
+            s.indexOf("还是算了") !== -1 ||
+            s.indexOf("不太想") !== -1 ||
+            s.indexOf("不太合适") !== -1 ||
+            s.indexOf("不太适合") !== -1;
         if (hasNeg) return false;
 
         return (
+            // 明确同意
             s.indexOf("我换") !== -1 ||
             s.indexOf("换上") !== -1 ||
             s.indexOf("换了") !== -1 ||
@@ -91,9 +100,66 @@ window.XiaoxinMessageListener = (function () {
             s.indexOf("行") !== -1 ||
             s.indexOf("好") !== -1 ||
             s.indexOf("没问题") !== -1 ||
+            s.indexOf("ok") !== -1 ||
+            s.indexOf("嗯") !== -1 ||
+            s.indexOf("嗯嗯") !== -1 ||
+            // 指向性同意
             s.indexOf("就用这张") !== -1 ||
             s.indexOf("用这个当头像") !== -1 ||
-            s.indexOf("设成头像") !== -1
+            s.indexOf("设成头像") !== -1 ||
+            s.indexOf("换一下") !== -1 ||
+            s.indexOf("换这个") !== -1 ||
+            s.indexOf("换它") !== -1 ||
+            s.indexOf("用这个") !== -1 ||
+            s.indexOf("用这张") !== -1 ||
+            s.indexOf("就用这个") !== -1 ||
+            s.indexOf("就用它") !== -1 ||
+            // 评价性同意
+            s.indexOf("适合") !== -1 ||
+            s.indexOf("合适") !== -1 ||
+            s.indexOf("不错") !== -1 ||
+            s.indexOf("挺好的") !== -1 ||
+            s.indexOf("挺好看") !== -1 ||
+            s.indexOf("好看") !== -1 ||
+            // 隐晦同意表达
+            s.indexOf("配合") !== -1 || // "配合一下"、"勉为其难配合"
+            (s.indexOf("勉为其难") !== -1 && (s.indexOf("配合") !== -1 || s.indexOf("换") !== -1)) || // "勉为其难配合一下"
+            s.indexOf("勉强") !== -1 || // "勉强再尝试一次"、"勉强配合"
+            s.indexOf("尝试") !== -1 || // "再尝试一次"、"尝试一下"
+            s.indexOf("那就") !== -1 || // "那就这样"、"那就换"
+            s.indexOf("那就这样") !== -1 ||
+            s.indexOf("那就换") !== -1 ||
+            s.indexOf("听你的") !== -1 ||
+            s.indexOf("随你") !== -1 ||
+            s.indexOf("随便") !== -1 ||
+            s.indexOf("你说了算") !== -1 ||
+            s.indexOf("你决定") !== -1 ||
+            s.indexOf("你看着办") !== -1 ||
+            s.indexOf("你定") !== -1 ||
+            s.indexOf("你安排") !== -1 ||
+            s.indexOf("都可以") !== -1 ||
+            s.indexOf("无所谓") !== -1 ||
+            s.indexOf("随便你") !== -1 ||
+            s.indexOf("你开心就好") !== -1 ||
+            s.indexOf("你高兴就好") !== -1 ||
+            s.indexOf("你决定就好") !== -1 ||
+            // 无奈/勉强同意
+            s.indexOf("行吧") !== -1 ||
+            s.indexOf("好吧") !== -1 ||
+            s.indexOf("那就这样吧") !== -1 ||
+            s.indexOf("那就换吧") !== -1 ||
+            s.indexOf("可以吧") !== -1 ||
+            s.indexOf("行行") !== -1 ||
+            s.indexOf("好好") !== -1 ||
+            // 条件性同意
+            (s.indexOf("既然") !== -1 && (s.indexOf("那就") !== -1 || s.indexOf("那就这样") !== -1 || s.indexOf("那就换") !== -1)) ||
+            // 礼貌性同意
+            s.indexOf("我会试试") !== -1 ||
+            s.indexOf("我会考虑") !== -1 ||
+            s.indexOf("试试看") !== -1 ||
+            // 组合模式
+            (s.indexOf("头像") !== -1 && s.indexOf("换") !== -1 && s.indexOf("不") === -1) || // "头像换一下"、"头像换这个"等
+            (s.indexOf("这个") !== -1 && (s.indexOf("不错") !== -1 || s.indexOf("挺好") !== -1 || s.indexOf("好看") !== -1)) // "这个不错"、"这个挺好的"
         );
     }
 
@@ -101,13 +167,84 @@ window.XiaoxinMessageListener = (function () {
         var s = String(text || "").trim().toLowerCase();
         if (!s) return false;
         return (
+            // 明确拒绝
             s.indexOf("不换") !== -1 ||
             s.indexOf("不要") !== -1 ||
             s.indexOf("不用") !== -1 ||
             s.indexOf("不行") !== -1 ||
             s.indexOf("拒绝") !== -1 ||
+            s.indexOf("不可以") !== -1 ||
+            s.indexOf("不行不行") !== -1 ||
+            s.indexOf("不要不要") !== -1 ||
+            s.indexOf("不了") !== -1 ||
+            s.indexOf("不用了") !== -1 ||
+            // 委婉拒绝
             s.indexOf("算了") !== -1 ||
-            s.indexOf("还是别") !== -1
+            s.indexOf("还是别") !== -1 ||
+            s.indexOf("还是算了") !== -1 ||
+            s.indexOf("还是不要") !== -1 ||
+            s.indexOf("还是不用") !== -1 ||
+            s.indexOf("还是不行") !== -1 ||
+            s.indexOf("还是别换") !== -1 ||
+            s.indexOf("还是别这样") !== -1 ||
+            s.indexOf("还是别这样吧") !== -1 ||
+            s.indexOf("还是保持") !== -1 ||
+            s.indexOf("还是原样") !== -1 ||
+            s.indexOf("还是原来的") !== -1 ||
+            s.indexOf("还是原来的好") !== -1 ||
+            // 推脱性拒绝
+            s.indexOf("再说吧") !== -1 ||
+            s.indexOf("以后再说") !== -1 ||
+            s.indexOf("以后再说吧") !== -1 ||
+            s.indexOf("以后再看") !== -1 ||
+            s.indexOf("以后再看吧") !== -1 ||
+            s.indexOf("现在不想") !== -1 ||
+            s.indexOf("现在不想换") !== -1 ||
+            s.indexOf("现在不想这样") !== -1 ||
+            s.indexOf("现在不想这样吧") !== -1 ||
+            s.indexOf("暂时不想") !== -1 ||
+            s.indexOf("暂时不想换") !== -1 ||
+            s.indexOf("暂时不想这样") !== -1 ||
+            s.indexOf("改天") !== -1 ||
+            s.indexOf("改天再说") !== -1 ||
+            s.indexOf("改天再看") !== -1 ||
+            // 条件性拒绝
+            s.indexOf("不太合适") !== -1 ||
+            s.indexOf("不太适合") !== -1 ||
+            s.indexOf("不太好看") !== -1 ||
+            s.indexOf("不太喜欢") !== -1 ||
+            s.indexOf("不太想") !== -1 ||
+            s.indexOf("不太想换") !== -1 ||
+            s.indexOf("不太想这样") !== -1 ||
+            s.indexOf("不太想这样吧") !== -1 ||
+            s.indexOf("不太满意") !== -1 ||
+            s.indexOf("不太满意这个") !== -1 ||
+            // 礼貌性拒绝
+            s.indexOf("谢谢你的建议") !== -1 ||
+            s.indexOf("谢谢建议") !== -1 ||
+            (s.indexOf("谢谢") !== -1 && (s.indexOf("但") !== -1 || s.indexOf("不过") !== -1 || s.indexOf("还是") !== -1)) ||
+            (s.indexOf("我会考虑") !== -1 && (s.indexOf("但") !== -1 || s.indexOf("不过") !== -1 || s.indexOf("暂时") !== -1)) ||
+            (s.indexOf("我会想想") !== -1 && (s.indexOf("但") !== -1 || s.indexOf("不过") !== -1 || s.indexOf("暂时") !== -1)) ||
+            (s.indexOf("我会再想想") !== -1 && (s.indexOf("但") !== -1 || s.indexOf("不过") !== -1 || s.indexOf("暂时") !== -1)) ||
+            // 其他拒绝表达
+            s.indexOf("保持原样") !== -1 ||
+            s.indexOf("保持原来的") !== -1 ||
+            s.indexOf("保持现状") !== -1 ||
+            s.indexOf("还是保持原样") !== -1 ||
+            s.indexOf("还是保持原来的") !== -1 ||
+            s.indexOf("还是保持现状") !== -1 ||
+            s.indexOf("不用换了") !== -1 ||
+            s.indexOf("不用换") !== -1 ||
+            s.indexOf("不用这样") !== -1 ||
+            s.indexOf("不用这样吧") !== -1 ||
+            s.indexOf("不需要换") !== -1 ||
+            s.indexOf("不需要这样") !== -1 ||
+            s.indexOf("没必要") !== -1 ||
+            s.indexOf("没必要换") !== -1 ||
+            s.indexOf("没必要这样") !== -1 ||
+            s.indexOf("不需要") !== -1 ||
+            s.indexOf("不需要换") !== -1 ||
+            s.indexOf("不需要这样") !== -1
         );
     }
 
@@ -655,7 +792,9 @@ window.XiaoxinMessageListener = (function () {
 
     // 解析时间标签 [time]...[/time]，更新全局世界观时间并隐藏标签
     // 返回处理后的内容和时间信息对象
-    function parseTimeTag(messageContent) {
+    // @param {string} messageContent - 消息内容
+    // @param {number} latestTimeInMessage - 消息中的最新时间（用于验证时间标签的时间必须晚于它）
+    function parseTimeTag(messageContent, latestTimeInMessage) {
         if (!messageContent || typeof messageContent !== "string") {
             return {
                 content: messageContent,
@@ -694,6 +833,36 @@ window.XiaoxinMessageListener = (function () {
                     );
                     // 如果解析失败，不更新世界观时钟
                 } else {
+                    // ⚠️ 验证时间标签的时间必须晚于消息中的最新时间
+                    if (latestTimeInMessage && ts <= latestTimeInMessage) {
+                        console.warn(
+                            "[小馨手机][消息监听] ⚠️ 时间标签的时间早于或等于消息中的最新时间，自动调整为更晚的时间:",
+                            "时间标签时间:",
+                            new Date(ts).toLocaleString("zh-CN"),
+                            "消息最新时间:",
+                            new Date(latestTimeInMessage).toLocaleString("zh-CN")
+                        );
+                        // 将时间调整为比最新时间晚至少1秒
+                        ts = latestTimeInMessage + 1000;
+                        // 更新原始时间字符串
+                        var adjustedDate = new Date(ts);
+                        var year = adjustedDate.getFullYear();
+                        var month = String(adjustedDate.getMonth() + 1).padStart(2, "0");
+                        var day = String(adjustedDate.getDate()).padStart(2, "0");
+                        var hours = String(adjustedDate.getHours()).padStart(2, "0");
+                        var minutes = String(adjustedDate.getMinutes()).padStart(2, "0");
+                        var seconds = String(adjustedDate.getSeconds()).padStart(2, "0");
+                        var weekdays = ["星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"];
+                        var weekday = weekdays[adjustedDate.getDay()];
+                        timeStr = year + "年" + month + "月" + day + "日" + weekday + " " + hours + ":" + minutes + ":" + seconds;
+                        console.info(
+                            "[小馨手机][消息监听] 已调整时间标签:",
+                            timeStr,
+                            "时间戳:",
+                            ts
+                        );
+                    }
+                    
                     if (!window.XiaoxinWorldClock)
                         window.XiaoxinWorldClock = {};
                     window.XiaoxinWorldClock.raw = timeStr;
@@ -1837,18 +2006,52 @@ window.XiaoxinMessageListener = (function () {
                             msg.name
                         );
 
-                        // 尝试多个字段获取内容（优先使用可能包含原始标签的字段）
-                        // 注意：如果正则表达式处理了消息，这些字段可能都已经被修改
-                        // 我们需要尝试所有可能的字段，包括原始字段
-                        var rawContent =
-                            msg.raw ||
-                            msg.original ||
-                            msg.originalMes ||
-                            msg.originalText ||
-                            msg.mes ||
-                            msg.text ||
-                            msg.content ||
-                            "";
+                        // ⚠️ 优先使用原始消息内容（original/originalMes），避免重新生成回复时旧回复的内容被处理
+                        // 只扫描原始的正文消息中的数据块，确保旧回复不会显示在手机上，也不会被录入到数据库中
+                        var rawContent = null;
+                        
+                        // 优先使用原始消息字段（这些字段在重新生成时不会被更新）
+                        if (msg.original && typeof msg.original === "string" && msg.original.trim()) {
+                            rawContent = msg.original;
+                        } else if (msg.originalMes && typeof msg.originalMes === "string" && msg.originalMes.trim()) {
+                            rawContent = msg.originalMes;
+                        } else if (msg.originalText && typeof msg.originalText === "string" && msg.originalText.trim()) {
+                            rawContent = msg.originalText;
+                        } else if (msg.raw && typeof msg.raw === "string" && msg.raw.trim()) {
+                            rawContent = msg.raw;
+                        }
+                        
+                        // 如果原始字段不存在，检查当前消息字段是否包含标签
+                        // 只有在原始字段完全不存在时才使用当前字段（避免重新生成的内容被处理）
+                        if (!rawContent || rawContent.trim() === "") {
+                            var currentContent = msg.mes || msg.text || msg.content || "";
+                            if (currentContent && typeof currentContent === "string") {
+                                // 检查当前内容是否包含数据块标签
+                                var hasTagInCurrent = 
+                                    currentContent.indexOf("[wx_contact]") !== -1 ||
+                                    currentContent.indexOf("[MSG]") !== -1 ||
+                                    currentContent.indexOf("[moments]") !== -1 ||
+                                    currentContent.indexOf("[moments-interactions]") !== -1;
+                                
+                                // 如果当前内容包含标签，但原始字段不存在，说明可能是新消息（不是重新生成的）
+                                // 这种情况下使用当前内容
+                                if (hasTagInCurrent) {
+                                    rawContent = currentContent;
+                                    console.info(
+                                        "[小馨手机][消息监听] getRawMessageContentFromData: 原始字段不存在，使用当前消息内容（可能是新消息）"
+                                    );
+                                }
+                            }
+                        } else {
+                            console.info(
+                                "[小馨手机][消息监听] getRawMessageContentFromData: 使用原始消息内容（original/originalMes），避免重新生成的内容被处理"
+                            );
+                        }
+                        
+                        // 如果仍然没有内容，使用空字符串
+                        if (!rawContent) {
+                            rawContent = "";
+                        }
 
                         // 如果主要字段中没有标签，尝试检查所有字段
                         var hasWxContact = false;
@@ -2014,16 +2217,52 @@ window.XiaoxinMessageListener = (function () {
                 // 从后往前查找最后一条消息（包括用户和AI消息）
                 for (var i = window.SillyTavern.chat.length - 1; i >= 0; i--) {
                     var msg = window.SillyTavern.chat[i];
-                    // 尝试多个字段
-                    var rawContent =
-                        msg.raw ||
-                        msg.original ||
-                        msg.originalMes ||
-                        msg.originalText ||
-                        msg.mes ||
-                        msg.text ||
-                        msg.content ||
-                        "";
+                    // ⚠️ 优先使用原始消息内容（original/originalMes），避免重新生成回复时旧回复的内容被处理
+                    // 只扫描原始的正文消息中的数据块，确保旧回复不会显示在手机上，也不会被录入到数据库中
+                    var rawContent = null;
+                    
+                    // 优先使用原始消息字段（这些字段在重新生成时不会被更新）
+                    if (msg.original && typeof msg.original === "string" && msg.original.trim()) {
+                        rawContent = msg.original;
+                    } else if (msg.originalMes && typeof msg.originalMes === "string" && msg.originalMes.trim()) {
+                        rawContent = msg.originalMes;
+                    } else if (msg.originalText && typeof msg.originalText === "string" && msg.originalText.trim()) {
+                        rawContent = msg.originalText;
+                    } else if (msg.raw && typeof msg.raw === "string" && msg.raw.trim()) {
+                        rawContent = msg.raw;
+                    }
+                    
+                    // 如果原始字段不存在，检查当前消息字段是否包含标签
+                    // 只有在原始字段完全不存在时才使用当前字段（避免重新生成的内容被处理）
+                    if (!rawContent || rawContent.trim() === "") {
+                        var currentContent = msg.mes || msg.text || msg.content || "";
+                        if (currentContent && typeof currentContent === "string") {
+                            // 检查当前内容是否包含数据块标签
+                            var hasTagInCurrent = 
+                                currentContent.indexOf("[wx_contact]") !== -1 ||
+                                currentContent.indexOf("[MSG]") !== -1 ||
+                                currentContent.indexOf("[moments]") !== -1 ||
+                                currentContent.indexOf("[moments-interactions]") !== -1;
+                            
+                            // 如果当前内容包含标签，但原始字段不存在，说明可能是新消息（不是重新生成的）
+                            // 这种情况下使用当前内容
+                            if (hasTagInCurrent) {
+                                rawContent = currentContent;
+                                console.info(
+                                    "[小馨手机][消息监听] getRawMessageContentFromData: SillyTavern.chat原始字段不存在，使用当前消息内容（可能是新消息）"
+                                );
+                            }
+                        }
+                    } else {
+                        console.info(
+                            "[小馨手机][消息监听] getRawMessageContentFromData: SillyTavern.chat使用原始消息内容（original/originalMes），避免重新生成的内容被处理"
+                        );
+                    }
+                    
+                    // 如果仍然没有内容，使用空字符串
+                    if (!rawContent) {
+                        rawContent = "";
+                    }
 
                     // 检查是否包含标签
                     var hasWxContact = false;
@@ -2589,8 +2828,100 @@ window.XiaoxinMessageListener = (function () {
             );
         }
 
+        // ⚠️ 先获取消息中的最新时间（在解析时间标签之前），用于验证时间标签的时间
+        var latestTimeInMessage = null;
+        try {
+            // 1. 从当前消息内容中查找 [MSG] 标签中的时间
+            var msgRegex = /\[MSG\]([\s\S]*?)\[\/MSG\]/gi;
+            var msgMatch;
+            while ((msgMatch = msgRegex.exec(content)) !== null) {
+                var msgContent = msgMatch[1];
+                var timeMatch = /time\s*=\s*([^\n]+)/i.exec(msgContent);
+                if (timeMatch && timeMatch[1]) {
+                    var timeStr = timeMatch[1].trim();
+                    // 尝试解析时间字符串
+                    var normalizedTimeStr = timeStr
+                        .replace(/-/g, "/")
+                        .replace(/年/g, "/")
+                        .replace(/月/g, "/")
+                        .replace(/日/g, " ")
+                        .replace(/星期[一二三四五六日]/g, "")
+                        .trim();
+                    var ts = Date.parse(normalizedTimeStr);
+                    if (!isNaN(ts) && (!latestTimeInMessage || ts > latestTimeInMessage)) {
+                        latestTimeInMessage = ts;
+                    }
+                }
+            }
+            
+            // 2. 从当前消息内容中查找 [moments] 标签中的时间
+            var momentsRegex = /\[moments\]([\s\S]*?)\[\/moments\]/gi;
+            var momentsMatch;
+            while ((momentsMatch = momentsRegex.exec(content)) !== null) {
+                var momentsContent = momentsMatch[1];
+                var timeMatch = /time\s*=\s*([^\n]+)/i.exec(momentsContent);
+                if (timeMatch && timeMatch[1]) {
+                    var timeStr = timeMatch[1].trim();
+                    var normalizedTimeStr = timeStr
+                        .replace(/-/g, "/")
+                        .replace(/年/g, "/")
+                        .replace(/月/g, "/")
+                        .replace(/日/g, " ")
+                        .replace(/星期[一二三四五六日]/g, "")
+                        .trim();
+                    var ts = Date.parse(normalizedTimeStr);
+                    if (!isNaN(ts) && (!latestTimeInMessage || ts > latestTimeInMessage)) {
+                        latestTimeInMessage = ts;
+                    }
+                }
+            }
+            
+            // 3. 从聊天记录中获取最新消息的时间
+            if (typeof getChatMessages === "function") {
+                var messages = getChatMessages() || [];
+                if (messages.length > 0) {
+                    for (var i = messages.length - 1; i >= 0; i--) {
+                        var msg = messages[i];
+                        if (!msg) continue;
+                        
+                        // 获取消息原始内容
+                        var msgContent = msg.original || msg.originalMes || msg.originalText || msg.mes || msg.text || msg.content || "";
+                        if (!msgContent || typeof msgContent !== "string") continue;
+                        
+                        // 查找 [MSG] 标签中的时间
+                        var msgRegex2 = /\[MSG\]([\s\S]*?)\[\/MSG\]/gi;
+                        var msgMatch2;
+                        while ((msgMatch2 = msgRegex2.exec(msgContent)) !== null) {
+                            var msgContent2 = msgMatch2[1];
+                            var timeMatch2 = /time\s*=\s*([^\n]+)/i.exec(msgContent2);
+                            if (timeMatch2 && timeMatch2[1]) {
+                                var timeStr2 = timeMatch2[1].trim();
+                                var normalizedTimeStr2 = timeStr2
+                                    .replace(/-/g, "/")
+                                    .replace(/年/g, "/")
+                                    .replace(/月/g, "/")
+                                    .replace(/日/g, " ")
+                                    .replace(/星期[一二三四五六日]/g, "")
+                                    .trim();
+                                var ts2 = Date.parse(normalizedTimeStr2);
+                                if (!isNaN(ts2) && (!latestTimeInMessage || ts2 > latestTimeInMessage)) {
+                                    latestTimeInMessage = ts2;
+                                }
+                            }
+                        }
+                        
+                        // 如果找到时间，停止查找
+                        if (latestTimeInMessage) break;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("[小馨手机][消息监听] 获取消息中的最新时间失败:", e);
+        }
+        
         // 先处理时间标签 [time]...[/time]：更新世界观时间并从正文中移除，并隐藏 DOM 中的时间标签
-        var timeInfo = parseTimeTag(content);
+        // ⚠️ 传入最新时间用于验证
+        var timeInfo = parseTimeTag(content, latestTimeInMessage);
         content = timeInfo.content || content; // 使用处理后的内容
         hideTimeTagsInDom(messageElement);
 
@@ -3574,7 +3905,8 @@ window.XiaoxinMessageListener = (function () {
                         .parseFriendRequestsFromText === "function"
                 ) {
                     // 从消息中提取时间标签（如果有）
-                    var timeInfo = parseTimeTag(content);
+                    // 注意：好友申请场景不需要验证时间标签时间，因为这不是消息结尾的时间标签
+                    var timeInfo = parseTimeTag(content, null);
                     var worldTime =
                         timeInfo && timeInfo.timestamp
                             ? timeInfo.timestamp
@@ -3631,7 +3963,8 @@ window.XiaoxinMessageListener = (function () {
                         .parseFriendApplyResponse === "function"
                 ) {
                     // 从消息中提取时间标签（如果有）
-                    var timeInfo = parseTimeTag(content);
+                    // 注意：好友申请响应场景不需要验证时间标签时间，因为这不是消息结尾的时间标签
+                    var timeInfo = parseTimeTag(content, null);
                     var worldTime =
                         timeInfo && timeInfo.timestamp
                             ? timeInfo.timestamp
@@ -3880,14 +4213,18 @@ window.XiaoxinMessageListener = (function () {
                         }
 
                         var activeChatId = _findActiveChatIdAnyWin();
+                        console.info("[小馨手机][头像更换] 普通文本消息处理 - 当前激活聊天ID:", activeChatId);
                         if (activeChatId) {
                             var cand2 = _getAvatarCandidate(activeChatId);
+                            console.info("[小馨手机][头像更换] 普通文本消息处理 - 候选头像:", cand2 ? "存在" : "不存在");
                             if (cand2 && cand2.url) {
                                 var aiText = String(content || "").trim();
+                                console.info("[小馨手机][头像更换] 检测到候选头像，角色回复文本:", aiText.substring(0, 100));
                                 // 过期保护
                                 try {
                                     var createdAt2 = cand2.created_at || 0;
                                     if (createdAt2 && Date.now() - createdAt2 > 6 * 60 * 60 * 1000) {
+                                        console.info("[小馨手机][头像更换] 候选头像已过期，清理:", activeChatId);
                                         _clearAvatarCandidate(activeChatId);
                                         cand2 = null;
                                     }
@@ -3896,7 +4233,9 @@ window.XiaoxinMessageListener = (function () {
                                 if (cand2 && cand2.url) {
                                     var accept2 = _isRoleAcceptAvatar(aiText);
                                     var reject2 = _isRoleRejectAvatar(aiText);
+                                    console.info("[小馨手机][头像更换] 识别结果 - 同意:", accept2, "拒绝:", reject2);
                                     if (accept2) {
+                                        console.info("[小馨手机][头像更换] 开始应用头像:", activeChatId, cand2.url.substring(0, 80));
                                         _applyContactAvatar(activeChatId, cand2.url);
                                         _clearAvatarCandidate(activeChatId);
                                         // 直接刷新（不等事件）：对每个可访问 window 调用 refreshChatScreen
@@ -4343,8 +4682,18 @@ window.XiaoxinMessageListener = (function () {
                                             "contactId:",
                                             contactIdForCandidate,
                                             "url:",
-                                            String(candidateUrl).trim().substring(0, 80) + "..."
+                                            String(candidateUrl).trim().substring(0, 80) + "...",
+                                            "desc:",
+                                            candidateDesc
                                         );
+                                    } else {
+                                        if (!contactIdForCandidate) {
+                                            console.warn("[小馨手机][头像更换] 未捕获候选头像：缺少contactId");
+                                        } else if (!_isValidImageUrlForAvatar(candidateUrl)) {
+                                            console.warn("[小馨手机][头像更换] 未捕获候选头像：图片URL无效", candidateUrl.substring(0, 80));
+                                        } else if (!_hasAvatarChangeIntent(candidateDesc)) {
+                                            console.warn("[小馨手机][头像更换] 未捕获候选头像：未检测到换头像意图", candidateDesc);
+                                        }
                                     }
                                 }
 
@@ -4354,7 +4703,9 @@ window.XiaoxinMessageListener = (function () {
                                     (msgType === "text" || msgType === "" || msgType === "message")
                                 ) {
                                     var contactIdForDecision = msgFrom;
+                                    console.info("[小馨手机][头像更换] [MSG]标签处理 - 角色消息，contactId:", contactIdForDecision);
                                     var candidate = _getAvatarCandidate(contactIdForDecision);
+                                    console.info("[小馨手机][头像更换] [MSG]标签处理 - 候选头像:", candidate ? "存在" : "不存在");
                                     if (candidate && candidate.url) {
                                         // 过期保护：候选头像如果太久没被处理，直接丢弃，避免误触发
                                         try {
@@ -4375,11 +4726,14 @@ window.XiaoxinMessageListener = (function () {
                                             msgObj.content ||
                                             msgObj.text ||
                                             "";
+                                        console.info("[小馨手机][头像更换] [MSG]标签中检测到候选头像，角色回复文本:", roleText.substring(0, 100));
                                         // 同意/拒绝二选一（同意优先，但会被 _isRoleAcceptAvatar 的否定检测挡住）
                                         var accept = _isRoleAcceptAvatar(roleText);
                                         var reject = _isRoleRejectAvatar(roleText);
+                                        console.info("[小馨手机][头像更换] [MSG]识别结果 - 同意:", accept, "拒绝:", reject);
 
                                         if (accept) {
+                                            console.info("[小馨手机][头像更换] [MSG]开始应用头像:", contactIdForDecision, candidate.url.substring(0, 80));
                                             _applyContactAvatar(contactIdForDecision, candidate.url);
                                             _clearAvatarCandidate(contactIdForDecision);
                                         } else if (reject) {
@@ -4388,7 +4742,11 @@ window.XiaoxinMessageListener = (function () {
                                                 contactIdForDecision
                                             );
                                             _clearAvatarCandidate(contactIdForDecision);
+                                        } else {
+                                            console.info("[小馨手机][头像更换] 未识别为同意或拒绝，保留候选头像");
                                         }
+                                    } else {
+                                        console.info("[小馨手机][头像更换] [MSG]标签中未找到候选头像，contactId:", contactIdForDecision);
                                     }
                                 }
                             } catch (e_avatar) {
