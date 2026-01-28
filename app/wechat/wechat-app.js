@@ -2614,20 +2614,40 @@ window.XiaoxinWeChatApp = (function () {
                 if (lastMessage.rawTime) {
                     try {
                         var timeStr2 = String(lastMessage.rawTime).trim();
-                        var parsed = Date.parse(
-                            timeStr2
-                                .replace(/-/g, "/")
-                                .replace(/年/g, "/")
-                                .replace(/月/g, "/")
-                                .replace(/日/g, " ")
-                                .replace(/星期[一二三四五六日]/g, "")
-                                .trim()
-                        );
+                        // 支持多种时间格式：
+                        // - 2026-01-08 11:50:12
+                        // - 2018年6月20日 星期三 08:32
+                        // - 2015年3月1日 星期日 11:00:00
+                        var cleanedTimeStr = timeStr2
+                            .replace(/-/g, "/") // 将 - 替换为 /
+                            .replace(/年/g, "/") // 将 年 替换为 /
+                            .replace(/月/g, "/") // 将 月 替换为 /
+                            .replace(/日[^0-9]*(\d{1,2}:\d{2}(?::\d{2})?)/, " $1") // 将 日 及后面的星期等文字替换为空格，保留时间部分
+                            .replace(/星期[一二三四五六日]/g, "") // 移除星期信息
+                            .replace(/\s+/g, " ") // 将多个空格合并为一个
+                            .trim();
+                        var parsed = Date.parse(cleanedTimeStr);
                         if (!isNaN(parsed)) {
                             timeStr = _formatPreviewMessageTime(parsed);
-                        } else if (lastMessage.timestamp) {
+                            console.info(
+                                "[小馨手机][微信] 从 rawTime 解析预览消息时间成功:",
+                                timeStr2,
+                                "->",
+                                cleanedTimeStr,
+                                "->",
+                                parsed
+                            );
+                        } else {
+                            console.warn(
+                                "[小馨手机][微信] 从 rawTime 解析预览消息时间失败:",
+                                timeStr2,
+                                "清理后:",
+                                cleanedTimeStr
+                            );
                             // 如果 rawTime 解析失败，使用 timestamp
-                            timeStr = _formatPreviewMessageTime(lastMessage.timestamp);
+                            if (lastMessage.timestamp) {
+                                timeStr = _formatPreviewMessageTime(lastMessage.timestamp);
+                            }
                         }
                     } catch (e) {
                         console.warn(
