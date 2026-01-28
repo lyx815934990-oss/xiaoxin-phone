@@ -1477,7 +1477,14 @@ window.XiaoxinWeChatChatUI = (function () {
                     "</div>"
             );
 
-            $("body").append($dialog);
+            // 优先挂载到手机容器内，保证在手机页面中自适应显示
+            var $phoneContainer = $(".xiaoxin-phone-container");
+            if ($phoneContainer.length > 0) {
+                $phoneContainer.append($dialog);
+            } else {
+                // 兜底：PC 调试或找不到手机容器时挂到 body
+                $("body").append($dialog);
+            }
 
             var categoryName = "";
             var categoryIconType = "text";
@@ -1808,6 +1815,20 @@ window.XiaoxinWeChatChatUI = (function () {
                     renderStickerGrid();
                 }
 
+                // 通知外部同步脚本/世界书：表情包分组已更新
+                try {
+                    window.dispatchEvent(
+                        new CustomEvent("xiaoxin-sticker-updated", {
+                            detail: {
+                                type: "category_added",
+                                categoryId: newCategory.id,
+                            },
+                        })
+                    );
+                } catch (e) {
+                    // ignore
+                }
+
                 if (typeof toastr !== "undefined") {
                     toastr.success("分组创建成功", "小馨手机");
                 }
@@ -1941,7 +1962,14 @@ window.XiaoxinWeChatChatUI = (function () {
                     "</div>"
             );
 
-            $("body").append($dialog);
+            // 优先挂载到手机容器内，保证在手机页面范围内自适应显示
+            var $phoneContainer = $(".xiaoxin-phone-container");
+            if ($phoneContainer.length > 0) {
+                $phoneContainer.append($dialog);
+            } else {
+                // 兜底：如果找不到手机容器，则挂到 body（PC 调试场景）
+                $("body").append($dialog);
+            }
 
             var stickerDescription = "";
             var stickerImageUrl = null;
@@ -2178,6 +2206,21 @@ window.XiaoxinWeChatChatUI = (function () {
 
                 if (typeof toastr !== "undefined") {
                     toastr.success("表情包添加成功", "小馨手机");
+                }
+
+                // 通知外部同步脚本/世界书：表情包已更新
+                try {
+                    window.dispatchEvent(
+                        new CustomEvent("xiaoxin-sticker-updated", {
+                            detail: {
+                                type: "sticker_added",
+                                categoryId: currentStickerCategory,
+                                stickerId: newSticker.id,
+                            },
+                        })
+                    );
+                } catch (e) {
+                    // ignore
                 }
             }
 
@@ -3560,7 +3603,8 @@ note=${playerName}对${charRealName}发起了语音通话
                 content: safeContent,
             };
 
-            // 构建 [MSG] 数据块
+            // 构建 [MSG] 数据块 + 世界观时间 [time] 标签
+            // 与文本消息保持一致，避免 emoji 消息时间被当成“无世界观时间”而错位
             var packet =
                 "\n[MSG]\n" +
                 "id=" +
@@ -3577,12 +3621,25 @@ note=${playerName}对${charRealName}发起了语音通话
                 "content=" +
                 safeContent +
                 "\n" +
-                "[/MSG]";
+                "[/MSG]\n" +
+                "[time]" +
+                nowStr +
+                "[/time]";
 
             msgObj.timestamp = nowDate.getTime();
             msgObj.rawTime = nowStr;
             pendingMessages[msgId] = msgObj;
             refreshMessageList();
+
+            // 推进全局世界观时钟，保持与 [time] 标签一致
+            try {
+                if (window.XiaoxinWorldClock) {
+                    window.XiaoxinWorldClock.currentTimestamp = msgObj.timestamp;
+                    window.XiaoxinWorldClock.timestamp = msgObj.timestamp;
+                    window.XiaoxinWorldClock.rawTime = nowStr;
+                    window.XiaoxinWorldClock.raw = nowStr;
+                }
+            } catch (e) {}
 
             try {
                 if (
@@ -6140,19 +6197,45 @@ note=${playerName}对${charRealName}发起了语音通话
             );
 
             // 获取消息时间戳
-            var msgTimestamp = message.timestamp;
-            if (!msgTimestamp && message.rawTime) {
+            // ⚠️ 优先使用 rawTime 解析时间戳，确保显示时间与原始时间一致
+            var msgTimestamp = null;
+            if (message.rawTime) {
                 // 尝试从 rawTime 解析时间戳
                 var timeStr = String(message.rawTime).trim();
-                // 支持多种时间格式：2026-01-08 11:50:12 或 2018年6月20日 星期三 08:32
-                var parsed = Date.parse(
-                    timeStr
-                        .replace(/-/g, "/")
-                        .replace(/年|月|日|星期[一二三四五六日]/g, " ")
-                );
+                // 支持多种时间格式：
+                // - 2026-01-08 11:50:12
+                // - 2018年6月20日 星期三 08:32
+                // - 2015年3月1日 星期日 11:00:00
+                var cleanedTimeStr = timeStr
+                    .replace(/-/g, "/") // 将 - 替换为 /
+                    .replace(/年/g, "/") // 将 年 替换为 /
+                    .replace(/月/g, "/") // 将 月 替换为 /
+                    .replace(/日[^0-9]*(\d{1,2}:\d{2}(?::\d{2})?)/, " $1") // 将 日 及后面的星期等文字替换为空格，保留时间部分
+                    .replace(/星期[一二三四五六日]/g, "") // 移除星期信息
+                    .trim();
+                var parsed = Date.parse(cleanedTimeStr);
                 if (!isNaN(parsed)) {
                     msgTimestamp = parsed;
+                    console.info(
+                        "[小馨手机][微信聊天UI] 从 rawTime 解析时间戳成功:",
+                        timeStr,
+                        "->",
+                        cleanedTimeStr,
+                        "->",
+                        msgTimestamp
+                    );
+                } else {
+                    console.warn(
+                        "[小馨手机][微信聊天UI] 从 rawTime 解析时间戳失败:",
+                        timeStr,
+                        "清理后:",
+                        cleanedTimeStr
+                    );
                 }
+            }
+            // 如果 rawTime 解析失败，再使用 timestamp
+            if (!msgTimestamp && message.timestamp) {
+                msgTimestamp = message.timestamp;
             }
 
             if (msgTimestamp) {
