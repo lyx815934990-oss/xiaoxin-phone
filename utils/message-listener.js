@@ -1979,6 +1979,48 @@ window.XiaoxinMessageListener = (function () {
         return interactions;
     }
 
+    // 检测消息内容中是否包含任何数据块标签（通用函数，不区分大小写）
+    // 支持所有已知的数据块格式：[wx_contact], [MSG], [moments], [wx_friend_request], [char_historymoments] 等
+    function hasAnyDataBlockTag(content) {
+        if (!content || typeof content !== "string") {
+            return false;
+        }
+        // 将所有可能的数据块标签转换为小写进行匹配（不区分大小写）
+        var contentLower = content.toLowerCase();
+        // 定义所有已知的数据块标签（不区分大小写）
+        var dataBlockTags = [
+            "[wx_contact]",
+            "[/wx_contact]",
+            "[msg]",
+            "[/msg]",
+            "[moments]",
+            "[/moments]",
+            "[moments-interactions]",
+            "[/moments-interactions]",
+            "[wx_friend_request]",
+            "[/wx_friend_request]",
+            "[wx_friend_apply]",
+            "[/wx_friend_apply]",
+            "[wx_friend_apply_response]",
+            "[/wx_friend_apply_response]",
+            "[char_historymoments]",
+            "[/char_historymoments]",
+            "[playerhistorymoments]",
+            "[/playerhistorymoments]",
+            "[time]",
+            "[/time]",
+            "[wx_redpacket_receive]",
+            "[/wx_redpacket_receive]"
+        ];
+        // 检查是否包含任何数据块标签
+        for (var i = 0; i < dataBlockTags.length; i++) {
+            if (contentLower.indexOf(dataBlockTags[i]) !== -1) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     // 从酒馆消息数据中获取原始消息内容（包含标签）
     // 注意：如果正则表达式在"AI输出"阶段处理了消息，原始数据可能也被修改
     // 我们需要尝试从多个可能的字段获取，包括可能的原始字段
@@ -2026,19 +2068,15 @@ window.XiaoxinMessageListener = (function () {
                         if (!rawContent || rawContent.trim() === "") {
                             var currentContent = msg.mes || msg.text || msg.content || "";
                             if (currentContent && typeof currentContent === "string") {
-                                // 检查当前内容是否包含数据块标签
-                                var hasTagInCurrent = 
-                                    currentContent.indexOf("[wx_contact]") !== -1 ||
-                                    currentContent.indexOf("[MSG]") !== -1 ||
-                                    currentContent.indexOf("[moments]") !== -1 ||
-                                    currentContent.indexOf("[moments-interactions]") !== -1;
+                                // 使用通用函数检查当前内容是否包含任何数据块标签
+                                var hasTagInCurrent = hasAnyDataBlockTag(currentContent);
                                 
                                 // 如果当前内容包含标签，但原始字段不存在，说明可能是新消息（不是重新生成的）
                                 // 这种情况下使用当前内容
                                 if (hasTagInCurrent) {
                                     rawContent = currentContent;
                                     console.info(
-                                        "[小馨手机][消息监听] getRawMessageContentFromData: 原始字段不存在，使用当前消息内容（可能是新消息）"
+                                        "[小馨手机][消息监听] getRawMessageContentFromData: 原始字段不存在，使用当前消息内容（可能是新消息），检测到数据块标签"
                                     );
                                 }
                             }
@@ -2053,22 +2091,10 @@ window.XiaoxinMessageListener = (function () {
                             rawContent = "";
                         }
 
-                        // 如果主要字段中没有标签，尝试检查所有字段
-                        var hasWxContact = false;
-                        var hasMsg = false;
-                        var hasMoments = false;
+                        // 使用通用函数检查是否包含任何数据块标签
+                        var hasAnyTag = hasAnyDataBlockTag(rawContent);
 
-                        if (rawContent && typeof rawContent === "string") {
-                            hasWxContact =
-                                rawContent.indexOf("[wx_contact]") !== -1;
-                            hasMsg = rawContent.indexOf("[MSG]") !== -1;
-                            hasMoments =
-                                rawContent.indexOf("[moments]") !== -1 ||
-                                rawContent.indexOf("[moments-interactions]") !==
-                                    -1;
-                        }
-
-                        if (!hasWxContact && !hasMsg && !hasMoments) {
+                        if (!hasAnyTag) {
                             // 尝试从消息对象的所有字段中查找包含标签的内容
                             for (var key in msg) {
                                 if (
@@ -2076,43 +2102,14 @@ window.XiaoxinMessageListener = (function () {
                                     typeof msg[key] === "string"
                                 ) {
                                     var fieldContent = msg[key];
-                                    if (
-                                        fieldContent.indexOf("[wx_contact]") !==
-                                        -1
-                                    ) {
+                                    if (hasAnyDataBlockTag(fieldContent)) {
                                         console.info(
                                             "[小馨手机][消息监听] getRawMessageContentFromData: 在字段",
                                             key,
-                                            "中找到 [wx_contact] 标签"
+                                            "中找到数据块标签"
                                         );
                                         rawContent = fieldContent;
-                                        hasWxContact = true;
-                                        break;
-                                    } else if (
-                                        fieldContent.indexOf("[MSG]") !== -1
-                                    ) {
-                                        console.info(
-                                            "[小馨手机][消息监听] getRawMessageContentFromData: 在字段",
-                                            key,
-                                            "中找到 [MSG] 标签"
-                                        );
-                                        rawContent = fieldContent;
-                                        hasMsg = true;
-                                        break;
-                                    } else if (
-                                        fieldContent.indexOf("[moments]") !==
-                                            -1 ||
-                                        fieldContent.indexOf(
-                                            "[moments-interactions]"
-                                        ) !== -1
-                                    ) {
-                                        console.info(
-                                            "[小馨手机][消息监听] getRawMessageContentFromData: 在字段",
-                                            key,
-                                            "中找到朋友圈标签"
-                                        );
-                                        rawContent = fieldContent;
-                                        hasMoments = true;
+                                        hasAnyTag = true;
                                         break;
                                     }
                                 }
@@ -2160,30 +2157,14 @@ window.XiaoxinMessageListener = (function () {
                                 );
                             }
 
-                            // 检查是否包含联系方式标签、消息标签或朋友圈标签
-                            var hasTag =
-                                hasWxContact ||
-                                hasMsg ||
-                                hasMoments ||
-                                rawContent.indexOf("[WX_CONTACT]") !== -1 ||
-                                rawContent.indexOf("[/MSG]") !== -1 ||
-                                rawContent.indexOf("[/moments]") !== -1 ||
-                                rawContent.indexOf(
-                                    "[/moments-interactions]"
-                                ) !== -1;
+                            // 使用通用函数检查是否包含任何数据块标签
+                            var hasTag = hasAnyDataBlockTag(rawContent);
 
                             console.info(
                                 "[小馨手机][消息监听] getRawMessageContentFromData: 消息",
                                 i,
-                                "是否包含标签:",
-                                hasTag,
-                                "([wx_contact]:",
-                                hasWxContact,
-                                ", [MSG]:",
-                                hasMsg,
-                                ", [moments]:",
-                                hasMoments,
-                                ")"
+                                "是否包含数据块标签:",
+                                hasTag
                             );
 
                             if (hasTag) {
@@ -2237,19 +2218,15 @@ window.XiaoxinMessageListener = (function () {
                     if (!rawContent || rawContent.trim() === "") {
                         var currentContent = msg.mes || msg.text || msg.content || "";
                         if (currentContent && typeof currentContent === "string") {
-                            // 检查当前内容是否包含数据块标签
-                            var hasTagInCurrent = 
-                                currentContent.indexOf("[wx_contact]") !== -1 ||
-                                currentContent.indexOf("[MSG]") !== -1 ||
-                                currentContent.indexOf("[moments]") !== -1 ||
-                                currentContent.indexOf("[moments-interactions]") !== -1;
+                            // 使用通用函数检查当前内容是否包含任何数据块标签
+                            var hasTagInCurrent = hasAnyDataBlockTag(currentContent);
                             
                             // 如果当前内容包含标签，但原始字段不存在，说明可能是新消息（不是重新生成的）
                             // 这种情况下使用当前内容
                             if (hasTagInCurrent) {
                                 rawContent = currentContent;
                                 console.info(
-                                    "[小馨手机][消息监听] getRawMessageContentFromData: SillyTavern.chat原始字段不存在，使用当前消息内容（可能是新消息）"
+                                    "[小馨手机][消息监听] getRawMessageContentFromData: SillyTavern.chat原始字段不存在，使用当前消息内容（可能是新消息），检测到数据块标签"
                                 );
                             }
                         }
@@ -2264,45 +2241,25 @@ window.XiaoxinMessageListener = (function () {
                         rawContent = "";
                     }
 
-                    // 检查是否包含标签
-                    var hasWxContact = false;
-                    var hasMsg = false;
-
-                    if (rawContent && typeof rawContent === "string") {
-                        hasWxContact =
-                            rawContent.indexOf("[wx_contact]") !== -1;
-                        hasMsg = rawContent.indexOf("[MSG]") !== -1;
-                    }
+                    // 使用通用函数检查是否包含任何数据块标签
+                    var hasAnyTag = hasAnyDataBlockTag(rawContent);
 
                     // 如果主要字段中没有标签，尝试检查所有字段
-                    if (!hasWxContact && !hasMsg) {
+                    if (!hasAnyTag) {
                         for (var key in msg) {
                             if (
                                 msg.hasOwnProperty(key) &&
                                 typeof msg[key] === "string"
                             ) {
                                 var fieldContent = msg[key];
-                                if (
-                                    fieldContent.indexOf("[wx_contact]") !== -1
-                                ) {
+                                if (hasAnyDataBlockTag(fieldContent)) {
                                     console.info(
                                         "[小馨手机][消息监听] getRawMessageContentFromData: SillyTavern.chat在字段",
                                         key,
-                                        "中找到 [wx_contact] 标签"
+                                        "中找到数据块标签"
                                     );
                                     rawContent = fieldContent;
-                                    hasWxContact = true;
-                                    break;
-                                } else if (
-                                    fieldContent.indexOf("[MSG]") !== -1
-                                ) {
-                                    console.info(
-                                        "[小馨手机][消息监听] getRawMessageContentFromData: SillyTavern.chat在字段",
-                                        key,
-                                        "中找到 [MSG] 标签"
-                                    );
-                                    rawContent = fieldContent;
-                                    hasMsg = true;
+                                    hasAnyTag = true;
                                     break;
                                 }
                             }
@@ -2310,24 +2267,16 @@ window.XiaoxinMessageListener = (function () {
                     }
 
                     if (rawContent && typeof rawContent === "string") {
-                        var hasTag =
-                            hasWxContact ||
-                            hasMsg ||
-                            rawContent.indexOf("[WX_CONTACT]") !== -1 ||
-                            rawContent.indexOf("[/MSG]") !== -1;
+                        // 使用通用函数检查是否包含任何数据块标签
+                        var hasTag = hasAnyDataBlockTag(rawContent);
 
                         console.info(
                             "[小馨手机][消息监听] getRawMessageContentFromData: SillyTavern.chat消息",
                             i,
                             "内容长度:",
                             rawContent.length,
-                            "是否包含标签:",
-                            hasTag,
-                            "([wx_contact]:",
-                            hasWxContact,
-                            ", [MSG]:",
-                            hasMsg,
-                            ")"
+                            "是否包含数据块标签:",
+                            hasTag
                         );
                         if (hasTag) {
                             console.info(
@@ -2390,11 +2339,13 @@ window.XiaoxinMessageListener = (function () {
             var originalText = $messageText.text() || "";
             var originalContent = originalText + " " + originalHtml;
 
-            // 检查是否包含 [MSG] 标签
+            // 检查是否包含 [MSG] 标签（不区分大小写）
+            var msgTagRegex = /\[MSG\]/i;
+            var msgCloseTagRegex = /\[\/MSG\]/i;
             if (
                 !originalContent ||
-                (originalContent.indexOf("[MSG]") === -1 &&
-                    originalContent.indexOf("[/MSG]") === -1)
+                (!msgTagRegex.test(originalContent) &&
+                    !msgCloseTagRegex.test(originalContent))
             ) {
                 // 不包含 [MSG] 标签，跳过
                 return;
@@ -2403,8 +2354,8 @@ window.XiaoxinMessageListener = (function () {
             // 保存原始内容到data属性（在隐藏之前）
             if (
                 originalContent &&
-                (originalContent.indexOf("[MSG]") !== -1 ||
-                    originalContent.indexOf("[/MSG]") !== -1)
+                (msgTagRegex.test(originalContent) ||
+                    msgCloseTagRegex.test(originalContent))
             ) {
                 $mes.attr("data-original-msg-content", originalContent);
                 $messageText.attr("data-original-msg-content", originalContent);
@@ -2413,7 +2364,7 @@ window.XiaoxinMessageListener = (function () {
                 );
             }
 
-            // 完全隐藏 [MSG]...[/MSG] 块
+            // 完全隐藏 [MSG]...[/MSG] 块（不区分大小写）
             var msgPattern = /\[MSG\]([\s\S]*?)\[\/MSG\]/gi;
             var hasMsgTag = msgPattern.test(originalHtml);
 
@@ -2613,7 +2564,7 @@ window.XiaoxinMessageListener = (function () {
                 return;
             }
 
-            // 直接整块移除好友申请/响应指令，让界面只保留自然语言内容
+            // 直接整块移除好友申请/响应指令，让界面只保留自然语言内容（不区分大小写）
             var replacedHtml = originalHtml
                 .replace(
                     /\[wx_friend_apply\]([\s\S]*?)\[\/wx_friend_apply\]/gi,
@@ -2625,6 +2576,15 @@ window.XiaoxinMessageListener = (function () {
                 )
                 .replace(
                     /\[wx_friend_apply_response\]([\s\S]*?)\[\/wx_friend_apply_response\]/gi,
+                    ""
+                )
+                // 同时移除其他可能的数据块格式
+                .replace(
+                    /\[char_historymoments\]([\s\S]*?)\[\/char_historymoments\]/gi,
+                    ""
+                )
+                .replace(
+                    /\[playerhistorymoments\]([\s\S]*?)\[\/playerhistorymoments\]/gi,
                     ""
                 );
 
@@ -2693,13 +2653,8 @@ window.XiaoxinMessageListener = (function () {
                 $messageText.attr("data-raw") ||
                 $messageText.attr("data-content");
 
-            // 检查是否包含任何相关标签（包括朋友圈标签）
-            var hasRelevantTag =
-                dataContent &&
-                (dataContent.indexOf("[MSG]") !== -1 ||
-                    dataContent.indexOf("[wx_contact]") !== -1 ||
-                    dataContent.indexOf("[moments]") !== -1 ||
-                    dataContent.indexOf("[moments-interactions]") !== -1);
+            // 使用通用函数检查是否包含任何数据块标签
+            var hasRelevantTag = dataContent && hasAnyDataBlockTag(dataContent);
 
             if (hasRelevantTag) {
                 content = dataContent;
@@ -2717,7 +2672,7 @@ window.XiaoxinMessageListener = (function () {
                     var hiddenValue = $hiddenInput.val() || $hiddenInput.text();
                     var hasRelevantTagInHidden =
                         hiddenValue &&
-                        (hiddenValue.indexOf("[MSG]") !== -1 ||
+                        (/\[MSG\]/i.test(hiddenValue) ||
                             hiddenValue.indexOf("[wx_contact]") !== -1 ||
                             hiddenValue.indexOf("[moments]") !== -1 ||
                             hiddenValue.indexOf("[moments-interactions]") !==
@@ -2747,14 +2702,7 @@ window.XiaoxinMessageListener = (function () {
                             var commentText =
                                 node.textContent || node.nodeValue;
                             var hasRelevantTagInComment =
-                                commentText &&
-                                (commentText.indexOf("[MSG]") !== -1 ||
-                                    commentText.indexOf("[wx_contact]") !==
-                                        -1 ||
-                                    commentText.indexOf("[moments]") !== -1 ||
-                                    commentText.indexOf(
-                                        "[moments-interactions]"
-                                    ) !== -1);
+                                commentText && hasAnyDataBlockTag(commentText);
                             if (hasRelevantTagInComment) {
                                 content = commentText;
                                 console.info(
@@ -2786,11 +2734,7 @@ window.XiaoxinMessageListener = (function () {
                         }
                     }
                     var hasRelevantTagInText =
-                        allText &&
-                        (allText.indexOf("[MSG]") !== -1 ||
-                            allText.indexOf("[wx_contact]") !== -1 ||
-                            allText.indexOf("[moments]") !== -1 ||
-                            allText.indexOf("[moments-interactions]") !== -1);
+                        allText && hasAnyDataBlockTag(allText);
                     if (hasRelevantTagInText) {
                         content = allText;
                         console.info(
@@ -2940,7 +2884,7 @@ window.XiaoxinMessageListener = (function () {
         // 避免同一条“外层消息ID”（例如同一楼层被重生成/覆盖）导致重复跳过解析
         if (
             content &&
-            (content.indexOf("[MSG]") !== -1 ||
+            (/\[MSG\]/i.test(content) ||
                 content.indexOf("[moments]") !== -1 ||
                 content.indexOf("[/moments]") !== -1 ||
                 content.indexOf("[moments-interactions]") !== -1 ||
@@ -2978,9 +2922,9 @@ window.XiaoxinMessageListener = (function () {
         var hasFriendResponseTag =
             content.indexOf("[wx_friend_apply_response]") !== -1;
 
-        // 是否包含微信私聊消息标签 [MSG]
+        // 是否包含微信私聊消息标签 [MSG]（不区分大小写）
         var hasChatMessageTag =
-            content.indexOf("[MSG]") !== -1 || content.indexOf("[/MSG]") !== -1;
+            /\[MSG\]/i.test(content) || /\[\/MSG\]/i.test(content);
 
         // 是否包含朋友圈标签
         var hasMomentsTag =
@@ -2989,12 +2933,14 @@ window.XiaoxinMessageListener = (function () {
             content.indexOf("[moments-interactions]") !== -1 ||
             content.indexOf("[/moments-interactions]") !== -1;
 
+        // 如果没有任何数据块标签，直接返回
         if (
             !hasContactTag &&
             !hasFriendTag &&
             !hasFriendResponseTag &&
             !hasChatMessageTag &&
-            !hasMomentsTag
+            !hasMomentsTag &&
+            !hasOtherDataBlocks
         ) {
             return;
         }
@@ -4285,8 +4231,8 @@ window.XiaoxinMessageListener = (function () {
                     );
                 }
 
-                // 解析 [MSG]...[/MSG] 标签内的所有消息（仅支持新格式 字段=值）
-                var msgPattern = /\[MSG\]([\s\S]*?)\[\/MSG\]/g;
+                // 解析 [MSG]...[/MSG] 标签内的所有消息（仅支持新格式 字段=值，不区分大小写）
+                var msgPattern = /\[MSG\]([\s\S]*?)\[\/MSG\]/gi;
                 var match;
                 var parsedMessages = [];
 
@@ -6690,7 +6636,7 @@ window.XiaoxinMessageListener = (function () {
                             var redpacketContent = msgObj.payload.content || msgObj.content || "";
                             if (redpacketContent && typeof redpacketContent === "string") {
                                 // 如果 content 包含 [MSG] 标签，清空它
-                                if (redpacketContent.indexOf("[MSG]") !== -1 || redpacketContent.indexOf("[/MSG]") !== -1) {
+                                if (/\[MSG\]/i.test(redpacketContent) || /\[\/MSG\]/i.test(redpacketContent)) {
                                     console.warn(
                                         "[小馨手机][消息监听] 红包消息的 content 字段包含 [MSG] 标签，已清空:",
                                         "消息ID:",
@@ -9482,7 +9428,7 @@ window.XiaoxinMessageListener = (function () {
                 (dataContent.indexOf("[moments]") !== -1 ||
                     dataContent.indexOf("[moments-interactions]") !== -1 ||
                     dataContent.indexOf("[wx_contact]") !== -1 ||
-                    dataContent.indexOf("[MSG]") !== -1)
+                    /\[MSG\]/i.test(dataContent))
             ) {
                 content = dataContent;
                 console.info(
@@ -9505,11 +9451,11 @@ window.XiaoxinMessageListener = (function () {
                     html.indexOf("[moments]") !== -1 ||
                     html.indexOf("[moments-interactions]") !== -1 ||
                     html.indexOf("[wx_contact]") !== -1 ||
-                    html.indexOf("[MSG]") !== -1 ||
+                    /\[MSG\]/i.test(html) ||
                     mesHtml.indexOf("[moments]") !== -1 ||
                     mesHtml.indexOf("[moments-interactions]") !== -1 ||
                     mesHtml.indexOf("[wx_contact]") !== -1 ||
-                    mesHtml.indexOf("[MSG]") !== -1
+                    /\[MSG\]/i.test(mesHtml)
                 ) {
                     content = mesHtml || html || text;
                     console.info(
@@ -9537,7 +9483,7 @@ window.XiaoxinMessageListener = (function () {
                             allText.indexOf("[moments]") !== -1 ||
                             allText.indexOf("[moments-interactions]") !== -1 ||
                             allText.indexOf("[wx_contact]") !== -1 ||
-                            allText.indexOf("[MSG]") !== -1
+                            /\[MSG\]/i.test(allText)
                         ) {
                             content = allText;
                             console.info(
