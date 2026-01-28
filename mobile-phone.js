@@ -1868,7 +1868,8 @@ MobilePhone.prototype.initHomeIndicatorGesture = function ($indicator) {
 // 初始化灵动岛长按拖动功能
 MobilePhone.prototype.initDynamicIslandDrag = function ($dynamicIsland) {
     var self = this;
-    var longPressDelay = 300; // 长按延迟（毫秒）
+    // 使用拖动阈值来区分“点击 / 双击”和“拖动”，避免移动端长按手势不稳定
+    var dragThreshold = 5; // 像素阈值，大于此值视为拖动
     var hasMoved = false; // 是否移动过（用于区分点击和拖动）
     
     // 双击检测相关变量
@@ -1879,7 +1880,12 @@ MobilePhone.prototype.initDynamicIslandDrag = function ($dynamicIsland) {
     var clickTolerance = 10; // 点击位置容差（像素）
 
     function onMouseDown(e) {
-        e.preventDefault();
+        var isTouch = e.type === "touchstart" || (e.touches && e.touches[0]);
+        // PC 鼠标立即 preventDefault；移动端先不阻止，只有在真正进入拖动后再阻止默认行为，
+        // 以免影响点击 / 双击识别和系统手势
+        if (!isTouch) {
+            e.preventDefault();
+        }
         e.stopPropagation();
 
         hasMoved = false;
@@ -1899,25 +1905,10 @@ MobilePhone.prototype.initDynamicIslandDrag = function ($dynamicIsland) {
         self.dynamicIslandDragStartX = clientX;
         self.dynamicIslandDragStartY = clientY;
 
-        // 获取手机容器当前的位置
+        // 获取手机容器当前的位置（以中心点为基准）
         var phoneRect = self.$phoneContainer[0].getBoundingClientRect();
         self.phoneContainerStartX = phoneRect.left + phoneRect.width / 2;
         self.phoneContainerStartY = phoneRect.top + phoneRect.height / 2;
-
-        // 开始长按计时
-        self.dynamicIslandLongPressTimer = setTimeout(function () {
-            if (!hasMoved) {
-                // 长按成功，开始拖动
-                self.isDynamicIslandDragging = true;
-                $dynamicIsland.css("cursor", "grabbing");
-                self.$phoneContainer.css("cursor", "grabbing");
-
-                // 添加拖动样式类
-                self.$phoneContainer.addClass("xiaoxin-phone-dragging");
-
-                console.info("[小馨手机] 开始拖动手机容器");
-            }
-        }, longPressDelay);
 
         $(document).on("mousemove.xiaoxinDynamicIsland", onMouseMove);
         $(document).on("mouseup.xiaoxinDynamicIsland", onMouseUp);
@@ -1959,11 +1950,20 @@ MobilePhone.prototype.initDynamicIslandDrag = function ($dynamicIsland) {
         var deltaY = clientY - self.dynamicIslandDragStartY;
 
         // 如果移动距离超过阈值，认为是拖动而不是点击
-        if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+        if (Math.abs(deltaX) > dragThreshold || Math.abs(deltaY) > dragThreshold) {
             hasMoved = true;
+            // 一旦确认进入拖动状态，开启拖动标记与样式
+            if (!self.isDynamicIslandDragging) {
+                self.isDynamicIslandDragging = true;
+                $dynamicIsland.css("cursor", "grabbing");
+                self.$phoneContainer.css("cursor", "grabbing");
+                self.$phoneContainer.addClass("xiaoxin-phone-dragging");
+                console.info("[小馨手机] 开始拖动手机容器");
+            }
         }
 
         if (self.isDynamicIslandDragging) {
+            // 只有在真正拖动时才阻止默认行为，避免影响页面滚动等
             e.preventDefault();
 
             // 计算新位置
@@ -2000,12 +2000,6 @@ MobilePhone.prototype.initDynamicIslandDrag = function ($dynamicIsland) {
     }
 
     function onMouseUp(e) {
-        // 清除长按计时器
-        if (self.dynamicIslandLongPressTimer) {
-            clearTimeout(self.dynamicIslandLongPressTimer);
-            self.dynamicIslandLongPressTimer = null;
-        }
-
         if (self.isDynamicIslandDragging) {
             // 拖动结束
             self.isDynamicIslandDragging = false;
@@ -2078,7 +2072,8 @@ MobilePhone.prototype.initDynamicIslandDrag = function ($dynamicIsland) {
             };
             onMouseDown(mouseEvent);
         }
-        e.preventDefault();
+        // 这里不再直接 preventDefault，让系统有机会处理点击 / 双击，
+        // 真正拖动时会在 onMouseMove 中阻止默认行为
     });
 };
 
