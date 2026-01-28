@@ -2142,7 +2142,59 @@ window.XiaoxinWeChatDataHandler = (function () {
                     }
                 }
 
-                // 2. 如果响应对象没有有效的时间，使用全局世界观时钟
+                // 2. 如果响应对象没有有效的时间，尝试从好友申请记录中获取时间
+                if (!acceptedTimestamp) {
+                    try {
+                        var requests = getFriendRequests();
+                        var roleIdStrForMatch = String(roleId).trim();
+                        var relatedRequest = requests.find(function (req) {
+                            var reqRoleIdStr = String(req.roleId || "").trim();
+                            var roleIdMatch =
+                                reqRoleIdStr === roleIdStrForMatch ||
+                                reqRoleIdStr === "contact_" + roleIdStrForMatch ||
+                                reqRoleIdStr.replace(/^contact_/, "") ===
+                                    roleIdStrForMatch ||
+                                roleIdStrForMatch.replace(/^contact_/, "") ===
+                                    reqRoleIdStr;
+                            return (
+                                roleIdMatch && 
+                                req.direction === "player_to_role" &&
+                                req.status === "accepted"
+                            );
+                        });
+                        
+                        if (relatedRequest && relatedRequest.timestamp) {
+                            acceptedTimestamp = relatedRequest.timestamp;
+                            acceptedRawTime = relatedRequest.rawTime || "";
+                            console.info(
+                                "[小馨手机][微信数据] 从好友申请记录中获取好友通过时间:",
+                                acceptedTimestamp,
+                                "原始时间:",
+                                acceptedRawTime
+                            );
+                        }
+                    } catch (e) {
+                        console.warn(
+                            "[小馨手机][微信数据] 从好友申请记录获取时间失败:",
+                            e
+                        );
+                    }
+                }
+                
+                // 3. 如果仍然没有时间，检查联系人是否已有 friendAcceptedAt（避免覆盖历史时间）
+                if (!acceptedTimestamp && contact.friendAcceptedAt) {
+                    // 如果联系人已经有历史时间，保留它（不更新为当前时间）
+                    acceptedTimestamp = contact.friendAcceptedAt;
+                    acceptedRawTime = contact.friendAcceptedRawTime || "";
+                    console.info(
+                        "[小馨手机][微信数据] 保留联系人已有的好友通过时间（历史时间）:",
+                        acceptedTimestamp,
+                        "原始时间:",
+                        acceptedRawTime
+                    );
+                }
+                
+                // 4. 只有在确实没有时间的情况下，才使用全局世界观时钟（避免覆盖历史时间）
                 if (!acceptedTimestamp) {
                     if (window.XiaoxinWorldClock && window.XiaoxinWorldClock.currentTimestamp) {
                         acceptedTimestamp = window.XiaoxinWorldClock.currentTimestamp;
@@ -2333,12 +2385,16 @@ window.XiaoxinWeChatDataHandler = (function () {
                             roleDisplayName +
                             "通过了你的朋友验证请求，以上是打招呼的消息。";
 
-                        // 系统消息使用响应时间（世界观时间）
+                        // ⚠️ 系统消息必须使用好友申请同意的时间（acceptedTimestamp），而不是当前世界观时间
+                        // 确保历史联系人的系统消息显示正确的时间
+                        var systemMessageTime = acceptedTimestamp || responseTime;
+                        var systemMessageRawTime = acceptedRawTime || responseRawTime;
+                        
                         addChatMessage(chatUserId, {
                             type: "system",
                             content: systemMessage,
-                            timestamp: responseTime,
-                            rawTime: responseRawTime, // 保存原始时间字符串
+                            timestamp: systemMessageTime,
+                            rawTime: systemMessageRawTime, // 保存原始时间字符串
                         });
                         console.info(
                             "[小馨手机][微信数据] 已添加系统消息到聊天记录:",
