@@ -685,6 +685,16 @@ function showUpdateNotice(currentVersion, latestVersion, releases) {
                 const title = `v${rel.version}`;
                 const date = rel.publishedAt ? new Date(rel.publishedAt).toLocaleString() : "";
                 let body = rel.body || "（此版本未提供详细说明）";
+
+                // 将 Markdown 更新说明转换为适合在面板中展示的普通文本
+                // - 去掉 ``` 代码块包裹，避免在酒馆里被当成整块代码显示
+                // - 保留其它文本及换行
+                body = body
+                    // 去掉形如 ``` 或 ```lang 开头的代码块标记
+                    .replace(/```[a-zA-Z0-9_-]*\s*[\r\n]?/g, "")
+                    // 去掉结尾的 ``` 标记
+                    .replace(/```/g, "");
+
                 const maxLength = 1200;
                 if (body.length > maxLength) {
                     body = body.slice(0, maxLength) + "\n…（内容过长，已截断，更多内容请在 GitHub 上查看）";
@@ -695,7 +705,9 @@ function showUpdateNotice(currentVersion, latestVersion, releases) {
                             <strong style="color:#4a9eff;">${title}</strong>
                             <span style="font-size:0.8em; color:rgba(255,255,255,0.6);">${date}</span>
                         </div>
-                        <pre style="margin:0; white-space: pre-wrap; color: rgba(255,255,255,0.88);">${body}</pre>
+                        <div style="margin:0; white-space: pre-wrap; color: rgba(255,255,255,0.88); font-family: inherit; line-height: 1.5;">
+                            ${body}
+                        </div>
                     </div>
                 `;
             });
