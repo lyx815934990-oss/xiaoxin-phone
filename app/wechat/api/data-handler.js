@@ -16,9 +16,13 @@ window.XiaoxinWeChatDataHandler = (function () {
         TAGS: "wechat_tags_v1", // 标签库（用于"我的标签"）
         STICKER_CATEGORIES: "wechat_sticker_categories", // 表情包分组
         STICKERS: "wechat_stickers", // 玩家上传的表情包
+        STICKERS_MIGRATED_V1: "wechat_stickers_migrated_v1", // 表情包迁移标记
         REDPACKET_SUMMARY: "wechat_redpacket_summary", // 红包汇总数据
         WALLET: "wechat_wallet", // 钱包数据
     };
+
+    // 表情包数据使用全局角色卡ID，避免切换角色卡时被清空
+    var STICKER_STORAGE_CHAR_ID = "global_stickers";
 
     // ========== 获取账号相关的数据键 ==========
     function _getAccountDataKey(baseKey) {
@@ -40,6 +44,185 @@ window.XiaoxinWeChatDataHandler = (function () {
             accountKey,
             defaultValue
         );
+    }
+
+    // ========== 获取/设置表情包数据（使用全局角色卡ID，避免因切换角色卡被清空） ==========
+    function _getStickerData(key, defaultValue) {
+        if (!window.XiaoxinDataManager) {
+            console.warn("[小馨手机][微信数据] DataManager 未加载");
+            return defaultValue;
+        }
+        // ⚠️ 表情包数据不再按账号隔离，而是使用全局键，确保所有上下文/iframe 能共享
+        return window.XiaoxinDataManager.getCharacterData(key, defaultValue, {
+            characterId: STICKER_STORAGE_CHAR_ID,
+        });
+    }
+
+    function _setStickerData(key, value) {
+        if (!window.XiaoxinDataManager) {
+            console.warn("[小馨手机][微信数据] DataManager 未加载");
+            return;
+        }
+        // ⚠️ 表情包数据不再按账号隔离，而是使用全局键，确保所有上下文/iframe 能共享
+        window.XiaoxinDataManager.setCharacterData(key, value, {
+            characterId: STICKER_STORAGE_CHAR_ID,
+        });
+    }
+
+    // ========== 表情包数据迁移（从旧的“按角色卡隔离”迁移到全局） ==========
+    function _migrateStickersToGlobalIfNeeded() {
+        try {
+            // 已迁移过就跳过
+            var migrated = _getStickerData(DATA_KEYS.STICKERS_MIGRATED_V1, false);
+            if (migrated === true) return;
+
+            // 如果全局已有数据，也认为无需迁移（只补迁移标记）
+            var globalCats = _getStickerData(DATA_KEYS.STICKER_CATEGORIES, []);
+            var globalAll = _getStickerData(DATA_KEYS.STICKERS, {});
+            var globalHasAny =
+                (Array.isArray(globalCats) && globalCats.length > 0) ||
+                (globalAll && Object.keys(globalAll).length > 0);
+            if (globalHasAny) {
+                _setStickerData(DATA_KEYS.STICKERS_MIGRATED_V1, true);
+                return;
+            }
+
+            // 获取所有角色卡ID，把旧数据合并进全局
+            var charIds = [];
+            if (
+                window.XiaoxinDataManager &&
+                typeof window.XiaoxinDataManager.getAllCharacterIds === "function"
+            ) {
+                charIds = window.XiaoxinDataManager.getAllCharacterIds() || [];
+            }
+            // 如果拿不到列表，至少尝试当前角色卡
+            if (!charIds || charIds.length === 0) {
+                var currentId =
+                    window.XiaoxinDataManager &&
+                    typeof window.XiaoxinDataManager.getCurrentCharacterId ===
+                        "function"
+                        ? window.XiaoxinDataManager.getCurrentCharacterId()
+                        : null;
+                if (currentId) charIds = [currentId];
+            }
+
+            // 兼容历史存储：
+            // - 旧版可能使用账号隔离 key（getAccountDataKey）
+            // - 新版可能使用原始 key
+            var keyCandidatesCats = [
+                _getAccountDataKey(DATA_KEYS.STICKER_CATEGORIES),
+                DATA_KEYS.STICKER_CATEGORIES,
+            ];
+            var keyCandidatesStickers = [
+                _getAccountDataKey(DATA_KEYS.STICKERS),
+                DATA_KEYS.STICKERS,
+            ];
+
+            var mergedCategories = [];
+            var mergedCategoryIdSet = {};
+            var mergedStickersByCategory = {};
+            var mergedStickerIdSet = {};
+
+            charIds.forEach(function (charId) {
+                if (!charId) return;
+                // 读旧数据：按角色卡隔离存储（兼容多种 key）
+                var cats = [];
+                keyCandidatesCats.forEach(function (k) {
+                    try {
+                        var v = window.XiaoxinDataManager.getCharacterData(
+                            k,
+                            [],
+                            { characterId: charId }
+                        );
+                        if (Array.isArray(v) && v.length > 0) {
+                            cats = cats.concat(v);
+                        }
+                    } catch (_) {}
+                });
+
+                var stickersMap = {};
+                keyCandidatesStickers.forEach(function (k) {
+                    try {
+                        var v2 = window.XiaoxinDataManager.getCharacterData(
+                            k,
+                            {},
+                            { characterId: charId }
+                        );
+                        if (v2 && typeof v2 === "object" && Object.keys(v2).length > 0) {
+                            // 合并 map
+                            Object.keys(v2).forEach(function (cid) {
+                                if (!stickersMap[cid]) stickersMap[cid] = [];
+                                var arr = v2[cid] || [];
+                                if (Array.isArray(arr) && arr.length > 0) {
+                                    stickersMap[cid] = stickersMap[cid].concat(arr);
+                                }
+                            });
+                        }
+                    } catch (_) {}
+                });
+
+                if (Array.isArray(cats)) {
+                    cats.forEach(function (cat) {
+                        if (!cat || !cat.id) return;
+                        if (!mergedCategoryIdSet[cat.id]) {
+                            mergedCategoryIdSet[cat.id] = true;
+                            mergedCategories.push(cat);
+                        }
+                    });
+                }
+
+                if (stickersMap && typeof stickersMap === "object") {
+                    Object.keys(stickersMap).forEach(function (categoryId) {
+                        var arr = stickersMap[categoryId] || [];
+                        if (!Array.isArray(arr) || arr.length === 0) return;
+                        if (!mergedStickersByCategory[categoryId]) {
+                            mergedStickersByCategory[categoryId] = [];
+                        }
+                        arr.forEach(function (st) {
+                            if (!st) return;
+                            var sid = st.id || "";
+                            // 没有 id 的也允许合并，但要防重复就用 url+desc 做一个简易 key
+                            var url = st.url || st.src || st.path || "";
+                            var desc = st.description || "";
+                            var dedupKey = sid
+                                ? "id:" + sid
+                                : "u:" + url + "|d:" + desc;
+                            if (mergedStickerIdSet[dedupKey]) return;
+                            mergedStickerIdSet[dedupKey] = true;
+                            mergedStickersByCategory[categoryId].push(st);
+                        });
+                    });
+                }
+            });
+
+            // 如果确实合并到了数据，写入全局
+            var mergedHasAny =
+                mergedCategories.length > 0 ||
+                Object.keys(mergedStickersByCategory).length > 0;
+            if (mergedHasAny) {
+                _setStickerData(DATA_KEYS.STICKER_CATEGORIES, mergedCategories);
+                _setStickerData(DATA_KEYS.STICKERS, mergedStickersByCategory);
+                console.info(
+                    "[小馨手机][微信数据] ✅ 已将旧角色卡下的自定义表情包迁移/合并到全局存储:",
+                    "分组数:",
+                    mergedCategories.length,
+                    "分组含表情包数:",
+                    Object.keys(mergedStickersByCategory).length
+                );
+            } else {
+                console.info(
+                    "[小馨手机][微信数据] 表情包迁移：未发现旧角色卡下的自定义表情包数据"
+                );
+            }
+
+            _setStickerData(DATA_KEYS.STICKERS_MIGRATED_V1, true);
+        } catch (e) {
+            console.warn("[小馨手机][微信数据] 表情包迁移失败:", e);
+            // 迁移失败也不要卡死，避免每次都尝试导致卡顿
+            try {
+                _setStickerData(DATA_KEYS.STICKERS_MIGRATED_V1, true);
+            } catch (_) {}
+        }
     }
 
     // ========== 设置数据（带账号隔离） ==========
@@ -2842,11 +3025,12 @@ window.XiaoxinWeChatDataHandler = (function () {
 
     // ========== 表情包分组管理 ==========
     function getStickerCategories() {
-        return _getData(DATA_KEYS.STICKER_CATEGORIES, []);
+        _migrateStickersToGlobalIfNeeded();
+        return _getStickerData(DATA_KEYS.STICKER_CATEGORIES, []);
     }
 
     function saveStickerCategories(categories) {
-        _setData(DATA_KEYS.STICKER_CATEGORIES, categories);
+        _setStickerData(DATA_KEYS.STICKER_CATEGORIES, categories);
     }
 
     function addStickerCategory(category) {
@@ -2880,14 +3064,15 @@ window.XiaoxinWeChatDataHandler = (function () {
 
     // ========== 表情包管理 ==========
     function getStickers(categoryId) {
-        var allStickers = _getData(DATA_KEYS.STICKERS, {});
+        _migrateStickersToGlobalIfNeeded();
+        var allStickers = _getStickerData(DATA_KEYS.STICKERS, {});
         return allStickers[categoryId] || [];
     }
 
     function saveStickers(categoryId, stickers) {
-        var allStickers = _getData(DATA_KEYS.STICKERS, {});
+        var allStickers = _getStickerData(DATA_KEYS.STICKERS, {});
         allStickers[categoryId] = stickers;
-        _setData(DATA_KEYS.STICKERS, allStickers);
+        _setStickerData(DATA_KEYS.STICKERS, allStickers);
     }
 
     function addSticker(categoryId, sticker) {
@@ -2908,7 +3093,8 @@ window.XiaoxinWeChatDataHandler = (function () {
 
     // 获取所有表情包（用于聊天和朋友圈）
     function getAllStickers() {
-        var allStickers = _getData(DATA_KEYS.STICKERS, {});
+        _migrateStickersToGlobalIfNeeded();
+        var allStickers = _getStickerData(DATA_KEYS.STICKERS, {});
         var result = [];
         Object.keys(allStickers).forEach(function (categoryId) {
             var stickers = allStickers[categoryId] || [];
