@@ -141,33 +141,19 @@ window.XiaoxinMessageQueue = (function () {
 
                     // 如果玩家不在聊天页面，增加未读数
                     if (!isInChatPage) {
-                        if (
-                            typeof window.XiaoxinWeChatDataHandler
-                                .incrementUnreadCount === "function"
-                        ) {
-                            window.XiaoxinWeChatDataHandler.incrementUnreadCount(
-                                contactId
-                            );
-                            console.info(
-                                "[小馨手机][消息队列] 消息显示完成，增加未读数:",
-                                contactId,
-                                "消息ID:",
-                                message.id,
-                                "当前未读数:",
-                                window.XiaoxinWeChatDataHandler.getUnreadCount(
+                            if (
+                                typeof window.XiaoxinWeChatDataHandler
+                                    .incrementUnreadCount === "function"
+                            ) {
+                                window.XiaoxinWeChatDataHandler.incrementUnreadCount(
                                     contactId
-                                )
-                            );
+                                );
+                                // 高频日志会导致长聊卡顿，这里删除详细 console 输出
+                            }
+                        } else {
+                            // 如果玩家在聊天页面，不增加未读数（因为会立即清除）
+                            // 不再输出详细日志，避免刷屏
                         }
-                    } else {
-                        // 如果玩家在聊天页面，不增加未读数（因为会立即清除）
-                        console.info(
-                            "[小馨手机][消息队列] 消息显示完成，玩家在聊天页面，不增加未读数:",
-                            contactId,
-                            "消息ID:",
-                            message.id
-                        );
-                    }
                 }
 
                 // 触发消息显示事件
@@ -182,12 +168,7 @@ window.XiaoxinMessageQueue = (function () {
                 );
                 window.dispatchEvent(displayEvent);
 
-                console.info(
-                    "[小馨手机][消息队列] 消息显示完成:",
-                    contactId,
-                    "消息ID:",
-                    message.id
-                );
+                // 高频“消息显示完成”日志删除，避免在大量消息时刷屏卡顿
 
                 // 处理下一条消息
                 queue.currentIndex++;
