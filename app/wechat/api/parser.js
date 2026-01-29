@@ -57,6 +57,11 @@ window.XiaoxinWeChatParser = (function () {
         // 将 <br> 标签统一当作换行处理，兼容 DOM 拼出来的一行多字段情况
         var normalized = String(blockText).replace(/<br\s*\/?>/gi, "\n");
 
+        // 兼容格式一：用竖线将多个字段写在同一行，例如：
+        // [wx_friend_apply_response]角色ID=101|状态=同意|时间=2015年9月02日 星期三 18:20:00[/wx_friend_apply_response]
+        // 这里我们把竖线当成“字段之间的分隔符”，先替换成换行再解析
+        normalized = normalized.replace(/[|｜]/g, "\n");
+
         var lines = normalized
             .split(/\r?\n/)
             .map(function (line) {
@@ -116,7 +121,7 @@ window.XiaoxinWeChatParser = (function () {
             var requestTime = kv["时间"] || "";
             var requestTimestamp = null;
             var requestRawTime = requestTime || (messageMeta && messageMeta.rawTime ? messageMeta.rawTime : "");
-            
+
             // 如果格式中有时间字段，解析它
             if (requestTime) {
                 var normalizedTimeStr = requestTime
@@ -137,7 +142,7 @@ window.XiaoxinWeChatParser = (function () {
                     );
                 }
             }
-            
+
             // 如果没有解析到时间戳，使用 messageMeta 中的时间
             if (!requestTimestamp) {
                 requestTimestamp = messageMeta && messageMeta.time ? messageMeta.time : null;
@@ -183,7 +188,7 @@ window.XiaoxinWeChatParser = (function () {
             var requestTime2 = kv2["时间"] || "";
             var requestTimestamp2 = null;
             var requestRawTime2 = requestTime2 || (messageMeta && messageMeta.rawTime ? messageMeta.rawTime : "");
-            
+
             // 如果格式中有时间字段，解析它
             if (requestTime2) {
                 var normalizedTimeStr2 = requestTime2
@@ -204,7 +209,7 @@ window.XiaoxinWeChatParser = (function () {
                     );
                 }
             }
-            
+
             // 如果没有解析到时间戳，使用 messageMeta 中的时间
             if (!requestTimestamp2) {
                 requestTimestamp2 = messageMeta && messageMeta.time ? messageMeta.time : null;
@@ -249,7 +254,20 @@ window.XiaoxinWeChatParser = (function () {
             var body = match[1] || "";
             var kv = _parseKeyValueLines(body);
 
+            // 角色ID字段：优先使用规范字段，其次兼容错误字段名“某某ID=数字”
             var roleId = kv["角色ID"] || kv["角色id"] || kv["roleId"] || "";
+            if (!roleId) {
+                for (var key in kv) {
+                    if (!Object.prototype.hasOwnProperty.call(kv, key)) continue;
+                    if (/ID$/i.test(key)) {
+                        var v = String(kv[key] || "").trim();
+                        if (/^\d+$/.test(v)) {
+                            roleId = v;
+                            break;
+                        }
+                    }
+                }
+            }
             var status = kv["状态"] || kv["status"] || "";
 
             if (!roleId || !status) {
@@ -285,7 +303,7 @@ window.XiaoxinWeChatParser = (function () {
             var responseTime = kv["时间"] || "";
             var responseTimestamp = null;
             var responseRawTime = responseTime || (messageMeta && messageMeta.rawTime ? messageMeta.rawTime : "");
-            
+
             // 如果格式中有时间字段，解析它
             if (responseTime) {
                 var normalizedTimeStr = responseTime
@@ -316,7 +334,7 @@ window.XiaoxinWeChatParser = (function () {
                     );
                 }
             }
-            
+
             // 如果没有解析到时间戳，使用 messageMeta 中的时间
             if (!responseTimestamp && messageMeta && messageMeta.time) {
                 responseTimestamp = messageMeta.time;
