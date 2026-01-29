@@ -1,5 +1,209 @@
 // 小馨手机 - 核心逻辑文件
 
+// ========== 拖拽辅助（内置兜底版 DragHelper） ==========
+// 如果外部脚本尚未定义 DragHelper，则提供一个精简版本，专门用于拖动手机容器
+if (typeof window !== "undefined" && typeof window.DragHelper === "undefined") {
+    (function () {
+        function DragHelper(element, options) {
+            this.element = element;
+            this.options = Object.assign(
+                {
+                    boundary: document.body,
+                    clickThreshold: 5,
+                    dragClass: "dragging",
+                    touchTimeout: 200,
+                    dragHandle: null,
+                    onDragStart: null,
+                    onDragEnd: null,
+                },
+                options || {}
+            );
+
+            this.isDragging = false;
+            this.moved = false;
+            this.startX = 0;
+            this.startY = 0;
+            this.startElementX = 0;
+            this.startElementY = 0;
+            this.touchTimer = null;
+            this.eventTarget = null;
+
+            this.init();
+        }
+
+        DragHelper.prototype.init = function () {
+            var style = window.getComputedStyle(this.element);
+            if (style.position === "static") {
+                this.element.style.position = "fixed";
+            }
+
+            this.element.style.userSelect = "none";
+
+            this.bindEvents();
+        };
+
+        DragHelper.prototype.bindEvents = function () {
+            var eventTarget = this.options.dragHandle
+                ? this.element.querySelector(this.options.dragHandle)
+                : this.element;
+            if (!eventTarget) {
+                console.warn(
+                    "[DragHelper] 未找到拖拽手柄: ",
+                    this.options.dragHandle
+                );
+                return;
+            }
+
+            this.eventTarget = eventTarget;
+            this._boundStart = this.handleStart.bind(this);
+            this._boundMove = this.handleMove.bind(this);
+            this._boundEnd = this.handleEnd.bind(this);
+
+            eventTarget.addEventListener("mousedown", this._boundStart, {
+                passive: false,
+            });
+            document.addEventListener("mousemove", this._boundMove, {
+                passive: false,
+            });
+            document.addEventListener("mouseup", this._boundEnd, {
+                passive: false,
+            });
+
+            eventTarget.addEventListener("touchstart", this._boundStart, {
+                passive: false,
+            });
+            document.addEventListener("touchmove", this._boundMove, {
+                passive: false,
+            });
+            document.addEventListener("touchend", this._boundEnd, {
+                passive: false,
+            });
+        };
+
+        DragHelper.prototype.handleStart = function (e) {
+            if (this.options.dragHandle) {
+                var handle = this.element.querySelector(this.options.dragHandle);
+                if (handle && !handle.contains(e.target)) {
+                    return;
+                }
+            }
+
+            var point = e.touches && e.touches[0] ? e.touches[0] : e;
+            this.isDragging = true;
+            this.moved = false;
+            this.startX = point.clientX;
+            this.startY = point.clientY;
+
+            // 注意：小馨手机容器的 left/top 表示“中心点”，同时带有 translate(-50%, -50%)。
+            // 因此这里用 style.left / style.top 作为拖动基准，避免第一次移动时发生跳变。
+            var style = window.getComputedStyle(this.element);
+            this.startElementX = parseFloat(style.left) || 0;
+            this.startElementY = parseFloat(style.top) || 0;
+
+            var self = this;
+            if (e.type === "touchstart") {
+                this.touchTimer = setTimeout(function () {
+                    if (self.isDragging && !self.moved) {
+                        self.element.classList.add(self.options.dragClass);
+                        if (typeof self.options.onDragStart === "function") {
+                            self.options.onDragStart({
+                                x: self.startElementX,
+                                y: self.startElementY,
+                            });
+                        }
+                    }
+                }, this.options.touchTimeout);
+            } else {
+                e.preventDefault();
+                this.element.classList.add(this.options.dragClass);
+                if (typeof this.options.onDragStart === "function") {
+                    this.options.onDragStart({
+                        x: this.startElementX,
+                        y: this.startElementY,
+                    });
+                }
+            }
+        };
+
+        DragHelper.prototype.handleMove = function (e) {
+            if (!this.isDragging) return;
+
+            var point = e.touches && e.touches[0] ? e.touches[0] : e;
+            var deltaX = point.clientX - this.startX;
+            var deltaY = point.clientY - this.startY;
+
+            if (
+                !this.moved &&
+                (Math.abs(deltaX) > this.options.clickThreshold ||
+                    Math.abs(deltaY) > this.options.clickThreshold)
+            ) {
+                this.moved = true;
+                if (this.touchTimer) {
+                    clearTimeout(this.touchTimer);
+                    this.touchTimer = null;
+                }
+            }
+
+            if (!this.moved) return;
+
+            e.preventDefault();
+
+            // 这里的 startElementX/Y 是“中心坐标”（配合 translate(-50%, -50%)），
+            // 因此 newX/newY 也表示中心点，需要在边界内进行限制。
+            var centerX = this.startElementX + deltaX;
+            var centerY = this.startElementY + deltaY;
+
+            var boundaryRect =
+                this.options.boundary.getBoundingClientRect();
+            var elemRect = this.element.getBoundingClientRect();
+            var halfW = elemRect.width / 2;
+            var halfH = elemRect.height / 2;
+
+            var minCenterX = boundaryRect.left + halfW;
+            var maxCenterX = boundaryRect.right - halfW;
+            var minCenterY = boundaryRect.top + halfH;
+            var maxCenterY = boundaryRect.bottom - halfH;
+
+            centerX = Math.max(minCenterX, Math.min(maxCenterX, centerX));
+            centerY = Math.max(minCenterY, Math.min(maxCenterY, centerY));
+
+            this.element.style.left = centerX + "px";
+            this.element.style.top = centerY + "px";
+        };
+
+        DragHelper.prototype.handleEnd = function () {
+            if (!this.isDragging) return;
+
+            if (this.touchTimer) {
+                clearTimeout(this.touchTimer);
+                this.touchTimer = null;
+            }
+
+            this.isDragging = false;
+            this.element.classList.remove(this.options.dragClass);
+
+            if (this.moved && typeof this.options.onDragEnd === "function") {
+                var rect = this.element.getBoundingClientRect();
+                this.options.onDragEnd({ x: rect.left, y: rect.top });
+            }
+        };
+
+        DragHelper.prototype.destroy = function () {
+            var target = this.eventTarget || this.element;
+            if (target) {
+                target.removeEventListener("mousedown", this._boundStart);
+                target.removeEventListener("touchstart", this._boundStart);
+            }
+            document.removeEventListener("mousemove", this._boundMove);
+            document.removeEventListener("mouseup", this._boundEnd);
+            document.removeEventListener("touchmove", this._boundMove);
+            document.removeEventListener("touchend", this._boundEnd);
+        };
+
+        window.DragHelper = DragHelper;
+    })();
+}
+
 // ========== IndexedDB 帮助函数 ==========
 const DB_NAME = "XiaoxinMobileDB";
 const DB_VERSION = 1;
@@ -101,16 +305,14 @@ function MobilePhone() {
     this.dragOffsetX = 0;
     this.dragOffsetY = 0;
     this.isPhoneVisible = false;
+    // 最近一次保存的手机容器中心位置（用于隐藏/显示时保持位置稳定）
+    // 结构: { x: number, y: number }
+    this._savedPhonePosition = null;
     this.currentPage = "home"; // 'home' 或应用名称
     this.homeIndicatorStartY = 0;
     this.isHomeIndicatorDragging = false;
-    // 灵动岛拖动相关
-    this.isDynamicIslandDragging = false;
-    this.dynamicIslandLongPressTimer = null;
-    this.dynamicIslandDragStartX = 0;
-    this.dynamicIslandDragStartY = 0;
-    this.phoneContainerStartX = 0;
-    this.phoneContainerStartY = 0;
+    // 手机容器拖动辅助实例（基于 DragHelper）
+    this._frameDragHelper = null;
 
     // 全局变量键名
     this.STORAGE_KEY = "xiaoxin_mobile_home_settings_v1";
@@ -139,7 +341,7 @@ function MobilePhone() {
     // 定期自愈：有些情况下（主题注入/动画/某些浏览器渲染 bug）状态栏/灵动岛/Home 条会被遮挡或意外消失
     // 这里每 1 秒检查一次，避免用户必须刷新酒馆页面（提高检查频率，更快发现问题）
     setInterval(() => this.ensureSystemOverlays(), 1000);
-    
+
     // 在页面切换、DOM变化时也立即检查（使用MutationObserver监听DOM变化）
     if (typeof MutationObserver !== "undefined") {
         var self = this;
@@ -171,13 +373,13 @@ function MobilePhone() {
                 }, 100);
             }
         });
-        
+
         // 监听body的DOM变化
         observer.observe(document.body, {
             childList: true,
             subtree: true
         });
-        
+
         // 保存observer引用，以便后续清理
         this._domObserver = observer;
     }
@@ -772,8 +974,9 @@ MobilePhone.prototype.initPhoneContainer = function () {
     // 绑定 Home Indicator 上滑手势
     this.initHomeIndicatorGesture($homeIndicator);
 
-    // 绑定灵动岛长按拖动功能
-    this.initDynamicIslandDrag($dynamicIsland);
+    // 绑定灵动岛交互（双击隐藏由 DragHelper 的 onDoubleClick 处理，这里不再单独绑定）
+    // 注意：双击隐藏功能已移至 initFrameDrag 中的 DragHelper.onDoubleClick
+    // this.initDynamicIslandDrag($dynamicIsland); // 已移除，避免与 DragHelper 冲突
 
     $("body").append($phone);
     this.$phoneContainer = $phone;
@@ -794,6 +997,8 @@ MobilePhone.prototype.initPhoneContainer = function () {
     var self = this;
     setTimeout(function () {
         self.adjustPhoneContainerPosition();
+        // 在位置调整完成后初始化拖拽（基于 DragHelper，以灵动岛为手柄）
+        self.initFrameDrag();
     }, 100);
 
     console.info("[小馨手机] 手机界面已创建");
@@ -865,8 +1070,8 @@ MobilePhone.prototype.ensureSystemOverlays = function () {
                 this.$dynamicIsland = $dynamicIsland;
                 this.$statusBar = $statusBar;
                 $screen.append($statusBar);
-                // 重新绑定灵动岛拖动
-                this.initDynamicIslandDrag($dynamicIsland);
+                // 重新绑定灵动岛交互（双击隐藏由 DragHelper 处理，无需单独绑定）
+                // this.initDynamicIslandDrag($dynamicIsland); // 已移除，避免与 DragHelper 冲突
                 // 立刻刷新时间
                 this.updateTime();
             }
@@ -899,7 +1104,8 @@ MobilePhone.prototype.ensureSystemOverlays = function () {
                     $statusBar.append($dynamicIsland);
                 }
                 this.$dynamicIsland = $dynamicIsland;
-                this.initDynamicIslandDrag($dynamicIsland);
+                // 双击隐藏由 DragHelper 处理，无需单独绑定
+                // this.initDynamicIslandDrag($dynamicIsland); // 已移除，避免与 DragHelper 冲突
             }
         } else {
             // 更新缓存引用
@@ -928,14 +1134,16 @@ MobilePhone.prototype.ensureSystemOverlays = function () {
             $statusBar[0].style.setProperty("opacity", "1", "important");
             $statusBar[0].style.setProperty("z-index", "99999", "important");
         }
-        
+
         if ($dynamicIsland && $dynamicIsland.length) {
             $dynamicIsland[0].style.setProperty("display", "block", "important");
             $dynamicIsland[0].style.setProperty("visibility", "visible", "important");
             $dynamicIsland[0].style.setProperty("opacity", "1", "important");
             $dynamicIsland[0].style.setProperty("z-index", "99999", "important");
+            // 双击隐藏由 DragHelper 处理，无需单独绑定
+            // this.initDynamicIslandDrag($dynamicIsland); // 已移除，避免与 DragHelper 冲突
         }
-        
+
         if ($homeIndicator.length) {
             $homeIndicator[0].style.setProperty("display", "block", "important");
             $homeIndicator[0].style.setProperty("visibility", "visible", "important");
@@ -979,11 +1187,16 @@ MobilePhone.prototype.applyPhoneScale = function () {
 MobilePhone.prototype.setPhonePosition = function (x, y) {
     if (!this.$phoneContainer) return;
     var scale = this.phoneScale || 1;
+    // 在设置位置时，如果容器是隐藏状态，禁用 transition 避免跳闪
+    // 如果容器是可见状态，保留 opacity 过渡效果
+    var isVisible = this.isPhoneVisible && this.$phoneContainer.hasClass("visible");
+    var transition = isVisible ? "opacity 0.3s ease" : "none";
+
     this.$phoneContainer.css({
         top: y + "px",
         left: x + "px",
         transform: "translate(-50%, -50%) scale(" + scale + ")",
-        transition: "opacity 0.3s ease", // 只保留透明度过渡
+        transition: transition, // 隐藏状态下禁用过渡，避免跳闪
     });
 };
 
@@ -1046,6 +1259,18 @@ MobilePhone.prototype.saveHomeSettings = async function (updates) {
                     updates.wallpaper.url = null; // 清空大图数据
                 }
             }
+        }
+
+        // 如果包含手机位置更新，顺便更新内存中的最近保存位置
+        if (
+            updates.phonePosition &&
+            typeof updates.phonePosition.x === "number" &&
+            typeof updates.phonePosition.y === "number"
+        ) {
+            this._savedPhonePosition = {
+                x: updates.phonePosition.x,
+                y: updates.phonePosition.y,
+            };
         }
 
         // 检查接口是否可用（使用 window 对象检查，因为可能在不同作用域）
@@ -1219,6 +1444,11 @@ MobilePhone.prototype.loadSavedSettings = async function () {
             typeof settings.phonePosition.x === "number" &&
             typeof settings.phonePosition.y === "number"
         ) {
+            // 记录最近一次保存的位置，供隐藏/显示时使用
+            this._savedPhonePosition = {
+                x: settings.phonePosition.x,
+                y: settings.phonePosition.y,
+            };
             this.setPhonePosition(
                 settings.phonePosition.x,
                 settings.phonePosition.y
@@ -1408,14 +1638,59 @@ MobilePhone.prototype.showPhone = function () {
         return;
     }
 
+    // ⚠️ 关键修复：在显示之前先恢复位置，避免跳闪
+    // 先恢复位置（此时容器还是隐藏的，但位置设置会生效）
+    try {
+        if (
+            this._savedPhonePosition &&
+            typeof this._savedPhonePosition.x === "number" &&
+            typeof this._savedPhonePosition.y === "number"
+        ) {
+            console.info("[小馨手机] 恢复保存的位置:", this._savedPhonePosition);
+            // 在隐藏状态下先设置位置（避免显示时跳闪）
+            this.setPhonePosition(
+                this._savedPhonePosition.x,
+                this._savedPhonePosition.y
+            );
+        }
+    } catch (e) {
+        console.warn("[小馨手机] 恢复手机保存位置时出错:", e);
+    }
+
+    // 现在再设置为可见（位置已经设置好了，不会跳闪）
     this.$phoneContainer.addClass("visible");
     this.isPhoneVisible = true;
-    // 恢复显示和交互
     this.$phoneContainer.css({
         "pointer-events": "auto",
         "visibility": "visible",
         "display": "block"
     });
+
+    // 显示后，调整位置确保在屏幕内（使用 requestAnimationFrame 确保在下一帧执行，避免跳闪）
+    var self = this;
+    requestAnimationFrame(function () {
+        requestAnimationFrame(function () {
+            // 双 requestAnimationFrame 确保在浏览器完成渲染后再调整位置
+            try {
+                if (
+                    self._savedPhonePosition &&
+                    typeof self._savedPhonePosition.x === "number" &&
+                    typeof self._savedPhonePosition.y === "number"
+                ) {
+                    // 如果位置可能超出屏幕，调整到屏幕内
+                    self.adjustPhoneContainerPosition();
+                } else {
+                    // 如果没有保存的位置，使用默认居中
+                    console.info("[小馨手机] 没有保存的位置，使用默认居中");
+                    self.adjustPhoneContainerPosition();
+                }
+            } catch (e) {
+                console.warn("[小馨手机] 调整手机位置时出错:", e);
+                self.adjustPhoneContainerPosition();
+            }
+        });
+    });
+
     this.ensureSystemOverlays();
     console.info("[小馨手机] 手机界面已显示");
 };
@@ -1439,7 +1714,7 @@ MobilePhone.prototype.openApp = function (appName) {
     if (this.currentPage === appName) return;
 
     var self = this;
-    
+
     // 页面切换时立即检查系统覆盖层
     this.ensureSystemOverlays();
 
@@ -1865,216 +2140,14 @@ MobilePhone.prototype.initHomeIndicatorGesture = function ($indicator) {
     });
 };
 
-// 初始化灵动岛长按拖动功能
+// 初始化灵动岛交互：双击隐藏手机（拖动由 DragHelper 负责）
+// ⚠️ 已废弃：双击隐藏功能已移至 DragHelper 的 onDoubleClick 回调中
+// 保留此函数仅用于向后兼容，实际不再使用
 MobilePhone.prototype.initDynamicIslandDrag = function ($dynamicIsland) {
-    var self = this;
-    // 使用拖动阈值来区分“点击 / 双击”和“拖动”，避免移动端长按手势不稳定
-    var dragThreshold = 5; // 像素阈值，大于此值视为拖动
-    var hasMoved = false; // 是否移动过（用于区分点击和拖动）
-    
-    // 双击检测相关变量
-    var lastClickTime = 0;
-    var doubleClickDelay = 300; // 双击间隔时间（毫秒）
-    var lastClickX = 0;
-    var lastClickY = 0;
-    var clickTolerance = 10; // 点击位置容差（像素）
-
-    function onMouseDown(e) {
-        var isTouch = e.type === "touchstart" || (e.touches && e.touches[0]);
-        // PC 鼠标立即 preventDefault；移动端先不阻止，只有在真正进入拖动后再阻止默认行为，
-        // 以免影响点击 / 双击识别和系统手势
-        if (!isTouch) {
-            e.preventDefault();
-        }
-        e.stopPropagation();
-
-        hasMoved = false;
-        // 支持触摸事件
-        var clientX =
-            e.clientX !== undefined
-                ? e.clientX
-                : e.touches && e.touches[0]
-                ? e.touches[0].clientX
-                : 0;
-        var clientY =
-            e.clientY !== undefined
-                ? e.clientY
-                : e.touches && e.touches[0]
-                ? e.touches[0].clientY
-                : 0;
-        self.dynamicIslandDragStartX = clientX;
-        self.dynamicIslandDragStartY = clientY;
-
-        // 获取手机容器当前的位置（以中心点为基准）
-        var phoneRect = self.$phoneContainer[0].getBoundingClientRect();
-        self.phoneContainerStartX = phoneRect.left + phoneRect.width / 2;
-        self.phoneContainerStartY = phoneRect.top + phoneRect.height / 2;
-
-        $(document).on("mousemove.xiaoxinDynamicIsland", onMouseMove);
-        $(document).on("mouseup.xiaoxinDynamicIsland", onMouseUp);
-        $(document).on("touchmove.xiaoxinDynamicIsland", function (e) {
-            e.preventDefault();
-            if (e.originalEvent.touches && e.originalEvent.touches[0]) {
-                var touch = e.originalEvent.touches[0];
-                var fakeEvent = {
-                    clientX: touch.clientX,
-                    clientY: touch.clientY,
-                    preventDefault: function () {
-                        e.preventDefault();
-                    },
-                };
-                onMouseMove(fakeEvent);
-            }
-        });
-        $(document).on("touchend.xiaoxinDynamicIsland", function (e) {
-            onMouseUp(e);
-        });
-    }
-
-    function onMouseMove(e) {
-        // 支持触摸事件
-        var clientX =
-            e.clientX !== undefined
-                ? e.clientX
-                : e.touches && e.touches[0]
-                ? e.touches[0].clientX
-                : self.dynamicIslandDragStartX;
-        var clientY =
-            e.clientY !== undefined
-                ? e.clientY
-                : e.touches && e.touches[0]
-                ? e.touches[0].clientY
-                : self.dynamicIslandDragStartY;
-
-        var deltaX = clientX - self.dynamicIslandDragStartX;
-        var deltaY = clientY - self.dynamicIslandDragStartY;
-
-        // 如果移动距离超过阈值，认为是拖动而不是点击
-        if (Math.abs(deltaX) > dragThreshold || Math.abs(deltaY) > dragThreshold) {
-            hasMoved = true;
-            // 一旦确认进入拖动状态，开启拖动标记与样式
-            if (!self.isDynamicIslandDragging) {
-                self.isDynamicIslandDragging = true;
-                $dynamicIsland.css("cursor", "grabbing");
-                self.$phoneContainer.css("cursor", "grabbing");
-                self.$phoneContainer.addClass("xiaoxin-phone-dragging");
-                console.info("[小馨手机] 开始拖动手机容器");
-            }
-        }
-
-        if (self.isDynamicIslandDragging) {
-            // 只有在真正拖动时才阻止默认行为，避免影响页面滚动等
-            e.preventDefault();
-
-            // 计算新位置
-            var newX = self.phoneContainerStartX + deltaX;
-            var newY = self.phoneContainerStartY + deltaY;
-
-            // 限制在窗口内（考虑缩放和安全边距）
-            var winWidth = $(window).width();
-            var winHeight = $(window).height();
-            var scale = self.phoneScale || 1;
-            var phoneWidth = (self.$phoneContainer.outerWidth() || 393) * scale;
-            var phoneHeight =
-                (self.$phoneContainer.outerHeight() || 790) * scale;
-            var safeMargin = 10; // 安全边距
-
-            newX = Math.max(
-                phoneWidth / 2 + safeMargin,
-                Math.min(newX, winWidth - phoneWidth / 2 - safeMargin)
-            );
-            newY = Math.max(
-                phoneHeight / 2 + safeMargin,
-                Math.min(newY, winHeight - phoneHeight / 2 - safeMargin)
-            );
-
-            // 更新手机容器位置（使用 top 和 left，而不是 transform）
-            var scale = self.phoneScale || 1;
-            self.$phoneContainer.css({
-                top: newY + "px",
-                left: newX + "px",
-                transform: "translate(-50%, -50%) scale(" + scale + ")",
-                transition: "none", // 拖动时禁用过渡动画
-            });
-        }
-    }
-
-    function onMouseUp(e) {
-        if (self.isDynamicIslandDragging) {
-            // 拖动结束
-            self.isDynamicIslandDragging = false;
-            $dynamicIsland.css("cursor", "");
-            self.$phoneContainer.css("cursor", "");
-            self.$phoneContainer.removeClass("xiaoxin-phone-dragging");
-
-            // 保存位置到设置
-            var phoneRect = self.$phoneContainer[0].getBoundingClientRect();
-            var savedPosition = {
-                x: phoneRect.left + phoneRect.width / 2,
-                y: phoneRect.top + phoneRect.height / 2,
-            };
-            self.saveHomeSettings({ phonePosition: savedPosition });
-
-            console.info("[小馨手机] 拖动结束，位置已保存:", savedPosition);
-        } else if (!hasMoved) {
-            // 如果不是拖动，且没有移动，检测是否是双击
-            var currentTime = Date.now();
-            var currentX = self.dynamicIslandDragStartX;
-            var currentY = self.dynamicIslandDragStartY;
-            
-            // 检查是否是双击（时间间隔和位置都符合要求）
-            if (
-                currentTime - lastClickTime < doubleClickDelay &&
-                Math.abs(currentX - lastClickX) < clickTolerance &&
-                Math.abs(currentY - lastClickY) < clickTolerance
-            ) {
-                // 双击成功，隐藏手机
-                e.preventDefault();
-                e.stopPropagation();
-                console.info("[小馨手机] 检测到双击灵动岛，隐藏手机");
-                self.hidePhone();
-                
-                // 重置双击检测变量
-                lastClickTime = 0;
-                lastClickX = 0;
-                lastClickY = 0;
-            } else {
-                // 记录本次点击信息，等待下次点击
-                lastClickTime = currentTime;
-                lastClickX = currentX;
-                lastClickY = currentY;
-            }
-        }
-
-        $(document).off("mousemove.xiaoxinDynamicIsland", onMouseMove);
-        $(document).off("mouseup.xiaoxinDynamicIsland", onMouseUp);
-        $(document).off("touchmove.xiaoxinDynamicIsland");
-        $(document).off("touchend.xiaoxinDynamicIsland");
-    }
-
-    // 绑定鼠标事件
-    $dynamicIsland.on("mousedown", onMouseDown);
-
-    // 也支持触摸事件（移动端）
-    $dynamicIsland.on("touchstart", function (e) {
-        var touch = e.originalEvent.touches[0];
-        if (touch) {
-            var mouseEvent = {
-                clientX: touch.clientX,
-                clientY: touch.clientY,
-                touches: e.originalEvent.touches,
-                preventDefault: function () {
-                    e.preventDefault();
-                },
-                stopPropagation: function () {
-                    e.stopPropagation();
-                },
-            };
-            onMouseDown(mouseEvent);
-        }
-        // 这里不再直接 preventDefault，让系统有机会处理点击 / 双击，
-        // 真正拖动时会在 onMouseMove 中阻止默认行为
-    });
+    // 此函数已被废弃，双击隐藏功能由 DragHelper.onDoubleClick 统一处理
+    // 避免事件冲突：DragHelper 已经监听了 mousedown/touchstart/mouseup/touchend/dblclick
+    // 如果这里再监听 click/touchend，会导致事件冲突，双击可能无法正确触发
+    console.warn("[小馨手机] initDynamicIslandDrag 已被废弃，双击隐藏由 DragHelper 处理");
 };
 
 // 显示头像选择弹窗（显示在手机主页内，不模糊背景）
@@ -2952,37 +3025,61 @@ MobilePhone.prototype.adjustPickerPosition = function ($overlay) {
 MobilePhone.prototype.adjustPhoneContainerPosition = function () {
     if (!this.$phoneContainer || !this.$phoneContainer.length) return;
 
+    // 如果手机是隐藏状态，不调整位置（避免在隐藏状态下计算错误的位置）
+    if (!this.isPhoneVisible || !this.$phoneContainer.hasClass("visible")) {
+        console.info("[小馨手机] 手机处于隐藏状态，跳过位置调整");
+        return;
+    }
+
     var $phone = this.$phoneContainer;
     var winWidth = $(window).width();
     var winHeight = $(window).height();
     var scale = this.phoneScale || 1;
+
+    // 确保手机容器是可见的，才能正确获取尺寸
+    if ($phone.css("display") === "none") {
+        console.warn("[小馨手机] 手机容器不可见，无法调整位置");
+        return;
+    }
+
     var phoneWidth = ($phone.outerWidth() || 393) * scale;
     var phoneHeight = ($phone.outerHeight() || 790) * scale;
 
-    // 获取当前位置
-    var currentTop = $phone.css("top");
-    var currentLeft = $phone.css("left");
-    var currentTransform = $phone.css("transform");
+    // 获取当前位置（从实际 DOM 位置获取，而不是 CSS）
+    var rect = $phone[0].getBoundingClientRect();
+    var currentCenterX = rect.left + rect.width / 2;
+    var currentCenterY = rect.top + rect.height / 2;
 
     var centerX = winWidth / 2;
     var centerY = winHeight / 2;
-    var newX = centerX;
-    var newY = centerY;
+    var newX = currentCenterX;
+    var newY = currentCenterY;
 
-    // 如果已经有保存的位置，使用保存的位置
-    if (currentTop !== "50%" && currentLeft !== "50%") {
-        // 解析当前像素位置
-        var topValue = parseFloat(currentTop) || centerY;
-        var leftValue = parseFloat(currentLeft) || centerX;
-        newX = leftValue;
-        newY = topValue;
+    // 如果当前位置无效（NaN 或 0），使用屏幕中心
+    if (isNaN(newX) || newX === 0 || !isFinite(newX)) {
+        newX = centerX;
+    }
+    if (isNaN(newY) || newY === 0 || !isFinite(newY)) {
+        newY = centerY;
     }
 
-    // 确保位置在屏幕内
+    // 确保位置在屏幕内（边界检查）
     var halfWidth = phoneWidth / 2;
     var halfHeight = phoneHeight / 2;
-    newX = Math.max(halfWidth, Math.min(newX, winWidth - halfWidth));
-    newY = Math.max(halfHeight, Math.min(newY, winHeight - halfHeight));
+    var minX = halfWidth;
+    var maxX = winWidth - halfWidth;
+    var minY = halfHeight;
+    var maxY = winHeight - halfHeight;
+
+    // 如果位置超出屏幕，调整到屏幕内
+    if (newX < minX || newX > maxX || newY < minY || newY > maxY) {
+        console.warn("[小馨手机] 检测到位置超出屏幕，调整到屏幕内", {
+            原位置: { x: newX, y: newY },
+            屏幕范围: { minX: minX, maxX: maxX, minY: minY, maxY: maxY }
+        });
+        newX = Math.max(minX, Math.min(newX, maxX));
+        newY = Math.max(minY, Math.min(newY, maxY));
+    }
 
     // 应用位置
     $phone.css({
@@ -2990,4 +3087,303 @@ MobilePhone.prototype.adjustPhoneContainerPosition = function () {
         left: newX + "px",
         transform: "translate(-50%, -50%) scale(" + scale + ")",
     });
+
+    console.info("[小馨手机] 位置已调整到屏幕内", { x: newX, y: newY });
+};
+
+// 基于 DragHelper 的手机框架拖拽：以灵动岛为拖动手柄
+MobilePhone.prototype.initFrameDrag = function () {
+    var self = this;
+
+    function tryInit() {
+        if (!self.$phoneContainer || !self.$phoneContainer.length) return;
+
+        // DragHelper 可能还在异步加载，晚一点再试
+        if (typeof window.DragHelper === "undefined") {
+            setTimeout(tryInit, 100);
+            return;
+        }
+
+        // 销毁旧的拖拽实例
+        if (self._frameDragHelper && typeof self._frameDragHelper.destroy === "function") {
+            self._frameDragHelper.destroy();
+        }
+
+        // 创建新的拖拽实例：拖动整机，手柄是灵动岛
+        self._frameDragHelper = new window.DragHelper(self.$phoneContainer[0], {
+            boundary: document.body,
+            clickThreshold: 5, // 降低阈值，让双击更容易触发（原来8px太大，轻微移动就被判定为拖动）
+            doubleClickDelay: 400, // 双击判定时间窗口（毫秒），与手动检测保持一致
+            dragClass: "xiaoxin-phone-dragging",
+            savePosition: false, // 位置交给 saveHomeSettings 管理
+            storageKey: "xiaoxin-phone-frame-position",
+            touchTimeout: 250,
+            dragHandle: ".xiaoxin-dynamic-island",
+            // 双击回调（由 DragHelper 处理，但可能不够可靠，我们在下面添加直接监听）
+            onDoubleClick: function (context) {
+                try {
+                    console.info("[小馨手机] 检测到 DragHelper 双击，准备隐藏手机容器", {
+                        event: context.event,
+                        element: context.element,
+                        phoneVisible: self.isPhoneVisible
+                    });
+                    if (typeof self.hidePhone === "function") {
+                        self.hidePhone();
+                        console.info("[小馨手机] 手机容器已隐藏（通过 DragHelper）");
+                    } else {
+                        console.error("[小馨手机] hidePhone 方法不存在！");
+                    }
+                } catch (e) {
+                    console.error("[小馨手机] DragHelper onDoubleClick 隐藏手机时出错:", e);
+                }
+            },
+            onDragEnd: function () {
+                try {
+                    if (!self.$phoneContainer || !self.$phoneContainer.length) return;
+                    var rect = self.$phoneContainer[0].getBoundingClientRect();
+                    var savedPosition = {
+                        x: rect.left + rect.width / 2,
+                        y: rect.top + rect.height / 2,
+                    };
+                    self.saveHomeSettings({ phonePosition: savedPosition });
+                    console.info("[小馨手机] 拖动结束（DragHelper），位置已保存:", savedPosition);
+                } catch (e) {
+                    console.warn("[小馨手机] DragHelper 拖动结束时保存位置失败:", e);
+                }
+            },
+        });
+
+        console.info("[小馨手机] 手机容器拖拽已启用（基于 DragHelper，灵动岛为拖动手柄）");
+
+        // 直接在手机容器上添加双击监听（作为 DragHelper 的补充，确保双击隐藏功能可靠）
+        // 注意：这里监听整个手机容器，而不仅仅是灵动岛，让用户可以在任何可拖动区域双击隐藏
+        self.initPhoneContainerDoubleClick();
+    }
+
+    tryInit();
+};
+
+// 初始化手机容器的双击隐藏功能（直接监听，不依赖 DragHelper）
+// ⚠️ 重要：使用 capture 阶段监听，确保在 DragHelper 之前处理双击事件
+MobilePhone.prototype.initPhoneContainerDoubleClick = function () {
+    var self = this;
+    if (!this.$phoneContainer || !this.$phoneContainer.length) {
+        console.warn("[小馨手机] 手机容器不存在，无法绑定双击隐藏");
+        return;
+    }
+
+    var containerElement = this.$phoneContainer[0];
+
+    // 先移除旧的事件监听器（如果存在）
+    if (this._doubleClickMouseDownHandler) {
+        containerElement.removeEventListener("mousedown", this._doubleClickMouseDownHandler, true);
+        containerElement.removeEventListener("mouseup", this._doubleClickMouseUpHandler, true);
+        containerElement.removeEventListener("touchstart", this._doubleClickTouchStartHandler, true);
+        containerElement.removeEventListener("touchend", this._doubleClickTouchEndHandler, true);
+    }
+
+    var lastClickTime = 0;
+    var doubleClickDelay = 400; // 双击判定时间窗口（毫秒）
+    var lastClickX = 0;
+    var lastClickY = 0;
+    var clickMoveThreshold = 15; // 点击位置移动阈值（像素），超过此值不算双击
+    var lastMouseDownTime = 0;
+    var lastMouseDownX = 0;
+    var lastMouseDownY = 0;
+
+    // 双击检测处理函数
+    function checkDoubleClick(e, x, y) {
+        var now = Date.now();
+        var moveDistance = Math.sqrt(
+            Math.pow(x - lastClickX, 2) + Math.pow(y - lastClickY, 2)
+        );
+
+        // 检查是否是双击（时间间隔和位置移动都在阈值内）
+        if (
+            now - lastClickTime < doubleClickDelay &&
+            moveDistance < clickMoveThreshold
+        ) {
+            // 检查点击目标是否在可拖动区域
+            var target = e.target;
+            var $target = $(target);
+
+            // 排除应用内的交互元素
+            var isInteractiveElement =
+                target.tagName && /^(INPUT|TEXTAREA|SELECT|BUTTON|A)$/i.test(target.tagName) ||
+                $target.closest("input, textarea, select, button, a, .xiaoxin-app-icon, .xiaoxin-dock-icon").length > 0 ||
+                $target.closest(".xiaoxin-app-page:not(.hidden)").length > 0;
+
+            if (isInteractiveElement) {
+                console.info("[小馨手机] 双击检测：跳过交互元素", target);
+                return false;
+            }
+
+            // 检查是否在可拖动区域（状态栏、灵动岛、手机框架边缘）
+            var isOnDragArea =
+                $target.closest(".xiaoxin-dynamic-island").length > 0 ||
+                $target.closest(".xiaoxin-status-bar").length > 0 ||
+                $target.closest(".xiaoxin-phone-frame").length > 0 ||
+                $target.closest(".xiaoxin-phone-container").length > 0; // 整个容器都可以双击
+
+            if (!isOnDragArea) {
+                console.info("[小馨手机] 双击检测：不在可拖动区域", target);
+                return false;
+            }
+
+            // 确认是双击，隐藏手机容器
+            console.info("[小馨手机] ✅ 检测到双击，隐藏手机容器", {
+                timeDiff: now - lastClickTime,
+                moveDistance: moveDistance,
+                target: target,
+                phoneVisible: self.isPhoneVisible
+            });
+
+            // 阻止事件继续传播，避免触发拖拽
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+
+            if (typeof self.hidePhone === "function") {
+                self.hidePhone();
+                console.info("[小馨手机] ✅ 手机容器已隐藏");
+            } else {
+                console.error("[小馨手机] ❌ hidePhone 方法不存在！");
+            }
+
+            // 重置状态
+            lastClickTime = 0;
+            lastClickX = 0;
+            lastClickY = 0;
+            lastMouseDownTime = 0;
+            return true; // 表示已处理双击
+        } else {
+            // 更新状态，等待下一次点击
+            lastClickTime = now;
+            lastClickX = x;
+            lastClickY = y;
+            return false; // 表示不是双击
+        }
+    }
+
+    // 鼠标按下事件（capture 阶段，在 DragHelper 之前处理）
+    this._doubleClickMouseDownHandler = function (e) {
+        // 只在可拖动区域处理
+        var $target = $(e.target);
+        var isOnDragArea =
+            $target.closest(".xiaoxin-dynamic-island").length > 0 ||
+            $target.closest(".xiaoxin-status-bar").length > 0 ||
+            $target.closest(".xiaoxin-phone-frame").length > 0 ||
+            $target.closest(".xiaoxin-phone-container").length > 0;
+
+        if (isOnDragArea) {
+            lastMouseDownTime = Date.now();
+            lastMouseDownX = e.clientX;
+            lastMouseDownY = e.clientY;
+            console.info("[小馨手机] 鼠标按下（双击检测）", {
+                x: e.clientX,
+                y: e.clientY,
+                target: e.target
+            });
+        }
+    };
+
+    // 鼠标释放事件（capture 阶段，在 DragHelper 之前处理）
+    this._doubleClickMouseUpHandler = function (e) {
+        // 只在可拖动区域处理
+        var $target = $(e.target);
+        var isOnDragArea =
+            $target.closest(".xiaoxin-dynamic-island").length > 0 ||
+            $target.closest(".xiaoxin-status-bar").length > 0 ||
+            $target.closest(".xiaoxin-phone-frame").length > 0 ||
+            $target.closest(".xiaoxin-phone-container").length > 0;
+
+        if (isOnDragArea && lastMouseDownTime > 0) {
+            var moveDistance = Math.sqrt(
+                Math.pow(e.clientX - lastMouseDownX, 2) + Math.pow(e.clientY - lastMouseDownY, 2)
+            );
+
+            // 如果移动距离很小，可能是点击而不是拖动
+            if (moveDistance < clickMoveThreshold) {
+                console.info("[小馨手机] 鼠标释放（双击检测）", {
+                    x: e.clientX,
+                    y: e.clientY,
+                    moveDistance: moveDistance
+                });
+
+                // 检测双击
+                if (checkDoubleClick(e, e.clientX, e.clientY)) {
+                    // 双击已处理，阻止 DragHelper 处理
+                    return;
+                }
+            }
+        }
+    };
+
+    // 触摸开始事件（capture 阶段）
+    this._doubleClickTouchStartHandler = function (e) {
+        var touch = e.touches[0];
+        if (touch) {
+            var $target = $(e.target);
+            var isOnDragArea =
+                $target.closest(".xiaoxin-dynamic-island").length > 0 ||
+                $target.closest(".xiaoxin-status-bar").length > 0 ||
+                $target.closest(".xiaoxin-phone-frame").length > 0 ||
+                $target.closest(".xiaoxin-phone-container").length > 0;
+
+            if (isOnDragArea) {
+                lastMouseDownTime = Date.now();
+                lastMouseDownX = touch.clientX;
+                lastMouseDownY = touch.clientY;
+            }
+        }
+    };
+
+    // 触摸结束事件（capture 阶段）
+    this._doubleClickTouchEndHandler = function (e) {
+        var touch = e.changedTouches[0];
+        if (touch && lastMouseDownTime > 0) {
+            var $target = $(e.target);
+            var isOnDragArea =
+                $target.closest(".xiaoxin-dynamic-island").length > 0 ||
+                $target.closest(".xiaoxin-status-bar").length > 0 ||
+                $target.closest(".xiaoxin-phone-frame").length > 0 ||
+                $target.closest(".xiaoxin-phone-container").length > 0;
+
+            if (isOnDragArea) {
+                var moveDistance = Math.sqrt(
+                    Math.pow(touch.clientX - lastMouseDownX, 2) + Math.pow(touch.clientY - lastMouseDownY, 2)
+                );
+
+                if (moveDistance < clickMoveThreshold) {
+                    // 构造一个类似鼠标事件的对象
+                    var syntheticEvent = {
+                        target: e.target,
+                        clientX: touch.clientX,
+                        clientY: touch.clientY,
+                        preventDefault: function () {
+                            e.preventDefault();
+                        },
+                        stopPropagation: function () {
+                            e.stopPropagation();
+                        },
+                        stopImmediatePropagation: function () {
+                            e.stopImmediatePropagation();
+                        },
+                    };
+
+                    if (checkDoubleClick(syntheticEvent, touch.clientX, touch.clientY)) {
+                        return; // 双击已处理
+                    }
+                }
+            }
+        }
+    };
+
+    // 使用 capture 阶段监听，确保在 DragHelper 之前处理
+    containerElement.addEventListener("mousedown", this._doubleClickMouseDownHandler, true);
+    containerElement.addEventListener("mouseup", this._doubleClickMouseUpHandler, true);
+    containerElement.addEventListener("touchstart", this._doubleClickTouchStartHandler, true);
+    containerElement.addEventListener("touchend", this._doubleClickTouchEndHandler, true);
+
+    console.info("[小馨手机] ✅ 手机容器双击隐藏功能已启用（capture 阶段监听，优先级高于 DragHelper）");
 };
