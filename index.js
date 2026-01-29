@@ -1,6 +1,6 @@
 // ==SillyTavern Extension==
 // @name         小馨手机
-// @version      0.1.11
+// @version      1.0.0
 // @description  一个真实体验的悬浮手机插件，支持微信聊天、电话、短信、微博等功能
 // @author       小馨肥肉
 
@@ -74,6 +74,15 @@ function initMobilePlugin() {
                     retries: 2,
                     timeoutMs: 20000,
                     isCore: true
+                });
+
+                // 自动指令生成模块（依赖酒馆助手 generate，可选加载）
+                await loader.loadScript({
+                    src: "./scripts/extensions/third-party/xiaoxin-phone/utils/auto-generator.js",
+                    name: "auto-generator",
+                    retries: 1,
+                    timeoutMs: 15000,
+                    isCore: false
                 });
 
                 // 手机核心
