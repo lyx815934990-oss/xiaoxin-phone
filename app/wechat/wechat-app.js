@@ -2629,21 +2629,7 @@ window.XiaoxinWeChatApp = (function () {
                         var parsed = Date.parse(cleanedTimeStr);
                         if (!isNaN(parsed)) {
                             timeStr = _formatPreviewMessageTime(parsed);
-                            console.info(
-                                "[小馨手机][微信] 从 rawTime 解析预览消息时间成功:",
-                                timeStr2,
-                                "->",
-                                cleanedTimeStr,
-                                "->",
-                                parsed
-                            );
                         } else {
-                            console.warn(
-                                "[小馨手机][微信] 从 rawTime 解析预览消息时间失败:",
-                                timeStr2,
-                                "清理后:",
-                                cleanedTimeStr
-                            );
                             // 如果 rawTime 解析失败，使用 timestamp
                             if (lastMessage.timestamp) {
                                 timeStr = _formatPreviewMessageTime(lastMessage.timestamp);
@@ -3084,10 +3070,7 @@ window.XiaoxinWeChatApp = (function () {
                 return;
             }
 
-            console.info(
-                "[小馨手机][微信] 收到消息显示完成事件，更新聊天列表:",
-                e.detail && e.detail.contactId
-            );
+            // 删除高频调试日志，避免长聊刷屏卡顿
             // 重新渲染聊天页面（只刷新聊天列表部分）
             _renderChatPage($root, mobilePhone);
         };
