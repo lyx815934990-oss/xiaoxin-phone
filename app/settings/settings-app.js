@@ -5,6 +5,293 @@ window.XiaoxinSettingsApp = (function () {
         // 传进来可能是 jQuery 对象或原生元素，这里统一成 jQuery
         var $root = $('<div class="xiaoxin-settings-root"></div>');
 
+        // ========== 主页导航卡片 + 主动发送线上消息配置 ==========
+        // - 导航卡片：设置页顶部快捷入口，点击后滚动定位到对应配置区
+        // - 主动发送线上消息：控制 auto-generator.js 的自动触发门禁（避免新聊天开头就生成）
+        var AUTO_ONLINE_CONFIG_KEY = "xiaoxin_auto_online_config";
+        var defaultAutoOnlineConfig = {
+            enabled: false,
+            thresholdRounds: 6, // 对话达到多少“轮”（user+assistant 配对）触发一次
+            contextLookbackFloors: 24, // 参考剧情楼层（监听上下文的楼层数）
+        };
+
+        function _safeParseJson(str) {
+            try {
+                return JSON.parse(str);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function loadAutoOnlineConfig() {
+            var cfg = null;
+            // 优先：酒馆全局变量
+            if (typeof getVariables === "function") {
+                try {
+                    var gd = getVariables({ type: "global" }) || {};
+                    if (gd && gd[AUTO_ONLINE_CONFIG_KEY]) {
+                        cfg = gd[AUTO_ONLINE_CONFIG_KEY];
+                    }
+                } catch (e) {
+                    console.warn(
+                        "[小馨手机-设置] 读取主动发送线上消息配置失败（全局变量）:",
+                        e
+                    );
+                }
+            }
+            // 兜底：localStorage
+            if (!cfg) {
+                try {
+                    var raw = localStorage.getItem(AUTO_ONLINE_CONFIG_KEY);
+                    if (raw) cfg = _safeParseJson(raw);
+                } catch (e2) {
+                    console.warn(
+                        "[小馨手机-设置] 读取主动发送线上消息配置失败（localStorage）:",
+                        e2
+                    );
+                }
+            }
+            cfg = cfg && typeof cfg === "object" ? cfg : {};
+            return {
+                enabled: !!cfg.enabled,
+                thresholdRounds:
+                    Number.isFinite(Number(cfg.thresholdRounds)) &&
+                    Number(cfg.thresholdRounds) > 0
+                        ? Number(cfg.thresholdRounds)
+                        : defaultAutoOnlineConfig.thresholdRounds,
+                contextLookbackFloors:
+                    Number.isFinite(Number(cfg.contextLookbackFloors)) &&
+                    Number(cfg.contextLookbackFloors) > 0
+                        ? Number(cfg.contextLookbackFloors)
+                        : defaultAutoOnlineConfig.contextLookbackFloors,
+            };
+        }
+
+        function saveAutoOnlineConfig(cfg) {
+            var safeCfg = {
+                enabled: !!cfg.enabled,
+                thresholdRounds: Math.max(
+                    1,
+                    parseInt(cfg.thresholdRounds, 10) ||
+                        defaultAutoOnlineConfig.thresholdRounds
+                ),
+                contextLookbackFloors: Math.max(
+                    1,
+                    parseInt(cfg.contextLookbackFloors, 10) ||
+                        defaultAutoOnlineConfig.contextLookbackFloors
+                ),
+            };
+            // 保存到酒馆全局变量（优先）
+            if (
+                typeof getVariables === "function" &&
+                typeof replaceVariables === "function"
+            ) {
+                try {
+                    var gd = getVariables({ type: "global" }) || {};
+                    gd[AUTO_ONLINE_CONFIG_KEY] = JSON.parse(
+                        JSON.stringify(safeCfg)
+                    );
+                    replaceVariables(gd, { type: "global" });
+                } catch (e) {
+                    console.warn(
+                        "[小馨手机-设置] 写入主动发送线上消息配置失败（全局变量）:",
+                        e
+                    );
+                }
+            }
+            // 兜底：localStorage
+            try {
+                localStorage.setItem(
+                    AUTO_ONLINE_CONFIG_KEY,
+                    JSON.stringify(safeCfg)
+                );
+            } catch (e2) {
+                console.warn(
+                    "[小馨手机-设置] 写入主动发送线上消息配置失败（localStorage）:",
+                    e2
+                );
+            }
+            // 通知外部模块刷新
+            try {
+                window.dispatchEvent(
+                    new CustomEvent("xiaoxin-auto-online-config-changed", {
+                        detail: safeCfg,
+                    })
+                );
+            } catch (e3) {
+                /* ignore */
+            }
+            return safeCfg;
+        }
+
+        // 导航卡片（滚动定位）
+        var $navTitle = $(
+            '<div class="xiaoxin-settings-section-title">导航卡片</div>'
+        );
+        var $navGroup = $('<div class="xiaoxin-settings-group"></div>');
+
+        // 导航卡片：只显示玩家选中的配置区块，避免页面过长
+        var NAV_SELECTED_KEY = "xiaoxin_settings_nav_selected";
+
+        function _saveSelectedNav(key) {
+            try {
+                localStorage.setItem(NAV_SELECTED_KEY, String(key || ""));
+            } catch (e) {
+                // ignore
+            }
+        }
+
+        function _loadSelectedNav() {
+            try {
+                return localStorage.getItem(NAV_SELECTED_KEY) || "";
+            } catch (e) {
+                return "";
+            }
+        }
+
+        function showConfigPanel(panelKey) {
+            var key = String(panelKey || "");
+            // 切换面板时保持当前滚动位置，不要跳回顶部
+            var containerEl = $container && $container[0] ? $container[0] : null;
+            var prevScrollTop = containerEl ? containerEl.scrollTop || 0 : 0;
+            var showImage = key === "image-api";
+            var showText = key === "text-api";
+            var showAuto = key === "auto-online";
+
+            // 生文 API
+            $apiTitle.toggle(showText);
+            $apiGroup.toggle(showText);
+            $apiDesc.toggle(showText);
+
+            // 生图 API（生图模型 + Kolors）
+            $imageModelTitle.toggle(showImage);
+            $imageModelGroup.toggle(showImage);
+            $imageModelDesc.toggle(showImage);
+            // Kolors 生图配置：只有玩家点了“生图 API”且当前模型选择为 kolors 才显示
+            if (showImage) {
+                try {
+                    if (typeof toggleKolorsSection === "function") {
+                        toggleKolorsSection();
+                    } else {
+                        // 兜底：如果函数尚不可用，先隐藏，避免默认铺开
+                        $kolorsTitle.hide();
+                        $kolorsGroup.hide();
+                        $kolorsDesc.hide();
+                    }
+                } catch (e) {
+                    $kolorsTitle.hide();
+                    $kolorsGroup.hide();
+                    $kolorsDesc.hide();
+                }
+            } else {
+                $kolorsTitle.hide();
+                $kolorsGroup.hide();
+                $kolorsDesc.hide();
+            }
+
+            // 主动发送线上消息
+            $autoOnlineTitle.toggle(showAuto);
+            $autoOnlineGroup.toggle(showAuto);
+            $autoOnlineDesc.toggle(showAuto);
+
+            _saveSelectedNav(key);
+            // DOM 高度变化可能导致滚动抖动，异步恢复一次
+            if (containerEl) {
+                setTimeout(function () {
+                    try {
+                        containerEl.scrollTop = prevScrollTop;
+                    } catch (e) {
+                        // ignore
+                    }
+                }, 0);
+            }
+        }
+
+        function makeNavRow(label, panelKey) {
+            var $row = $('<div class="xiaoxin-settings-row"></div>');
+            $row.css("cursor", "pointer");
+            $row.append(
+                '<div class="xiaoxin-settings-row-label">' + label + "</div>"
+            );
+            $row.append(
+                '<div class="xiaoxin-settings-row-control" style="color:#8e8e93;"><i class="fa-solid fa-chevron-right"></i></div>'
+            );
+            $row.on("click", function () {
+                showConfigPanel(panelKey);
+            });
+            return $row;
+        }
+
+        // 主动发送线上消息配置
+        var $autoOnlineTitle = $(
+            '<div class="xiaoxin-settings-section-title">主动发送线上消息配置</div>'
+        );
+        $autoOnlineTitle.attr("id", "xiaoxin-settings-section-auto-online");
+        var $autoOnlineGroup = $('<div class="xiaoxin-settings-group"></div>');
+
+        var $autoOnlineRowEnable = $('<div class="xiaoxin-settings-row"></div>');
+        $autoOnlineRowEnable.append(
+            '<div class="xiaoxin-settings-row-label">启用</div>'
+        );
+        var $autoOnlineEnableControl = $(
+            '<div class="xiaoxin-settings-row-control"></div>'
+        );
+        var $autoOnlineEnableSwitch = $(
+            '<input type="checkbox" style="width:auto;margin:0;">'
+        );
+        $autoOnlineEnableControl.append($autoOnlineEnableSwitch);
+        $autoOnlineRowEnable.append($autoOnlineEnableControl);
+
+        var $autoOnlineRowThreshold = $('<div class="xiaoxin-settings-row"></div>');
+        $autoOnlineRowThreshold.append(
+            '<div class="xiaoxin-settings-row-label">自动发送楼层阈值（轮）</div>'
+        );
+        var $autoOnlineThresholdControl = $(
+            '<div class="xiaoxin-settings-row-control"></div>'
+        );
+        var $autoOnlineThresholdInput = $(
+            '<input type="number" min="1" step="1" placeholder="例如：6">'
+        );
+        $autoOnlineThresholdControl.append($autoOnlineThresholdInput);
+        $autoOnlineRowThreshold.append($autoOnlineThresholdControl);
+
+        var $autoOnlineRowLookback = $('<div class="xiaoxin-settings-row"></div>');
+        $autoOnlineRowLookback.append(
+            '<div class="xiaoxin-settings-row-label">参考剧情楼层</div>'
+        );
+        var $autoOnlineLookbackControl = $(
+            '<div class="xiaoxin-settings-row-control"></div>'
+        );
+        var $autoOnlineLookbackInput = $(
+            '<input type="number" min="1" step="1" placeholder="例如：24">'
+        );
+        $autoOnlineLookbackControl.append($autoOnlineLookbackInput);
+        $autoOnlineRowLookback.append($autoOnlineLookbackControl);
+
+        var $autoOnlineRowSave = $('<div class="xiaoxin-settings-row"></div>');
+        $autoOnlineRowSave.append(
+            '<div class="xiaoxin-settings-row-label">保存配置</div>'
+        );
+        var $autoOnlineSaveControl = $(
+            '<div class="xiaoxin-settings-row-control"></div>'
+        );
+        var $autoOnlineSaveBtn = $(
+            '<button class="xiaoxin-settings-button">保存</button>'
+        );
+        $autoOnlineSaveControl.append($autoOnlineSaveBtn);
+        $autoOnlineRowSave.append($autoOnlineSaveControl);
+
+        var $autoOnlineDesc = $(
+            '<div class="xiaoxin-settings-subtext" style="padding:8px 16px 12px;">开启后：当对话回合数达到“阈值”时，插件会自动监听最近“参考剧情楼层”的正文剧情，在最新剧情中输出符合当前剧情的线上消息指令（如微信私聊/朋友圈/互动等）。<br><br><strong>建议：</strong>阈值不宜过低（避免新聊天开头触发）。<br><br><strong>参考配置（按你想要的效果选一套）：</strong><br>1）<strong>偏“克制、少打扰”</strong>：阈值 10~20 轮；参考剧情 18~30 楼。适合长剧情，线上消息只在关键节点出现。<br>2）<strong>偏“活人感、偶尔插入”</strong>：阈值 6~10 轮；参考剧情 24~36 楼。适合日常聊天，偶尔发微信/朋友圈。<br>3）<strong>偏“频繁在线互动”</strong>（不推荐新手）：阈值 3~6 轮；参考剧情 30~48 楼。更容易连发，建议搭配更强的剧情约束。</div>'
+        );
+
+        $autoOnlineGroup.append(
+            $autoOnlineRowEnable,
+            $autoOnlineRowThreshold,
+            $autoOnlineRowLookback,
+            $autoOnlineRowSave
+        );
+
         // ========== 壁纸设置 ==========
         var $wallpaperTitle = $(
             '<div class="xiaoxin-settings-section-title">壁纸</div>'
@@ -250,6 +537,7 @@ window.XiaoxinSettingsApp = (function () {
         var $apiTitle = $(
             '<div class="xiaoxin-settings-section-title">生文 API</div>'
         );
+        $apiTitle.attr("id", "xiaoxin-settings-section-text-api");
         var $apiGroup = $('<div class="xiaoxin-settings-group"></div>');
 
         var $apiRowUrl = $('<div class="xiaoxin-settings-row"></div>');
@@ -339,6 +627,7 @@ window.XiaoxinSettingsApp = (function () {
         var $imageModelTitle = $(
             '<div class="xiaoxin-settings-section-title">生图模型</div>'
         );
+        $imageModelTitle.attr("id", "xiaoxin-settings-section-image-api");
         var $imageModelGroup = $('<div class="xiaoxin-settings-group"></div>');
 
         var $imageModelRow = $('<div class="xiaoxin-settings-row"></div>');
@@ -602,6 +891,13 @@ window.XiaoxinSettingsApp = (function () {
             $kolorsRowSave
         );
 
+        // 组装“导航卡片”内容（依赖 section id）
+        $navGroup.append(
+            makeNavRow("生图 API", "image-api"),
+            makeNavRow("生文 API", "text-api"),
+            makeNavRow("主动发送线上消息配置", "auto-online")
+        );
+
         // 组装到根容器（不含标题栏，标题栏单独渲染以获得固定位置）
         $root.append(
             $pluginTitle,
@@ -614,12 +910,17 @@ window.XiaoxinSettingsApp = (function () {
             $dataTitle,
             $dataGroup,
             $dataDesc,
+            $navTitle,
+            $navGroup,
             $apiTitle,
             $apiGroup,
             $apiDesc,
             $imageModelTitle,
             $imageModelGroup,
             $imageModelDesc,
+            $autoOnlineTitle,
+            $autoOnlineGroup,
+            $autoOnlineDesc,
             $kolorsTitle,
             $kolorsGroup,
             $kolorsDesc
@@ -632,6 +933,60 @@ window.XiaoxinSettingsApp = (function () {
 
         // 先插入标题栏，再插入内容
         $container.append($titleBar, $root);
+
+        // 默认不展开全部配置：只显示玩家选中的那一块（否则页面太长）
+        // 若没有选择过，则默认全部隐藏，等待玩家点击导航卡片
+        try {
+            var selected = _loadSelectedNav();
+            // 先全部隐藏
+            $apiTitle.hide();
+            $apiGroup.hide();
+            $apiDesc.hide();
+            $imageModelTitle.hide();
+            $imageModelGroup.hide();
+            $imageModelDesc.hide();
+            $kolorsTitle.hide();
+            $kolorsGroup.hide();
+            $kolorsDesc.hide();
+            $autoOnlineTitle.hide();
+            $autoOnlineGroup.hide();
+            $autoOnlineDesc.hide();
+
+            // 生图配置太长：即使上次选中的是“生图 API”，本次打开设置也不自动展开，
+            // 必须由玩家点击“生图 API”后才显示（并且仅在选择 kolors 时显示 Kolors 配置）
+            if (selected && selected !== "image-api") {
+                showConfigPanel(selected);
+            }
+        } catch (e_nav) {
+            // ignore
+        }
+
+        // 主动发送线上消息配置：加载 + 保存
+        try {
+            var autoOnlineCfg = loadAutoOnlineConfig();
+            $autoOnlineEnableSwitch.prop("checked", !!autoOnlineCfg.enabled);
+            $autoOnlineThresholdInput.val(autoOnlineCfg.thresholdRounds);
+            $autoOnlineLookbackInput.val(autoOnlineCfg.contextLookbackFloors);
+        } catch (e_cfg) {
+            console.warn("[小馨手机-设置] 初始化主动发送线上消息配置失败:", e_cfg);
+        }
+
+        function _collectAutoOnlineCfgFromUI() {
+            return {
+                enabled: !!$autoOnlineEnableSwitch.prop("checked"),
+                thresholdRounds: parseInt($autoOnlineThresholdInput.val(), 10),
+                contextLookbackFloors: parseInt($autoOnlineLookbackInput.val(), 10),
+            };
+        }
+
+        $autoOnlineSaveBtn.on("click", function () {
+            var saved = saveAutoOnlineConfig(_collectAutoOnlineCfgFromUI());
+            // 回填规范化后的值
+            $autoOnlineEnableSwitch.prop("checked", !!saved.enabled);
+            $autoOnlineThresholdInput.val(saved.thresholdRounds);
+            $autoOnlineLookbackInput.val(saved.contextLookbackFloors);
+            showToast("已保存主动发送线上消息配置");
+        });
 
         // ========== 交互逻辑 ==========
         var wallpaperConfig = {
@@ -1011,9 +1366,11 @@ window.XiaoxinSettingsApp = (function () {
             }
         });
 
-        // 初始化一次
+        // 初始化一次：只加载配置并同步下拉/前缀，但不默认展开 Kolors 大段配置
         loadImageModelConfig();
-        toggleKolorsSection();
+        $kolorsTitle.hide();
+        $kolorsGroup.hide();
+        $kolorsDesc.hide();
 
         // 读取模型列表（如果后端支持 /models 接口）
         $apiModelsBtn.on("click", function () {
