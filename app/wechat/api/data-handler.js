@@ -328,16 +328,10 @@ window.XiaoxinWeChatDataHandler = (function () {
             });
             if (existingIndex !== -1) {
                 var existingMessage = chats[userId][existingIndex];
-                // 如果是历史消息且已经处理过，直接跳过，避免重复添加
-                if (message.isHistorical && existingMessage._processed) {
-                    console.info(
-                        "[小馨手机][微信数据] 历史消息已处理过，跳过重复添加:",
-                        message.id,
-                        "userId:",
-                        userId
-                    );
-                    return;
-                }
+                // 这里不再因为 isHistorical 和 _processed 而直接跳过
+                // 场景：同一条酒馆消息多次“重新生成”，ID 不变但内容变化，
+                // 为了保证聊天页始终展示最新内容，新的 message 应当覆盖旧记录，
+                // 而不是因为被标记为历史消息而被忽略。
                 // 重生成/编辑：用新内容覆盖旧消息，保持同一个ID，确保最新内容展示
                 // ⚠️ 重要：保留原有的 isHistorical 标记，避免历史消息标记丢失
                 // ⚠️ 重要：保留原有的 _processed 标记和 image/content 字段，避免图片消息重复生成
@@ -927,6 +921,36 @@ window.XiaoxinWeChatDataHandler = (function () {
         if (chats[userId]) {
             delete chats[userId];
             _setData(DATA_KEYS.CHATS, chats);
+        }
+    }
+
+    /**
+     * 根据来源的酒馆消息ID（sourceMessageId）批量清理线上消息。
+     * 场景：当玩家在同一楼层多次「重新生成」包含 [MSG] 的线上消息时，
+     * 需要先移除该楼层之前生成的所有微信消息，避免旧版本残留在手机聊天记录中。
+     */
+    function clearMessagesBySourceMessageId(sourceMessageId) {
+        if (!sourceMessageId) return;
+        var chats = _getData(DATA_KEYS.CHATS, {});
+        var changed = false;
+
+        Object.keys(chats).forEach(function (userId) {
+            var list = chats[userId] || [];
+            var filtered = list.filter(function (msg) {
+                return !msg || msg.sourceMessageId !== sourceMessageId;
+            });
+            if (filtered.length !== list.length) {
+                chats[userId] = filtered;
+                changed = true;
+            }
+        });
+
+        if (changed) {
+            _setData(DATA_KEYS.CHATS, chats);
+            console.info(
+                "[小馨手机][微信数据] 根据 sourceMessageId 清理旧线上消息:",
+                sourceMessageId
+            );
         }
     }
 
@@ -2340,12 +2364,12 @@ window.XiaoxinWeChatDataHandler = (function () {
                                 roleIdStrForMatch.replace(/^contact_/, "") ===
                                     reqRoleIdStr;
                             return (
-                                roleIdMatch && 
+                                roleIdMatch &&
                                 req.direction === "player_to_role" &&
                                 req.status === "accepted"
                             );
                         });
-                        
+
                         if (relatedRequest && relatedRequest.timestamp) {
                             acceptedTimestamp = relatedRequest.timestamp;
                             acceptedRawTime = relatedRequest.rawTime || "";
@@ -2363,7 +2387,7 @@ window.XiaoxinWeChatDataHandler = (function () {
                         );
                     }
                 }
-                
+
                 // 3. 如果仍然没有时间，检查联系人是否已有 friendAcceptedAt（避免覆盖历史时间）
                 if (!acceptedTimestamp && contact.friendAcceptedAt) {
                     // 如果联系人已经有历史时间，保留它（不更新为当前时间）
@@ -2376,7 +2400,7 @@ window.XiaoxinWeChatDataHandler = (function () {
                         acceptedRawTime
                     );
                 }
-                
+
                 // 4. 只有在确实没有时间的情况下，才使用全局世界观时钟（避免覆盖历史时间）
                 if (!acceptedTimestamp) {
                     if (window.XiaoxinWorldClock && window.XiaoxinWorldClock.currentTimestamp) {
@@ -2572,7 +2596,7 @@ window.XiaoxinWeChatDataHandler = (function () {
                         // 确保历史联系人的系统消息显示正确的时间
                         var systemMessageTime = acceptedTimestamp || responseTime;
                         var systemMessageRawTime = acceptedRawTime || responseRawTime;
-                        
+
                         addChatMessage(chatUserId, {
                             type: "system",
                             content: systemMessage,
@@ -3325,6 +3349,7 @@ window.XiaoxinWeChatDataHandler = (function () {
         updateChatMessage: updateChatMessage,
         markVoiceMessageRead: markVoiceMessageRead,
         clearChatHistory: clearChatHistory,
+        clearMessagesBySourceMessageId: clearMessagesBySourceMessageId,
         getAllChats: getAllChats,
         getFirstPlayerMessageTime: getFirstPlayerMessageTime,
 
