@@ -142,7 +142,7 @@ window.XiaoxinIncomingCall = (function () {
             contact.remark || contact.nickname || contact.name || "未知";
         var contactAvatar =
             contact.avatar ||
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
 
         // 重要：验证联系人ID字段，确保通话匹配使用的是ID而非显示名称
         var contactIdForDebug =
@@ -384,7 +384,7 @@ window.XiaoxinIncomingCall = (function () {
             contact.remark || contact.nickname || contact.name || "未知";
         var contactAvatar =
             contact.avatar ||
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
 
         // 重要：验证联系人ID字段
         var contactIdForDebug =
@@ -632,7 +632,7 @@ window.XiaoxinIncomingCall = (function () {
         } else {
             // 来电等待：使用原有图标
             var iconUrl =
-                "/scripts/extensions/third-party/小馨手机/image/icon/微信来电等待接听图标.png";
+                "/scripts/extensions/third-party/xiaoxin-phone/image/icon/微信来电等待接听图标.png";
             $floatingCallIcon = $(
                 '<div class="xiaoxin-floating-call-icon" title="' +
                     title +
@@ -1034,7 +1034,8 @@ window.XiaoxinIncomingCall = (function () {
         var rejectRawTime = getBestWorldRawTime();
 
         // 构建拒接指令（必须包含call_id，角色侧显示"已拒绝"）
-        var rejectCommand = `[MSG]
+        var rejectCommand = `<Request：根据剧情，线上消息必须使用[MSG]格式输出>
+[MSG]
 id=${rejectMessageId}
 time=${rejectRawTime}
 from=user
@@ -2723,7 +2724,7 @@ note=已拒绝
             contact.remark || contact.nickname || contact.name || "未知";
         var contactAvatar =
             contact.avatar ||
-            "/scripts/extensions/third-party/小馨手机/image/头像/微信默认头像.jpg";
+            "/scripts/extensions/third-party/xiaoxin-phone/image/头像/微信默认头像.jpg";
 
         // 重要：验证联系人ID字段
         var contactIdForDebug =
