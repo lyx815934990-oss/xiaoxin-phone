@@ -599,7 +599,8 @@ window.XiaoxinPhotoMessage = (function () {
 
         // 构建 [MSG] 数据块
         var packet =
-            "\n[MSG]\n" +
+            "\n<Request：根据剧情，线上消息必须使用[MSG]格式输出>\n" +
+            "[MSG]\n" +
             "id=" +
             msgId +
             "\n" +
@@ -619,7 +620,7 @@ window.XiaoxinPhotoMessage = (function () {
         if (description) {
             packet += "desc=" + description + "\n";
         }
-        packet += "[/MSG]";
+        packet += "[/MSG]\n" + "[time]" + nowStr + "[/time]";
 
         // 先加入预览（pendingMessages 已经是 chatPendingMessages[chatUserId]，直接使用 msgId 作为键）
         pendingMessages[msgId] = msgObj;
@@ -838,7 +839,8 @@ window.XiaoxinPhotoMessage = (function () {
         // 构建 [MSG] 数据块（type=image格式）
         // ⚠️ 重要：必须包含 image= 字段，否则消息监听器会认为这是需要生成的图片描述，导致重复生成
         var packet =
-            "\n[MSG]\n" +
+            "\n<Request：根据剧情，线上消息必须使用[MSG]格式输出>\n" +
+            "[MSG]\n" +
             "id=" +
             msgId +
             "\n" +
@@ -861,7 +863,7 @@ window.XiaoxinPhotoMessage = (function () {
         if (aspectRatio) {
             packet += "aspect_ratio=" + aspectRatio + "\n";
         }
-        packet += "[/MSG]";
+        packet += "[/MSG]\n" + "[time]" + nowStr + "[/time]";
 
         // 先加入预览（pendingMessages 已经是 chatPendingMessages[chatUserId]，直接使用 msgId 作为键）
         pendingMessages[msgId] = msgObj;
