@@ -2,6 +2,34 @@
 window.XiaoxinWeChatChatUI = (function () {
     // ========== 模块级变量：存储每个聊天页面的 pendingMessages ==========
     var chatPendingMessages = {}; // key: userId, value: { msgId: msgObj }
+    // ========== 性能/调试 ==========
+    // 长聊天下 console.info 会显著拖慢页面；默认关闭调试日志，需要时手动开启：
+    // localStorage.setItem('xiaoxin_wechat_chat_ui_debug','true')
+    var WECHAT_CHAT_UI_DEBUG_KEY = "xiaoxin_wechat_chat_ui_debug";
+    function isChatUiDebug() {
+        try {
+            return (
+                (window.XIAOXIN_DEBUG === true) ||
+                localStorage.getItem(WECHAT_CHAT_UI_DEBUG_KEY) === "true"
+            );
+        } catch (e) {
+            return false;
+        }
+    }
+    function dInfo() {
+        if (!isChatUiDebug()) return;
+        try {
+            console.info.apply(console, arguments);
+        } catch (e) {}
+    }
+
+    // 聊天长列表渲染限制（避免 DOM 节点过多导致卡死）
+    // 默认只显示最近 50 条消息，点击顶部“加载更早消息”再逐步展开
+    var CHAT_RENDER_DEFAULT_LIMIT = 50;
+    var CHAT_RENDER_LOAD_MORE_STEP = 50;
+    var chatRenderStore =
+        window.XiaoxinWeChatChatRenderStore ||
+        (window.XiaoxinWeChatChatRenderStore = {});
 
     // ========== 获取所有已使用的通话ID（从所有聊天历史中提取） ==========
     function getAllUsedCallIds() {
@@ -49,7 +77,7 @@ window.XiaoxinWeChatChatUI = (function () {
             );
         }
 
-        console.info(
+        dInfo(
             "[小馨手机][微信聊天UI] 已加载所有已使用的通话ID，数量:",
             allUsedCallIds.size
         );
@@ -3191,7 +3219,11 @@ window.XiaoxinWeChatChatUI = (function () {
                 }
             );
 
-            var command = `[MSG]
+            // 线上消息触发器：供自动指令生成模块识别并生成“对方回复”
+            // 约定：使用 <Request：...> 作为玩家输入侧请求标记；
+            // 允许线下正文正常叙事；但若选择线上回复，则必须按真实微信第一视角输出（禁止上帝视角括号/旁白）
+            var command = `<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>
+[MSG]
 id=${msgId}
 time=${rawWorldTime}
 from=user
@@ -3201,7 +3233,8 @@ state=ringing
 with=${targetId}
 call_id=${callId}
 note=${playerName}对${charRealName}发起了语音通话
-[/MSG]`;
+[/MSG]
+[time]${rawWorldTime}[/time]`;
 
             // 直接插入到正文中（使用输入框并自动发送）
             var inserted = appendMessageToBody(command);
@@ -3445,7 +3478,8 @@ note=${playerName}对${charRealName}发起了语音通话
 
             // 植入酒馆输入框的 [MSG] 指令
             var packet =
-                "\n[MSG]\n" +
+                "\n<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>\n" +
+                "[MSG]\n" +
                 "id=" +
                 msgId +
                 "\n" +
@@ -3461,7 +3495,10 @@ note=${playerName}对${charRealName}发起了语音通话
                 String(amt) +
                 "\n" +
                 (noteStr ? "note=" + noteStr + "\n" : "") +
-                "[/MSG]";
+                "[/MSG]\n" +
+                "[time]" +
+                nowStr +
+                "[/time]";
 
             // 先加入预览
             pendingMessages[msgId] = msgObj;
@@ -3606,7 +3643,8 @@ note=${playerName}对${charRealName}发起了语音通话
             // 构建 [MSG] 数据块 + 世界观时间 [time] 标签
             // 与文本消息保持一致，避免 emoji 消息时间被当成“无世界观时间”而错位
             var packet =
-                "\n[MSG]\n" +
+                "\n<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>\n" +
+                "[MSG]\n" +
                 "id=" +
                 msgId +
                 "\n" +
@@ -3796,7 +3834,8 @@ note=${playerName}对${charRealName}发起了语音通话
             };
 
             var packet =
-                "\n[MSG]\n" +
+                "\n<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>\n" +
+                "[MSG]\n" +
                 "id=" +
                 msgId +
                 "\n" +
@@ -3814,7 +3853,10 @@ note=${playerName}对${charRealName}发起了语音通话
                 "content=" +
                 text +
                 "\n" +
-                "[/MSG]";
+                "[/MSG]\n" +
+                "[time]" +
+                nowStr +
+                "[/time]";
 
             msgObj.timestamp = nowDate.getTime();
             msgObj.rawTime = nowStr;
@@ -3899,7 +3941,17 @@ note=${playerName}对${charRealName}发起了语音通话
         window.XiaoxinWeChatChatUI.toggleMenu = toggleMenu;
 
         // 重新渲染整个消息列表（包括已有的和预览的）
-        function refreshMessageList() {
+        function refreshMessageList(options) {
+            options = options || {};
+            var preserveScroll = !!options.preserveScroll;
+            var prevScrollTop = 0;
+            var prevScrollHeight = 0;
+            try {
+                if (preserveScroll && $messagesList && $messagesList[0]) {
+                    prevScrollTop = $messagesList.scrollTop();
+                    prevScrollHeight = $messagesList[0].scrollHeight || 0;
+                }
+            } catch (e_ps) {}
             $messagesList.empty();
 
             // 1. 获取已确认的消息
@@ -3961,12 +4013,63 @@ note=${playerName}对${charRealName}发起了语音通话
                     }
                 }
 
-                console.info(
+                dInfo(
                     "[小馨手机][微信聊天UI] 获取到消息数量:",
                     confirmedMessages.length,
                     "使用ID:",
                     chatUserId
                 );
+            }
+
+            // ====== 长列表性能：默认只渲染最近 N 条，避免页面卡死 ======
+            // - 旧逻辑会对“全部消息”做过滤/排序/渲染，聊天多时非常容易假死
+            // - 提供“加载更早消息”按钮让用户按需展开
+            if (!chatRenderStore[chatUserId]) {
+                chatRenderStore[chatUserId] = { limit: CHAT_RENDER_DEFAULT_LIMIT };
+            }
+            var renderLimit =
+                (chatRenderStore[chatUserId] &&
+                    chatRenderStore[chatUserId].limit) ||
+                CHAT_RENDER_DEFAULT_LIMIT;
+            if (!renderLimit || !isFinite(renderLimit) || renderLimit < 20) {
+                renderLimit = CHAT_RENDER_DEFAULT_LIMIT;
+                chatRenderStore[chatUserId].limit = renderLimit;
+            }
+            var confirmedAll = confirmedMessages || [];
+            var totalConfirmed = confirmedAll.length;
+            var startIndex = Math.max(0, totalConfirmed - renderLimit);
+            // 预先构建全量 idSet（用于清理 pending 预览），避免 O(pending * total) 扫描
+            var confirmedIdSetAll = new Set();
+            try {
+                confirmedAll.forEach(function (m) {
+                    if (m && m.id) confirmedIdSetAll.add(m.id);
+                });
+            } catch (e_idset) {}
+            // 只对“将要显示的那部分”做后续重处理，减轻 CPU 压力
+            confirmedMessages = confirmedAll.slice(startIndex);
+
+            if (startIndex > 0) {
+                var $loadMore = $(
+                    '<div class="xiaoxin-wechat-chat-load-more" style="text-align:center;color:#666;font-size:12px;padding:10px 0;cursor:pointer;user-select:none;">' +
+                        "加载更早消息（剩余 " +
+                        startIndex +
+                        " 条）" +
+                        "</div>"
+                );
+                $loadMore.on("click", function () {
+                    try {
+                        var cur =
+                            (chatRenderStore[chatUserId] &&
+                                chatRenderStore[chatUserId].limit) ||
+                            CHAT_RENDER_DEFAULT_LIMIT;
+                        var next = cur + CHAT_RENDER_LOAD_MORE_STEP;
+                        if (next > totalConfirmed) next = totalConfirmed;
+                        chatRenderStore[chatUserId].limit = next;
+                    } catch (e_inc) {}
+                    // 加载更多时，尽量保持当前视口位置不跳动
+                    refreshMessageList({ preserveScroll: true });
+                });
+                $messagesList.append($loadMore);
             }
 
             // 2. 标记历史消息（包括红包消息），确保历史消息被正确识别
@@ -4058,11 +4161,7 @@ note=${playerName}对${charRealName}发起了语音通话
 
             // 3. 移除已确认的预览消息，避免重复显示
             Object.keys(pendingMessages).forEach(function (pid) {
-                if (
-                    confirmedMessages.some(function (m) {
-                        return m.id === pid;
-                    })
-                ) {
+                if (confirmedIdSetAll && confirmedIdSetAll.has(pid)) {
                     delete pendingMessages[pid];
                     return;
                 }
@@ -4070,11 +4169,13 @@ note=${playerName}对${charRealName}发起了语音通话
                 // 转账消息：如果模型/解析器改写了 id，按“金额+备注+时间近似”清除预览
                 var pendingObj = pendingMessages[pid];
                 if (pendingObj && pendingObj.type === "transfer") {
-                    var dup = confirmedMessages.some(function (m) {
+                    // 只需要跟最近一段已确认消息比较即可（pending 永远只会是最近的）
+                    var tail = confirmedAll.slice(Math.max(0, confirmedAll.length - 320));
+                    var dup = tail.some(function (m) {
                         return _isDuplicateTransfer(pendingObj, m);
                     });
                     if (dup) {
-                        console.info(
+                        dInfo(
                             "[小馨手机][微信聊天UI] 清除已确认转账消息的预览（指纹匹配）:",
                             "pendingId:",
                             pid,
@@ -4696,7 +4797,7 @@ note=${playerName}对${charRealName}发起了语音通话
                             isHistorical = true;
                             // 自动标记为历史消息
                             message.isHistorical = true;
-                            console.info(
+                        dInfo(
                                 "[小馨手机][微信聊天UI] 根据时间戳判断为历史消息（早于当前时间" + Math.round(timeDiff / 60000) + "分钟），直接显示:",
                                 chatUserId,
                                 "消息ID:",
@@ -4712,15 +4813,7 @@ note=${playerName}对${charRealName}发起了语音通话
                     }
 
                     if (isHistorical) {
-                        // 历史消息直接显示，不检查队列状态
-                        console.info(
-                            "[小馨手机][微信聊天UI] 检测到历史消息，直接显示（跳过队列检查）:",
-                            chatUserId,
-                            "消息ID:",
-                            message.id,
-                            "消息类型:",
-                            message.type || "text"
-                        );
+                        // 历史消息直接显示，不检查队列状态（调试阶段的详细日志已移除，避免刷屏）
                         return true;
                     }
 
@@ -4749,7 +4842,7 @@ note=${playerName}对${charRealName}发起了语音通话
 
                             if (isInQueue) {
                                 // 消息在队列中，等待队列管理器显示
-                                console.info(
+                                dInfo(
                                     "[小馨手机][微信聊天UI] 消息在队列中，等待显示:",
                                     chatUserId,
                                     "消息ID:",
@@ -4986,7 +5079,7 @@ note=${playerName}对${charRealName}发起了语音通话
                         (msgContent.indexOf("type=call_voice_text") !== -1 ||
                             msgContent.indexOf("type=call_voice_text\n") !== -1)
                     ) {
-                        console.info(
+                        dInfo(
                             "[小馨手机][微信聊天UI] 跳过语音通话文本消息，不显示在聊天页面，消息ID:",
                             message.id
                         );
@@ -5012,6 +5105,16 @@ note=${playerName}对${charRealName}发起了语音通话
             // - 默认滚动到底部
             // - 若存在“待恢复”的滚动位置（例如从红包详情页返回），仅恢复一次并清除标记
             setTimeout(function () {
+                // “加载更多”场景：保持视口位置不跳动（新增内容在顶部）
+                if (preserveScroll && $messagesList && $messagesList[0]) {
+                    try {
+                        var newScrollHeight = $messagesList[0].scrollHeight || 0;
+                        $messagesList.scrollTop(
+                            prevScrollTop + (newScrollHeight - prevScrollHeight)
+                        );
+                        return;
+                    } catch (e_keep) {}
+                }
                 try {
                     var scrollStore =
                         window.XiaoxinWeChatChatScrollStore ||
@@ -5041,7 +5144,7 @@ note=${playerName}对${charRealName}发起了语音通话
             // 检查是否是红包状态更新事件
             if (event.detail && event.detail.redpacket_claimed) {
                 // 红包状态更新，直接刷新消息列表以显示已领取状态
-                console.info(
+                dInfo(
                     "[小馨手机][微信聊天UI] 收到红包状态更新事件，刷新消息列表:",
                     event.detail.redpacket_id
                 );
@@ -5109,7 +5212,7 @@ note=${playerName}对${charRealName}发起了语音通话
                                     )))
                     ) {
                         isMatch = true;
-                        console.info(
+                        dInfo(
                             "[小馨手机][微信聊天UI] 通过宽松匹配找到匹配的联系人:",
                             eventUserId,
                             "->",
@@ -5137,7 +5240,7 @@ note=${playerName}对${charRealName}发起了语音通话
 
                         if (dbMsg) {
                             // 使用数据库中的完整消息对象
-                            console.info(
+                            dInfo(
                                 "[小馨手机][微信聊天UI] 使用数据库中的完整消息对象:",
                                 "消息ID:",
                                 dbMsg.id,
@@ -5342,13 +5445,7 @@ note=${playerName}对${charRealName}发起了语音通话
                 $navTitle.text(displayName);
                 $navTitle.removeClass("xiaoxin-wechat-chat-typing");
 
-                // 刷新消息列表（显示新消息）
-                console.info(
-                    "[小馨手机][微信聊天UI] 消息队列显示完成，刷新消息列表:",
-                    chatUserId,
-                    "消息ID:",
-                    message.id
-                );
+                // 刷新消息列表（显示新消息），删除高频日志避免刷屏卡顿
                 refreshMessageList();
 
                 // 如果玩家在当前聊天页面，清除未读红点
@@ -5357,15 +5454,10 @@ note=${playerName}对${charRealName}发起了语音通话
                     window.XiaoxinWeChatComponents.isActiveChat &&
                     window.XiaoxinWeChatComponents.isActiveChat(chatUserId)
                 ) {
-                    clearUnreadBadgeIfActive();
+                clearUnreadBadgeIfActive();
                 }
 
-                console.info(
-                    "[小馨手机][微信聊天UI] 消息显示完成:",
-                    chatUserId,
-                    "消息ID:",
-                    message.id
-                );
+                // 删除“消息显示完成”高频日志
             } else {
                 // 即使不在当前聊天页面，也要更新未读红点
                 // 消息队列管理器会独立处理，不受页面状态影响
@@ -5381,13 +5473,7 @@ note=${playerName}对${charRealName}发起了语音通话
                         )
                     ) {
                         // 不在聊天页面，消息队列会独立显示，红点也会独立更新
-                        // 这里不需要额外操作，因为 addChatMessage 已经处理了未读数
-                        console.info(
-                            "[小馨手机][微信聊天UI] 消息在后台显示:",
-                            eventContactId,
-                            "消息ID:",
-                            message.id
-                        );
+                        // 这里不需要额外操作，因为 addChatMessage 已经处理了未读数；删除调试日志避免刷屏
                     }
                 }
             }
@@ -5914,7 +6000,8 @@ note=${playerName}对${charRealName}发起了语音通话
                 };
                 // 使用简洁的 字段=值 格式，去掉花括号
                 var packet =
-                    "\n[MSG]\n" +
+                    "\n<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>\n" +
+                    "[MSG]\n" +
                     "id=" +
                     msgId +
                     "\n" +
@@ -6216,21 +6303,7 @@ note=${playerName}对${charRealName}发起了语音通话
                 var parsed = Date.parse(cleanedTimeStr);
                 if (!isNaN(parsed)) {
                     msgTimestamp = parsed;
-                    console.info(
-                        "[小馨手机][微信聊天UI] 从 rawTime 解析时间戳成功:",
-                        timeStr,
-                        "->",
-                        cleanedTimeStr,
-                        "->",
-                        msgTimestamp
-                    );
                 } else {
-                    console.warn(
-                        "[小馨手机][微信聊天UI] 从 rawTime 解析时间戳失败:",
-                        timeStr,
-                        "清理后:",
-                        cleanedTimeStr
-                    );
                 }
             }
             // 如果 rawTime 解析失败，再使用 timestamp
@@ -10755,8 +10828,9 @@ note=${playerName}对${charRealName}发起了语音通话
                 return;
             }
 
-            var formatText = "<Request：只生成格式指令，不生成正文回复>\n";
-            formatText += "<Request：请生成MSG标签包裹的消息指令！>\n";
+            // 历史聊天记录生成触发器：只允许输出格式指令，禁止正文
+            var formatText = "<Request：只生成格式指令，不生成正文回复；禁止任何解释>\n";
+            formatText += "<Request：请生成[MSG][/MSG]标签包裹的消息指令！只能输出[historychat]与[MSG]>\n";
             formatText += "[historychat]\n";
             formatText += "role_id=" + roleId + "\n";
             formatText += "dialog_style=" + styleValue + "\n";
