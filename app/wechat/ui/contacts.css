@@ -2139,3 +2139,178 @@ select.xiaoxin-wechat-char-history-moments-select:visited {
     text-align: center;
     width: 100%;
 }
+
+/* ========== 朋友资料页面 ========== */
+
+.xiaoxin-wechat-contact-profile-main {
+    background: #ffffff !important;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    padding-top: 0 !important;
+}
+
+.xiaoxin-wechat-contact-profile-main .xiaoxin-wechat-header {
+    position: sticky !important;
+    top: 0 !important;
+    left: 0;
+    right: 0;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e5e5e5;
+    z-index: 10;
+    padding-top: 54px !important;
+    padding-bottom: 0;
+    box-sizing: border-box;
+}
+
+.xiaoxin-wechat-contact-profile-main .xiaoxin-wechat-header-bar {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    padding-top: 0 !important;
+    min-height: 44px;
+    background: #ffffff !important;
+}
+
+.xiaoxin-wechat-contact-profile-main .xiaoxin-wechat-header-left {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    width: 24px;
+}
+
+.xiaoxin-wechat-contact-profile-main .xiaoxin-wechat-header-back {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: #000;
+}
+
+.xiaoxin-wechat-contact-profile-main .xiaoxin-wechat-header-title {
+    flex: 1;
+    text-align: center;
+    font-size: 17px;
+    font-weight: 330;
+    color: #000000 !important;
+    margin: 0;
+    padding: 0 16px;
+    line-height: 1.2;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+}
+
+.xiaoxin-wechat-contact-profile-main .xiaoxin-wechat-header-right {
+    width: 24px;
+    flex-shrink: 0;
+}
+
+.xiaoxin-wechat-contact-profile-content {
+    flex: 1;
+    overflow-y: auto;
+    background: #ededed !important;
+    padding: 0;
+}
+
+.xiaoxin-wechat-contact-profile-section {
+    margin-top: 8px;
+    background: #ffffff !important;
+    border-radius: 0;
+}
+
+.xiaoxin-wechat-contact-profile-section-title {
+    padding: 8px 16px;
+    font-size: 13px;
+    color: #888 !important;
+    font-weight: 330;
+    background: #ffffff !important;
+}
+
+.xiaoxin-wechat-contact-profile-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background: #ffffff !important;
+    border-bottom: 1px solid #e5e5e5;
+    cursor: pointer;
+    min-height: 44px;
+    box-sizing: border-box;
+}
+
+.xiaoxin-wechat-contact-profile-row:last-child {
+    border-bottom: none;
+}
+
+.xiaoxin-wechat-contact-profile-row:active {
+    background: #f0f0f0 !important;
+}
+
+.xiaoxin-wechat-contact-profile-row-label {
+    font-size: 16px;
+    color: #000000 !important;
+    font-weight: 330;
+    flex-shrink: 0;
+    min-width: 100px;
+    white-space: nowrap;
+}
+
+.xiaoxin-wechat-contact-profile-row-value {
+    flex: 1;
+    font-size: 16px;
+    color: #000000 !important;
+    font-weight: 330;
+    text-align: right;
+    padding-right: 8px;
+    word-break: break-word;
+}
+
+.xiaoxin-wechat-contact-profile-row-arrow {
+    width: 16px;
+    height: 16px;
+    color: #c7c7c7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* 备注编辑输入框样式 */
+.xiaoxin-wechat-contact-profile-row-input {
+    flex: 1;
+    font-size: 16px !important;
+    color: #000000 !important;
+    font-weight: 330 !important;
+    text-align: right !important;
+    padding-right: 8px !important;
+    border: none !important;
+    outline: none !important;
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
+    font-family: inherit !important;
+    box-shadow: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
+}
+
+.xiaoxin-wechat-contact-profile-row-input:focus {
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    color: #000000 !important;
+}
+
+.xiaoxin-wechat-contact-profile-row-input:hover {
+    background: #f5f5f5 !important;
+    background-color: #f5f5f5 !important;
+    border: none !important;
+    color: #000000 !important;
+}
+
+.xiaoxin-wechat-contact-profile-row-value-editable {
+    cursor: text;
+}
