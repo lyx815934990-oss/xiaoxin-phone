@@ -2277,6 +2277,7 @@ window.XiaoxinWeChatApp = (function () {
         // 清理之前的事件监听器（如果存在）
         var oldChatHandler = $root.data("chatUpdateHandler");
         var oldContactHandler = $root.data("contactUpdateHandler");
+        var oldContactRemovedHandler = $root.data("contactRemovedHandler");
         var oldUnreadHandler = $root.data("unreadUpdateHandler");
         var oldMessageDisplayedHandler = $root.data("messageDisplayedHandler");
         var oldJumpToChatHandler = $root.data("jumpToChatHandler");
@@ -2292,6 +2293,13 @@ window.XiaoxinWeChatApp = (function () {
                 oldContactHandler
             );
             $root.removeData("contactUpdateHandler");
+        }
+        if (oldContactRemovedHandler) {
+            window.removeEventListener(
+                "xiaoxin-contact-removed",
+                oldContactRemovedHandler
+            );
+            $root.removeData("contactRemovedHandler");
         }
         if (oldUnreadHandler) {
             window.removeEventListener(
@@ -2469,9 +2477,640 @@ window.XiaoxinWeChatApp = (function () {
         // 聊天列表
         var $chatList = $('<div class="xiaoxin-wechat-chat-list"></div>');
 
+        // ========== 从酒馆 DOM 实时读取所有联系人的最后一条消息（用于预览） ==========
+        /**
+         * 从酒馆 DOM 中实时读取所有联系人的最后一条消息
+         * 这样当玩家删除或重新生成消息时，主页预览消息也能实时同步
+         */
+        // ⚠️ 辅助函数：从 DOM 读取指定联系人的所有消息
+        function getAllMessagesFromDOMForContact(targetUserId, contacts) {
+            var allMessages = [];
+            try {
+                // 查找聊天容器
+                var chatSelectors = [
+                    "#chat",
+                    ".chat",
+                    "#chatContainer",
+                    ".chat-container",
+                    "[id*='chat']",
+                    "[class*='chat']",
+                ];
+
+                var chatContainer = null;
+                for (var i = 0; i < chatSelectors.length; i++) {
+                    chatContainer = document.querySelector(chatSelectors[i]);
+                    if (chatContainer) break;
+                }
+
+                if (!chatContainer) {
+                    return allMessages;
+                }
+
+                // 获取玩家微信ID
+                var account = window.XiaoxinWeChatAccount
+                    ? window.XiaoxinWeChatAccount.getCurrentAccount()
+                    : null;
+                var playerWechatId = account
+                    ? String(account.wechatId || account.id || "0").trim()
+                    : "0";
+
+                // 查找所有消息元素
+                var messageSelectors = [
+                    ".mes",
+                    "[class*='mes']",
+                    ".message",
+                    "[class*='message']",
+                    ".mes_user",
+                    ".mes_assistant",
+                    "[class*='mes_user']",
+                    "[class*='mes_assistant']",
+                ];
+
+                var $allMessages = $();
+                for (var j = 0; j < messageSelectors.length; j++) {
+                    var $found = $(chatContainer).find(messageSelectors[j]);
+                    if ($found.length > 0) {
+                        $allMessages = $allMessages.add($found);
+                    }
+                }
+
+                // 去重
+                $allMessages = $($allMessages.toArray().filter(function(item, index, self) {
+                    return index === self.indexOf(item);
+                }));
+
+                if ($allMessages.length === 0) {
+                    return allMessages;
+                }
+
+                // 遍历所有消息，解析 [MSG] 标签
+                $allMessages.each(function () {
+                    var $mes = $(this);
+
+                    // 跳过候选消息（但保留用户消息）
+                    var isUserMsg = $mes.hasClass("mes_user") || $mes.hasClass("user") || $mes.hasClass("user-message");
+                    var $swipeCheck = $mes.closest(
+                        "[class*='swipe'], [class*='draft'], [class*='temp'], [class*='candidate'], [class*='alternative']"
+                    );
+                    if ($swipeCheck.length > 0 && !isUserMsg) {
+                        return;
+                    }
+
+                    // 获取消息内容
+                    var $messageText = $mes.find(
+                        ".mes_text, .mesText, .message-text, [class*='mes_text']"
+                    );
+                    if ($messageText.length === 0) {
+                        $messageText = $mes;
+                    }
+
+                    var content =
+                        $mes.attr("data-original-msg-content") ||
+                        $mes.attr("data-original-content") ||
+                        $mes.attr("data-original") ||
+                        $mes.attr("data-raw") ||
+                        $mes.attr("data-content") ||
+                        $messageText.attr("data-original-msg-content") ||
+                        $messageText.attr("data-original-content") ||
+                        $messageText.attr("data-original") ||
+                        $messageText.attr("data-raw") ||
+                        $messageText.attr("data-content") ||
+                        $mes.html() ||
+                        $messageText.html() ||
+                        $messageText.text() ||
+                        "";
+
+                    if (!content || (content.indexOf("[MSG]") === -1 && content.indexOf("[msg]") === -1)) {
+                        return;
+                    }
+
+                    // 解析 [MSG] 标签
+                    var msgPattern = /\[MSG\]([\s\S]*?)\[\/MSG\]/gi;
+                    var match;
+
+                    while ((match = msgPattern.exec(content)) !== null) {
+                        var msgContent = match[1].trim();
+                        if (!msgContent) continue;
+
+                        // 清理 HTML 标签
+                        var cleanContent = msgContent
+                            .replace(/<br\s*\/?>/gi, "\n")
+                            .replace(/<\/?[^>]+>/g, "")
+                            .replace(/&nbsp;/g, " ")
+                            .replace(/&amp;/g, "&")
+                            .replace(/&lt;/g, "<")
+                            .replace(/&gt;/g, ">");
+
+                        var msgObj = {};
+                        var lines = cleanContent.split(/\r?\n/);
+                        for (var k = 0; k < lines.length; k++) {
+                            var line = lines[k].trim();
+                            if (!line) continue;
+
+                            var equalIndex = line.indexOf("=");
+                            if (equalIndex === -1) continue;
+
+                            var key = line.substring(0, equalIndex).trim().toLowerCase();
+                            var value = line.substring(equalIndex + 1).trim();
+
+                            if (key && value) {
+                                msgObj[key] = value;
+                            }
+                        }
+
+                        // 兼容：部分消息不提供 time= 字段，而是使用 [TIME:...]\n[/TIME]
+                        if (!msgObj.time) {
+                            var timeMatch = cleanContent.match(/\[TIME:([^\]]+)\]/i);
+                            if (timeMatch && timeMatch[1]) {
+                                msgObj.time = String(timeMatch[1]).trim();
+                            }
+                        }
+
+                        var msgTo = String(msgObj.to || "").trim();
+                        var msgFrom = String(msgObj.from || "").trim();
+                        var isToPlayer =
+                            msgTo === playerWechatId ||
+                            msgTo.toLowerCase() === "player" ||
+                            msgTo.toLowerCase() === "user";
+                        var isFromPlayer =
+                            msgFrom === playerWechatId ||
+                            msgFrom.toLowerCase() === "player" ||
+                            msgFrom.toLowerCase() === "user";
+
+                        // 确定这条消息属于哪个联系人
+                        var contactId = null;
+
+                        if (isFromPlayer && msgTo && !isToPlayer) {
+                            contactId = msgTo;
+                        } else if (!isFromPlayer && isToPlayer) {
+                            contactId = msgFrom;
+                        }
+
+                        if (!contactId) continue;
+
+                        // 尝试匹配联系人ID（支持多种格式）
+                        var matchedContact = contacts.find(function (c) {
+                            var cId = String(c.id || "").trim();
+                            var cWechatId = String(c.wechatId || "").trim();
+                            var cCharId = String(c.characterId || "").trim();
+                            var contactIdStr = String(contactId).trim();
+
+                            if (cId === contactIdStr || cWechatId === contactIdStr || cCharId === contactIdStr) {
+                                return true;
+                            }
+
+                            var cIdBase = cId.replace(/^contact_/, "");
+                            var contactIdBase = contactIdStr.replace(/^contact_/, "");
+
+                            if (cIdBase && contactIdBase && cIdBase === contactIdBase) {
+                                if ((cId === "contact_" + cIdBase && contactIdStr === cIdBase) ||
+                                    (contactIdStr === "contact_" + contactIdBase && cId === cIdBase) ||
+                                    (cId === "contact_" + cIdBase && contactIdStr === "contact_" + contactIdBase)) {
+                                    return true;
+                                }
+                            }
+
+                            return false;
+                        });
+
+                        // ⚠️ 只处理目标联系人的消息
+                        if (matchedContact) {
+                            var userId = matchedContact.id || contactId;
+                            if (userId === targetUserId) {
+                                // 转换消息格式（与 getAllLastMessagesFromDOM 中的逻辑相同）
+                                var convertedMsg = {
+                                    id: msgObj.id || ("dom-msg-" + Date.now() + "-" + Math.random().toString(36).substr(2, 8)),
+                                    time: msgObj.time || "",
+                                    from: msgFrom,
+                                    to: msgTo,
+                                    type: msgObj.type || "text",
+                                    content: msgObj.content || "",
+                                    timestamp: 0,
+                                    rawTime: msgObj.time || "", // 这里会先设置为 msgObj.time，后续解析时间戳时会更新
+                                    isOutgoing: isFromPlayer
+                                };
+
+                                // 确保 rawTime 优先使用 [TIME:...] 标签中的时间
+                                var timeMatch = cleanContent.match(/\[TIME:([^\]]+)\]/i);
+                                if (timeMatch && timeMatch[1]) {
+                                    convertedMsg.rawTime = String(timeMatch[1]).trim();
+                                }
+
+                                // 处理通话消息的特殊字段
+                                if (msgObj.state) {
+                                    convertedMsg.state = String(msgObj.state);
+                                    convertedMsg.callState = String(msgObj.state);
+                                }
+                                if (msgObj.call_id || msgObj.callId) {
+                                    convertedMsg.call_id = String(msgObj.call_id || msgObj.callId);
+                                    convertedMsg.callId = String(msgObj.call_id || msgObj.callId);
+                                }
+                                if (msgObj.duration) {
+                                    convertedMsg.duration = parseFloat(msgObj.duration) || 0;
+                                    convertedMsg.duration_sec = convertedMsg.duration;
+                                }
+                                if (msgObj.note) {
+                                    convertedMsg.note = String(msgObj.note);
+                                }
+
+                                // 解析时间戳
+                                if (msgObj.time) {
+                                    try {
+                                        var timeStr = String(msgObj.time).trim();
+                                        // 保存原始时间字符串，用于显示
+                                        convertedMsg.rawTime = timeStr;
+
+                                        // 标准化时间格式以便解析
+                                        var normalizedTimeStr = timeStr
+                                            .replace(/-/g, "/")
+                                            .replace(/年/g, "/")
+                                            .replace(/月/g, "/")
+                                            .replace(/日/g, " ")
+                                            .replace(/星期[一二三四五六日]/g, "")
+                                            .trim()
+                                            .replace(/\s+/g, " ");
+
+                                        var parsed = Date.parse(normalizedTimeStr);
+                                        if (!isNaN(parsed)) {
+                                            convertedMsg.timestamp = parsed;
+                                        }
+                                    } catch (e) {
+                                        console.warn("[小馨手机][微信主页] 时间解析失败:", e, "时间字符串:", msgObj.time);
+                                    }
+                                }
+
+                                allMessages.push(convertedMsg);
+                            }
+                        }
+                    }
+                });
+
+                // 按时间戳排序
+                allMessages.sort(function (a, b) {
+                    return (a.timestamp || 0) - (b.timestamp || 0);
+                });
+
+                console.info(`[小馨手机][微信主页] 从 DOM 读取到联系人 ${targetUserId} 的 ${allMessages.length} 条消息`);
+            } catch (e) {
+                console.warn("[小馨手机][微信主页] 从 DOM 读取消息失败:", e);
+            }
+
+            return allMessages;
+        }
+
+        function getAllLastMessagesFromDOM() {
+            var lastMessagesMap = {}; // userId -> lastMessage
+
+            try {
+                // 查找聊天容器
+                var chatSelectors = [
+                    "#chat",
+                    ".chat",
+                    "#chatContainer",
+                    ".chat-container",
+                    "[id*='chat']",
+                    "[class*='chat']",
+                ];
+
+                var chatContainer = null;
+                for (var i = 0; i < chatSelectors.length; i++) {
+                    chatContainer = document.querySelector(chatSelectors[i]);
+                    if (chatContainer) break;
+                }
+
+                if (!chatContainer) {
+                    console.warn("[小馨手机][微信主页] 未找到聊天容器，无法从 DOM 读取消息");
+                    return lastMessagesMap;
+                }
+
+                // 获取联系人列表
+                var contacts = [];
+                if (window.XiaoxinWeChatDataHandler && typeof window.XiaoxinWeChatDataHandler.getContacts === "function") {
+                    contacts = window.XiaoxinWeChatDataHandler.getContacts() || [];
+                }
+
+                // 获取玩家微信ID
+                var account = window.XiaoxinWeChatAccount
+                    ? window.XiaoxinWeChatAccount.getCurrentAccount()
+                    : null;
+                var playerWechatId = account
+                    ? String(account.wechatId || account.id || "0").trim()
+                    : "0";
+
+                // 查找所有消息元素
+                var messageSelectors = [
+                    ".mes",
+                    "[class*='mes']",
+                    ".message",
+                    "[class*='message']",
+                    ".mes_user",
+                    ".mes_assistant",
+                    "[class*='mes_user']",
+                    "[class*='mes_assistant']",
+                ];
+
+                var $allMessages = $();
+                for (var j = 0; j < messageSelectors.length; j++) {
+                    var $found = $(chatContainer).find(messageSelectors[j]);
+                    if ($found.length > 0) {
+                        $allMessages = $allMessages.add($found);
+                    }
+                }
+
+                // 去重
+                $allMessages = $($allMessages.toArray().filter(function(item, index, self) {
+                    return index === self.indexOf(item);
+                }));
+
+                if ($allMessages.length === 0) {
+                    return lastMessagesMap;
+                }
+
+                // 遍历所有消息，解析 [MSG] 标签并按联系人分组
+                var messagesByContact = {}; // userId -> [messages]
+
+                $allMessages.each(function () {
+                    var $mes = $(this);
+
+                    // 跳过候选消息（但保留用户消息）
+                    var isUserMsg = $mes.hasClass("mes_user") || $mes.hasClass("user") || $mes.hasClass("user-message");
+                    var $swipeCheck = $mes.closest(
+                        "[class*='swipe'], [class*='draft'], [class*='temp'], [class*='candidate'], [class*='alternative']"
+                    );
+                    if ($swipeCheck.length > 0 && !isUserMsg) {
+                        return;
+                    }
+
+                    // 获取消息内容
+                    var $messageText = $mes.find(
+                        ".mes_text, .mesText, .message-text, [class*='mes_text']"
+                    );
+                    if ($messageText.length === 0) {
+                        $messageText = $mes;
+                    }
+
+                    var content =
+                        $mes.attr("data-original-msg-content") ||
+                        $mes.attr("data-original-content") ||
+                        $mes.attr("data-original") ||
+                        $mes.attr("data-raw") ||
+                        $mes.attr("data-content") ||
+                        $messageText.attr("data-original-msg-content") ||
+                        $messageText.attr("data-original-content") ||
+                        $messageText.attr("data-original") ||
+                        $messageText.attr("data-raw") ||
+                        $messageText.attr("data-content") ||
+                        $mes.html() ||
+                        $messageText.html() ||
+                        $messageText.text() ||
+                        "";
+
+                    if (!content || (content.indexOf("[MSG]") === -1 && content.indexOf("[msg]") === -1)) {
+                        return;
+                    }
+
+                    // 解析 [MSG] 标签
+                    var msgPattern = /\[MSG\]([\s\S]*?)\[\/MSG\]/gi;
+                    var match;
+
+                    while ((match = msgPattern.exec(content)) !== null) {
+                        var msgContent = match[1].trim();
+                        if (!msgContent) continue;
+
+                        // 清理 HTML 标签
+                        var cleanContent = msgContent
+                            .replace(/<br\s*\/?>/gi, "\n")
+                            .replace(/<\/?[^>]+>/g, "")
+                            .replace(/&nbsp;/g, " ")
+                            .replace(/&amp;/g, "&")
+                            .replace(/&lt;/g, "<")
+                            .replace(/&gt;/g, ">");
+
+                        var msgObj = {};
+                        var lines = cleanContent.split(/\r?\n/);
+                        for (var k = 0; k < lines.length; k++) {
+                            var line = lines[k].trim();
+                            if (!line) continue;
+
+                            var equalIndex = line.indexOf("=");
+                            if (equalIndex === -1) continue;
+
+                            var key = line.substring(0, equalIndex).trim().toLowerCase();
+                            var value = line.substring(equalIndex + 1).trim();
+
+                            if (key && value) {
+                                msgObj[key] = value;
+                            }
+                        }
+
+                        // ⚠️ 调试：打印解析到的消息内容
+                        if (msgObj.type === 'call_voice' || msgObj.type === 'call_voice_text' || msgObj.type === 'call_video') {
+                            console.log(`[小馨手机][微信主页][DOM解析] 解析到通话消息: type=${msgObj.type}, state=${msgObj.state || '(无)'}, call_id=${msgObj.call_id || msgObj.callId || '(无)'}, from=${msgObj.from || '(无)'}, to=${msgObj.to || '(无)'}`);
+                            console.log(`[小馨手机][微信主页][DOM解析] 原始内容预览:`, cleanContent.substring(0, 200));
+                        }
+
+                        var msgTo = String(msgObj.to || "").trim();
+                        var msgFrom = String(msgObj.from || "").trim();
+                        var isToPlayer =
+                            msgTo === playerWechatId ||
+                            msgTo.toLowerCase() === "player" ||
+                            msgTo.toLowerCase() === "user";
+                        var isFromPlayer =
+                            msgFrom === playerWechatId ||
+                            msgFrom.toLowerCase() === "player" ||
+                            msgFrom.toLowerCase() === "user";
+
+                        // 确定这条消息属于哪个联系人
+                        // ⚠️ 关键：根据 to 字段判断消息应该显示在哪个联系人的聊天页
+                        // 如果 to=user/player，说明是玩家给自己发的消息，不应该显示在任何联系人的聊天页
+                        var contactId = null;
+
+                        if (isFromPlayer && msgTo && !isToPlayer) {
+                            // 玩家发送给联系人的消息：to 字段就是联系人ID
+                            contactId = msgTo;
+                        } else if (!isFromPlayer && isToPlayer) {
+                            // 联系人发送给玩家的消息：from 字段就是联系人ID
+                            contactId = msgFrom;
+                        }
+                        // ⚠️ 如果 from=user/player 且 to=user/player，说明是玩家给自己发的消息，不应该显示在任何联系人的聊天页
+                        // 这种情况 contactId 保持为 null，会被 continue 跳过
+
+                        if (!contactId) continue;
+
+                        // 尝试匹配联系人ID（支持多种格式）
+                        // ⚠️ 重要：使用严格匹配，避免部分匹配导致消息出现在多个联系人的聊天页
+                        var matchedContact = contacts.find(function (c) {
+                            var cId = String(c.id || "").trim();
+                            var cWechatId = String(c.wechatId || "").trim();
+                            var cCharId = String(c.characterId || "").trim();
+                            var contactIdStr = String(contactId).trim();
+
+                            // 精确匹配：完全相同的ID
+                            if (cId === contactIdStr || cWechatId === contactIdStr || cCharId === contactIdStr) {
+                                return true;
+                            }
+
+                            // 处理 contact_ 前缀的匹配（支持 "202" 和 "contact_202" 互相匹配）
+                            var cIdBase = cId.replace(/^contact_/, "");
+                            var contactIdBase = contactIdStr.replace(/^contact_/, "");
+
+                            // 只有当去掉前缀后的值完全相同，且原始格式也匹配时，才认为匹配
+                            // 例如：contact_202 和 202 可以匹配，但 contact_202 和 contact_2020 不能匹配
+                            if (cIdBase && contactIdBase && cIdBase === contactIdBase) {
+                                // 验证原始格式：确保是 "contact_202" 和 "202" 的关系，而不是其他情况
+                                if ((cId === "contact_" + cIdBase && contactIdStr === cIdBase) ||
+                                    (contactIdStr === "contact_" + contactIdBase && cId === contactIdBase) ||
+                                    (cId === "contact_" + cIdBase && contactIdStr === "contact_" + contactIdBase)) {
+                                    return true;
+                                }
+                            }
+
+                            return false;
+                        });
+
+                        if (matchedContact) {
+                            var userId = matchedContact.id || contactId;
+                            if (!messagesByContact[userId]) {
+                                messagesByContact[userId] = [];
+                            }
+
+                            // 转换消息格式
+                            var convertedMsg = {
+                                id: msgObj.id || ("dom-msg-" + Date.now() + "-" + Math.random().toString(36).substr(2, 8)),
+                                time: msgObj.time || "",
+                                from: msgFrom,
+                                to: msgTo,
+                                type: msgObj.type || "text",
+                                content: msgObj.content || "",
+                                timestamp: 0,
+                                rawTime: msgObj.time || "",
+                                isOutgoing: isFromPlayer
+                            };
+
+                            // ⚠️ 调试：打印转换后的消息
+                            if (convertedMsg.type === 'call_voice' || convertedMsg.type === 'call_voice_text' || convertedMsg.type === 'call_video') {
+                                console.log(`[小馨手机][微信主页][DOM解析] 转换后的消息: id=${convertedMsg.id}, type=${convertedMsg.type}, contactId=${contactId}, matchedContact=${matchedContact ? matchedContact.id : '(无)'}`);
+                            }
+
+                            // ⚠️ 处理通话消息的特殊字段
+                            if (msgObj.state) {
+                                convertedMsg.state = String(msgObj.state);
+                                convertedMsg.callState = String(msgObj.state); // 兼容字段
+                            }
+                            if (msgObj.call_id || msgObj.callId) {
+                                convertedMsg.call_id = String(msgObj.call_id || msgObj.callId);
+                                convertedMsg.callId = String(msgObj.call_id || msgObj.callId); // 兼容字段
+                            }
+                            if (msgObj.duration) {
+                                convertedMsg.duration = parseFloat(msgObj.duration) || 0;
+                                convertedMsg.duration_sec = convertedMsg.duration; // 兼容字段
+                            }
+                            if (msgObj.note) {
+                                convertedMsg.note = String(msgObj.note);
+                            }
+
+                            // 解析时间戳
+                            if (msgObj.time) {
+                                try {
+                                    var timeStr = String(msgObj.time).trim();
+                                    var normalizedTimeStr = timeStr
+                                        .replace(/-/g, "/")
+                                        .replace(/年/g, "/")
+                                        .replace(/月/g, "/")
+                                        .replace(/日/g, " ")
+                                        .replace(/星期[一二三四五六日]/g, "")
+                                        .trim()
+                                        .replace(/\s+/g, " ");
+                                    var parsed = Date.parse(normalizedTimeStr);
+                                    if (!isNaN(parsed)) {
+                                        convertedMsg.timestamp = parsed;
+                                    }
+                                } catch (e) {
+                                    // 忽略时间解析错误
+                                }
+                            }
+
+                            // 处理其他字段
+                            if (msgObj.amount) {
+                                convertedMsg.amount = parseFloat(msgObj.amount) || 0;
+                            }
+                            if (msgObj.note) {
+                                convertedMsg.note = String(msgObj.note);
+                            }
+                            if (msgObj.greeting) {
+                                convertedMsg.greeting = String(msgObj.greeting);
+                            }
+                            if (msgObj.duration_sec || msgObj.duration) {
+                                convertedMsg.duration_sec = parseFloat(msgObj.duration_sec || msgObj.duration) || 0;
+                                convertedMsg.duration = convertedMsg.duration_sec;
+                            }
+                            if (msgObj.redpacket_id) {
+                                convertedMsg.redpacket_id = String(msgObj.redpacket_id);
+                            }
+                            if (msgObj.senderName) {
+                                convertedMsg.senderName = String(msgObj.senderName);
+                            }
+                            if (msgObj.claimerName) {
+                                convertedMsg.claimerName = String(msgObj.claimerName);
+                            }
+                            if (msgObj.claimed_by) {
+                                convertedMsg.claimed_by = String(msgObj.claimed_by);
+                            }
+                            if (msgObj.isClaimerPlayer !== undefined) {
+                                convertedMsg.isClaimerPlayer = msgObj.isClaimerPlayer === true || msgObj.isClaimerPlayer === "true";
+                            }
+                            if (msgObj.isSenderPlayer !== undefined) {
+                                convertedMsg.isSenderPlayer = msgObj.isSenderPlayer === true || msgObj.isSenderPlayer === "true";
+                            }
+                            if (msgObj.voice_read !== undefined) {
+                                convertedMsg.voice_read = msgObj.voice_read === true || msgObj.voice_read === "true";
+                            }
+
+                            messagesByContact[userId].push(convertedMsg);
+                        }
+                    }
+                });
+
+                // 对每个联系人的消息按时间排序，获取最后一条
+                Object.keys(messagesByContact).forEach(function (userId) {
+                    var messages = messagesByContact[userId];
+                    if (messages.length === 0) return;
+
+                    // ⚠️ 调试：打印所有消息的详细信息
+                    console.log(`[小馨手机][微信主页] 联系人 ${userId} 从 DOM 读取到的所有消息:`);
+                    messages.forEach(function(m, i) {
+                        console.log(`  [${i}] id=${m.id}, type=${m.type}, state=${m.state || m.callState || '(无)'}, call_id=${m.call_id || m.callId || '(无)'}, timestamp=${m.timestamp}`);
+                    });
+
+                    // 按时间戳排序
+                    messages.sort(function (a, b) {
+                        return (a.timestamp || 0) - (b.timestamp || 0);
+                    });
+
+                    // 获取最后一条消息
+                    var lastMessage = messages[messages.length - 1];
+                    console.log(`[小馨手机][微信主页] 联系人 ${userId} 的最后一条消息: type=${lastMessage.type}, state=${lastMessage.state || lastMessage.callState || '(无)'}, call_id=${lastMessage.call_id || lastMessage.callId || '(无)'}`);
+                    lastMessagesMap[userId] = lastMessage;
+                });
+
+                console.info(
+                    "[小馨手机][微信主页] 从 DOM 读取到",
+                    Object.keys(lastMessagesMap).length,
+                    "个联系人的最后一条消息"
+                );
+            } catch (e) {
+                console.warn("[小馨手机][微信主页] 从 DOM 读取消息失败:", e);
+            }
+
+            return lastMessagesMap;
+        }
+
         // 从数据处理器获取真实聊天数据
         var chatData = [];
         if (window.XiaoxinWeChatDataHandler) {
+            // ⚠️ 优先从 DOM 实时读取最后一条消息（用于预览）
+            var domLastMessages = getAllLastMessagesFromDOM();
+
             var allChats = window.XiaoxinWeChatDataHandler.getAllChats();
             // 获取联系人列表
             var contacts = window.XiaoxinWeChatDataHandler.getContacts() || [];
@@ -2495,6 +3134,13 @@ window.XiaoxinWeChatApp = (function () {
                 if (!messages || messages.length === 0) return;
 
                 // 过滤消息：只显示已通过队列显示的角色消息
+                console.log("[小馨手机][微信主页] 开始过滤消息，总数:", messages.length, "联系人ID:", userId);
+                messages.forEach(function(m, i) {
+                    if (m.type === 'call_voice' || m.type === 'call_video') {
+                        console.log(`[小馨手机][微信主页] 待过滤消息[${i}]: id=${m.id}, type=${m.type}, state=${m.state || m.callState}, isOutgoing=${m.isOutgoing}`);
+                    }
+                });
+
                 var filteredMessages = messages.filter(function (message) {
                     // 玩家发送的消息直接显示
                     if (message.isOutgoing === true) {
@@ -2503,6 +3149,27 @@ window.XiaoxinWeChatApp = (function () {
 
                     // 角色发送的消息需要检查是否已显示
                     if (message.isOutgoing === false) {
+                        // ⚠️ 重要：对于 call_voice/call_video 消息（state=ended/rejected/unanswered），直接显示
+                        // 这些消息表示通话已结束，不需要经过队列管理器，应该立即显示在微信主页的消息预览中
+                        if (
+                            message.type === "call_voice" || message.type === "call_video"
+                        ) {
+                            var callState = message.callState || message.state || "";
+                            if (
+                                callState === "ended" ||
+                                callState === "rejected" ||
+                                callState === "unanswered"
+                            ) {
+                                console.info(
+                                    "[小馨手机][微信主页] call_voice 消息（state=" +
+                                        callState +
+                                        "）直接显示，不检查队列状态，消息ID:",
+                                    message.id
+                                );
+                                return true; // 直接显示，不检查队列状态
+                            }
+                        }
+
                         // 检查消息队列管理器是否存在
                         if (
                             window.XiaoxinMessageQueue &&
@@ -2586,8 +3253,220 @@ window.XiaoxinWeChatApp = (function () {
                     return aTime - bTime; // 升序排序，时间最早的在前，最新的在后
                 });
 
-                // 获取最后一条消息（从排序后的消息中获取，确保是最新的）
-                var lastMessage = filteredMessages[filteredMessages.length - 1];
+                // 获取最后一条消息
+                // ⚠️ 重要：消息预览必须跟随队列显示进度，只显示已通过队列显示的消息
+                var lastMessage = null;
+
+                // 优先从已过滤的消息中选择最后一条（已过滤的消息都是已显示的）
+                if (filteredMessages.length > 0) {
+                    lastMessage = filteredMessages[filteredMessages.length - 1];
+                    console.info("[小馨手机][微信主页] 使用已过滤消息列表的最后一条（已显示），联系人ID:", userId, "消息类型:", lastMessage.type, "state:", lastMessage.state || lastMessage.callState || "(无)");
+                }
+
+                // 如果从 DOM 读取的最后一条消息存在，需要检查它是否已显示
+                // 只有已显示的消息才能作为预览消息，否则使用 filteredMessages 中的最后一条
+                if (domLastMessages[userId]) {
+                    var domLastMsg = domLastMessages[userId];
+                    var shouldUseDomMessage = false;
+
+                    // 玩家发送的消息直接使用
+                    if (domLastMsg.isOutgoing === true) {
+                        shouldUseDomMessage = true;
+                    }
+                    // 对于 call_voice/call_video 消息（state=ended/rejected/unanswered），直接使用
+                    else if (domLastMsg.type === "call_voice" || domLastMsg.type === "call_video") {
+                        var callState = domLastMsg.callState || domLastMsg.state || "";
+                        if (callState === "ended" || callState === "rejected" || callState === "unanswered") {
+                            shouldUseDomMessage = true;
+                        }
+                    }
+                    // 对于角色发送的消息，需要检查是否已通过队列显示
+                    else if (domLastMsg.isOutgoing === false) {
+                        if (
+                            window.XiaoxinMessageQueue &&
+                            window.XiaoxinMessageQueue.isMessageDisplayed
+                        ) {
+                            var isDisplayed = window.XiaoxinMessageQueue.isMessageDisplayed(
+                                userId,
+                                domLastMsg.id
+                            );
+                            if (isDisplayed) {
+                                shouldUseDomMessage = true;
+                                console.info("[小馨手机][微信主页] DOM 最后一条消息已显示，可以使用，消息ID:", domLastMsg.id);
+                            } else {
+                                console.info("[小馨手机][微信主页] DOM 最后一条消息未显示（在队列中），使用已过滤消息列表的最后一条，消息ID:", domLastMsg.id);
+                            }
+                        } else {
+                            // 如果消息队列管理器不存在，直接使用（兼容旧逻辑）
+                            shouldUseDomMessage = true;
+                        }
+                    } else {
+                        // 其他情况（系统消息等）直接使用
+                        shouldUseDomMessage = true;
+                    }
+
+                    // 如果 DOM 消息已显示，且时间更新，则使用 DOM 消息
+                    if (shouldUseDomMessage) {
+                        // 比较时间戳，选择更新的消息
+                        var domTime = domLastMsg.timestamp || 0;
+                        var filteredTime = lastMessage ? (lastMessage.timestamp || 0) : 0;
+
+                        // 如果没有 timestamp，尝试从 rawTime 解析
+                        if (!domTime && domLastMsg.rawTime) {
+                            try {
+                                var domTimeStr = String(domLastMsg.rawTime).trim();
+                                var parsedDom = Date.parse(
+                                    domTimeStr
+                                        .replace(/-/g, "/")
+                                        .replace(/年|月|日|星期[一二三四五六日]/g, " ")
+                                );
+                                if (!isNaN(parsedDom)) {
+                                    domTime = parsedDom;
+                                }
+                            } catch (e) {
+                                // 解析失败，使用 0
+                            }
+                        }
+                        if (!filteredTime && lastMessage && lastMessage.rawTime) {
+                            try {
+                                var filteredTimeStr = String(lastMessage.rawTime).trim();
+                                var parsedFiltered = Date.parse(
+                                    filteredTimeStr
+                                        .replace(/-/g, "/")
+                                        .replace(/年|月|日|星期[一二三四五六日]/g, " ")
+                                );
+                                if (!isNaN(parsedFiltered)) {
+                                    filteredTime = parsedFiltered;
+                                }
+                            } catch (e) {
+                                // 解析失败，使用 0
+                            }
+                        }
+
+                        // 如果 DOM 消息时间更新，使用 DOM 消息
+                        if (domTime > filteredTime) {
+                            lastMessage = domLastMsg;
+                            console.info("[小馨手机][微信主页] 使用 DOM 实时读取的最后一条消息（已显示且时间更新），联系人ID:", userId, "消息类型:", lastMessage.type, "state:", lastMessage.state || lastMessage.callState || "(无)");
+                        } else if (lastMessage) {
+                            console.info("[小馨手机][微信主页] 已过滤消息列表的最后一条时间更新，使用它，联系人ID:", userId);
+                        }
+                    }
+                }
+
+                // ⚠️ 重要：如果最后一条消息是 call_voice_text，需要在原始消息列表和 filteredMessages 中查找同 call_id 的 call_voice 消息（state=ended/rejected/unanswered），
+                // 应该使用 call_voice 消息作为最后一条消息，而不是 call_voice_text
+                if (lastMessage && lastMessage.type === "call_voice_text") {
+                    var callId = lastMessage.call_id || lastMessage.callId;
+                    console.info("[小馨手机][微信主页] 最后一条消息是 call_voice_text，查找同 call_id 的 call_voice 消息，call_id:", callId);
+                    var foundCallVoiceMessage = null;
+
+                    // 先在原始 messages 数组中查找（包含所有消息，不限于已过滤的）
+                    if (callId && messages && messages.length > 0) {
+                        console.info("[小馨手机][微信主页] 在原始消息列表中查找，总数:", messages.length);
+                        for (var k = messages.length - 1; k >= 0; k--) {
+                            var msg = messages[k];
+                            var msgCallId = msg.call_id || msg.callId;
+                            if (msg.type === "call_voice" || msg.type === "call_video") {
+                                var msgCallState = msg.callState || msg.state || "";
+                                console.info(`[小馨手机][微信主页] 检查消息[${k}]: type=${msg.type}, state=${msgCallState}, call_id=${msgCallId}`);
+                                if (
+                                    (msgCallState === "ended" ||
+                                        msgCallState === "rejected" ||
+                                        msgCallState === "unanswered") &&
+                                    msgCallId === callId
+                                ) {
+                                    // 找到同 call_id 的 call_voice 消息
+                                    foundCallVoiceMessage = msg;
+                                    console.info(
+                                        "[小馨手机][微信主页] ✅ 在原始消息列表中找到同 call_id 的 call_voice 消息，类型:",
+                                        msg.type,
+                                        "state:",
+                                        msgCallState
+                                    );
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // 如果没找到，再在 filteredMessages 中查找
+                    if (!foundCallVoiceMessage && callId && filteredMessages && filteredMessages.length > 0) {
+                        console.info("[小馨手机][微信主页] 在已过滤消息列表中查找，总数:", filteredMessages.length);
+                        for (var k2 = filteredMessages.length - 1; k2 >= 0; k2--) {
+                            var msg2 = filteredMessages[k2];
+                            var msgCallId2 = msg2.call_id || msg2.callId;
+                            if (msg2.type === "call_voice" || msg2.type === "call_video") {
+                                var msgCallState2 = msg2.callState || msg2.state || "";
+                                if (
+                                    (msgCallState2 === "ended" ||
+                                        msgCallState2 === "rejected" ||
+                                        msgCallState2 === "unanswered") &&
+                                    msgCallId2 === callId
+                                ) {
+                                    // 找到同 call_id 的 call_voice 消息
+                                    foundCallVoiceMessage = msg2;
+                                    console.info(
+                                        "[小馨手机][微信主页] ✅ 在已过滤消息列表中找到同 call_id 的 call_voice 消息，类型:",
+                                        msg2.type,
+                                        "state:",
+                                        msgCallState2
+                                    );
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    // ⚠️ 关键：如果还是没找到，直接从 DOM 重新读取所有消息
+                    if (!foundCallVoiceMessage && callId) {
+                        console.info("[小馨手机][微信主页] ⚠️ 在存储中未找到，直接从 DOM 重新读取所有消息");
+                        var domMessages = getAllMessagesFromDOMForContact(userId, contacts);
+                        if (domMessages && domMessages.length > 0) {
+                            console.info(`[小馨手机][微信主页] 从 DOM 读取到 ${domMessages.length} 条消息，开始查找 call_voice`);
+                            for (var k3 = domMessages.length - 1; k3 >= 0; k3--) {
+                                var msg3 = domMessages[k3];
+                                var msgCallId3 = msg3.call_id || msg3.callId;
+                                if (msg3.type === "call_voice" || msg3.type === "call_video") {
+                                    var msgCallState3 = msg3.callState || msg3.state || "";
+                                    console.info(`[小馨手机][微信主页] DOM消息[${k3}]: type=${msg3.type}, state=${msgCallState3}, call_id=${msgCallId3}`);
+                                    if (
+                                        (msgCallState3 === "ended" ||
+                                            msgCallState3 === "rejected" ||
+                                            msgCallState3 === "unanswered") &&
+                                        msgCallId3 === callId
+                                    ) {
+                                        // 找到同 call_id 的 call_voice 消息
+                                        foundCallVoiceMessage = msg3;
+                                        console.info(
+                                            "[小馨手机][微信主页] ✅✅✅ 在 DOM 中找到同 call_id 的 call_voice 消息！类型:",
+                                            msg3.type,
+                                            "state:",
+                                            msgCallState3,
+                                            "call_id:",
+                                            msgCallId3
+                                        );
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // 如果找到了 call_voice 消息，使用它作为最后一条消息
+                    if (foundCallVoiceMessage) {
+                        lastMessage = foundCallVoiceMessage;
+                        console.info(
+                            "[小馨手机][微信主页] ✅ 使用 call_voice 消息作为最后一条消息，替换 call_voice_text"
+                        );
+                    } else {
+                        console.warn("[小馨手机][微信主页] ❌ 未找到同 call_id 的 call_voice 消息，将使用 call_voice_text 作为最后一条消息");
+                    }
+                }
+
+                // 如果没有最后一条消息，跳过这个联系人
+                if (!lastMessage) {
+                    return;
+                }
 
                 // 查找联系人信息（支持多种ID格式匹配）
                 var contact = contacts.find(function (c) {
@@ -2607,6 +3486,12 @@ window.XiaoxinWeChatApp = (function () {
                             userIdStr.replace(/^contact_/, "")
                     );
                 });
+
+                // ⚠️ 如果联系人已被删除（不在联系人列表中），跳过显示
+                if (!contact) {
+                    console.info("[小馨手机][微信主页] 联系人已被删除，跳过显示:", userId);
+                    return;
+                }
 
                 // 格式化预览消息时间（基于世界观时间）
                 var timeStr = "";
@@ -2654,10 +3539,82 @@ window.XiaoxinWeChatApp = (function () {
                 var messagePreview = "";
                 var isVoiceUnreadPreview = false;
 
-                if (lastMessage.type === "call_voice") {
-                    messagePreview = "[语音通话]";
-                } else if (lastMessage.type === "call_video") {
-                    messagePreview = "[视频通话]";
+                // ⚠️ 检查通话消息：需要同时检查 type 和 callState 字段
+                // 通话结束消息：type=call_voice/call_video 且 callState=ended
+                // 通话未接/拒绝消息：type=call_voice/call_video 且 callState=unanswered/rejected
+                // 通话文本消息：type=call_voice_text（不应该显示为"[语音通话]"，应该显示文本内容）
+                // ⚠️ 重要：如果最后一条消息是 call_voice_text，需要向上查找 call_voice 消息作为预览
+                if (lastMessage.type === "call_voice_text") {
+                    // 通话文本消息：向上查找同 call_id 的 call_voice 消息作为预览
+                    // 如果找不到，则显示文本内容
+                    var callId = lastMessage.call_id || lastMessage.callId;
+                    console.info("[小馨手机][微信主页] 最后一条消息是 call_voice_text，查找同 call_id 的 call_voice 消息，call_id:", callId);
+                    if (callId) {
+                        // ⚠️ 重要：先在原始消息列表中查找（包含所有消息，不限于已显示的）
+                        // 这样可以找到 state=ended/rejected/unanswered 的 call_voice 消息，即使它们还没有被标记为"已显示"
+                        var foundCallMessage = null;
+                        if (messages && messages.length > 0) {
+                            // 从后往前查找 call_voice 消息
+                            for (var i = messages.length - 1; i >= 0; i--) {
+                                var msg = messages[i];
+                                var msgCallId = msg.call_id || msg.callId;
+                                if (msg.type === "call_voice" || msg.type === "call_video") {
+                                    // 只查找 state=ended/rejected/unanswered 的通话消息
+                                    var msgCallState = msg.callState || msg.state || "";
+                                    if (
+                                        (msgCallState === "ended" ||
+                                            msgCallState === "rejected" ||
+                                            msgCallState === "unanswered") &&
+                                        msgCallId === callId
+                                    ) {
+                                        foundCallMessage = msg;
+                                        console.info(
+                                            "[小馨手机][微信主页] 在原始消息列表中找到同 call_id 的通话消息，类型:",
+                                            msg.type,
+                                            "state:",
+                                            msgCallState
+                                        );
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        // 如果没找到，再在 filteredMessages 中查找（兼容旧逻辑）
+                        if (!foundCallMessage && filteredMessages && filteredMessages.length > 0) {
+                            for (var j = filteredMessages.length - 1; j >= 0; j--) {
+                                var msg2 = filteredMessages[j];
+                                var msgCallId2 = msg2.call_id || msg2.callId;
+                                if (msg2.type === "call_voice" || msg2.type === "call_video") {
+                                    if (msgCallId2 === callId) {
+                                        foundCallMessage = msg2;
+                                        console.info(
+                                            "[小馨手机][微信主页] 在已过滤消息列表中找到同 call_id 的通话消息，类型:",
+                                            msg2.type
+                                        );
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        // 如果找到了通话消息，使用它作为预览
+                        if (foundCallMessage) {
+                            if (foundCallMessage.type === "call_voice") {
+                                messagePreview = "[语音通话]";
+                            } else if (foundCallMessage.type === "call_video") {
+                                messagePreview = "[视频通话]";
+                            }
+                        } else {
+                            console.info("[小馨手机][微信主页] 未找到同 call_id 的通话消息，将显示文本内容");
+                        }
+                    }
+                } else if (lastMessage.type === "call_voice" || lastMessage.type === "call_video") {
+                    // 通话消息（通话结束/未接/拒绝/通话中等）：显示为"[语音通话]"或"[视频通话]"
+                    console.info("[小馨手机][微信主页] 最后一条消息是通话消息，类型:", lastMessage.type, "state:", lastMessage.state || lastMessage.callState);
+                    if (lastMessage.type === "call_voice") {
+                        messagePreview = "[语音通话]";
+                    } else if (lastMessage.type === "call_video") {
+                        messagePreview = "[视频通话]";
+                    }
                 } else if (lastMessage.type === "voice") {
                     // 兼容不同字段：duration_sec（玩家语音）、duration（世界书语音）、payload.duration_sec
                     var rawDur =
@@ -2800,6 +3757,42 @@ window.XiaoxinWeChatApp = (function () {
                     messagePreview = "[消息]";
                 }
 
+                // 计算最后一条消息的时间戳（用于排序）
+                var lastMessageTimestamp = 0;
+                if (lastMessage) {
+                    // 优先使用 lastMessage 的时间戳（这是实际显示的最后一条消息）
+                    if (lastMessage.timestamp && lastMessage.timestamp > 0) {
+                        lastMessageTimestamp = lastMessage.timestamp;
+                    } else if (lastMessage.rawTime) {
+                        // 如果没有 timestamp，尝试从 rawTime 解析
+                        try {
+                            var timeStr2 = String(lastMessage.rawTime).trim();
+                            var cleanedTimeStr = timeStr2
+                                .replace(/-/g, "/")
+                                .replace(/年/g, "/")
+                                .replace(/月/g, "/")
+                                .replace(/日[^0-9]*(\d{1,2}:\d{2}(?::\d{2})?)/, " $1")
+                                .replace(/星期[一二三四五六日]/g, "")
+                                .replace(/\s+/g, " ")
+                                .trim();
+                            var parsed = Date.parse(cleanedTimeStr);
+                            if (!isNaN(parsed)) {
+                                lastMessageTimestamp = parsed;
+                            }
+                        } catch (e) {
+                            // 解析失败，使用 0
+                        }
+                    }
+                }
+
+                // 如果仍然没有时间戳，尝试从存储的消息中获取
+                if (lastMessageTimestamp === 0 && allChats[userId] && allChats[userId].length > 0) {
+                    var storedLastMessage = allChats[userId][allChats[userId].length - 1];
+                    if (storedLastMessage && storedLastMessage.timestamp && storedLastMessage.timestamp > 0) {
+                        lastMessageTimestamp = storedLastMessage.timestamp;
+                    }
+                }
+
                 chatData.push({
                     userId: userId,
                     avatar: contact
@@ -2812,21 +3805,15 @@ window.XiaoxinWeChatApp = (function () {
                     unread: unreadData[userId] || 0,
                     muted: contact ? contact.muted || false : false,
                     isVoiceUnreadPreview: isVoiceUnreadPreview,
+                    lastMessageTimestamp: lastMessageTimestamp, // 保存最后一条消息的时间戳，用于排序
                 });
             });
 
-            // 按最后一条消息的时间排序（最新的在前）
+            // 按最后一条消息的时间排序（最新的在前，时间戳越大越靠上）
             chatData.sort(function (a, b) {
-                var aTime =
-                    allChats[a.userId] && allChats[a.userId].length > 0
-                        ? allChats[a.userId][allChats[a.userId].length - 1]
-                              .timestamp || 0
-                        : 0;
-                var bTime =
-                    allChats[b.userId] && allChats[b.userId].length > 0
-                        ? allChats[b.userId][allChats[b.userId].length - 1]
-                              .timestamp || 0
-                        : 0;
+                var aTime = a.lastMessageTimestamp || 0;
+                var bTime = b.lastMessageTimestamp || 0;
+                // 降序排序：时间戳越大（越新）越靠前
                 return bTime - aTime;
             });
         }
@@ -3138,9 +4125,27 @@ window.XiaoxinWeChatApp = (function () {
             contactUpdateHandler
         );
 
+        // 监听联系人删除事件，删除后立即刷新聊天列表
+        var contactRemovedHandler = function (e) {
+            if (_currentPage === "chat") {
+                var contactId = e.detail && e.detail.contactId;
+                console.info(
+                    "[小馨手机][微信] 收到联系人删除事件，刷新聊天列表，联系人ID:",
+                    contactId
+                );
+                // 重新渲染聊天页面（只刷新聊天列表部分）
+                _renderChatPage($root, mobilePhone);
+            }
+        };
+        window.addEventListener(
+            "xiaoxin-contact-removed",
+            contactRemovedHandler
+        );
+
         // 保存事件处理器引用，以便在页面切换时清理
         $root.data("chatUpdateHandler", chatUpdateHandler);
         $root.data("contactUpdateHandler", contactUpdateHandler);
+        $root.data("contactRemovedHandler", contactRemovedHandler);
 
         // 标签页点击事件处理
         $tabBar.on("click", ".xiaoxin-wechat-tab", function () {
@@ -3919,13 +4924,12 @@ window.XiaoxinWeChatApp = (function () {
         // 将玩家自己添加到联系人列表中
         contacts.push(selfContact);
 
-        // 分离星标朋友和普通联系人
+        // 星标朋友：额外展示，不影响联系人在普通列表中的位置
+        // 因此普通列表仍然使用全部联系人（包含星标联系人）
         var starredContacts = contacts.filter(function (c) {
             return c.starred === true;
         });
-        var normalContacts = contacts.filter(function (c) {
-            return c.starred !== true;
-        });
+        var normalContacts = contacts;
 
         // 获取中文首字拼音首字母（简洁实现，使用 localeCompare）
         function getPinyinFirstLetter(char) {
@@ -4022,10 +5026,12 @@ window.XiaoxinWeChatApp = (function () {
             return groups;
         }
 
-        // 渲染星标朋友部分
+        // 渲染星标朋友部分（独立块：插在“标签”功能按钮下方、普通列表上方）
+        // 注意：不要放进 $contactsList 里，这样结构与微信一致，也便于滚动定位
+        var $starredSection = null;
         if (starredContacts.length > 0) {
-            var $starredSection = $(
-                '<div class="xiaoxin-wechat-contacts-section" data-letter="starred"></div>'
+            $starredSection = $(
+                '<div class="xiaoxin-wechat-contacts-section xiaoxin-wechat-contacts-section-starred" data-letter="starred"></div>'
             );
             var $starredHeader = $(
                 '<div class="xiaoxin-wechat-contacts-section-header">' +
@@ -4130,8 +5136,6 @@ window.XiaoxinWeChatApp = (function () {
                 });
                 $starredSection.append($item);
             });
-
-            $contactsList.append($starredSection);
         }
 
         // 渲染普通联系人（按字母分组）
@@ -4268,10 +5272,7 @@ window.XiaoxinWeChatApp = (function () {
             );
             $indexStar.on("click", function () {
                 // 滚动到星标朋友部分
-                var $starredSection = $contactsList
-                    .find(".xiaoxin-wechat-contacts-section")
-                    .first();
-                if ($starredSection.length) {
+                if ($starredSection && $starredSection.length) {
                     // 滚动到内容容器，而不是联系人列表
                     var scrollOffset =
                         $starredSection.offset().top -
@@ -4483,11 +5484,24 @@ window.XiaoxinWeChatApp = (function () {
             }
         }
 
-        // 如果有未读好友申请弹窗，先添加它，然后添加功能栏和联系人列表
+        // 如果有未读好友申请弹窗，先添加它，然后添加功能栏、星标朋友（如果有）和联系人列表
         if ($friendRequestNotification) {
-            $content.append($friendRequestNotification, $features, $contactsList);
+            if ($starredSection && $starredSection.length) {
+                $content.append(
+                    $friendRequestNotification,
+                    $features,
+                    $starredSection,
+                    $contactsList
+                );
+            } else {
+                $content.append($friendRequestNotification, $features, $contactsList);
+            }
         } else {
-        $content.append($features, $contactsList);
+            if ($starredSection && $starredSection.length) {
+                $content.append($features, $starredSection, $contactsList);
+            } else {
+                $content.append($features, $contactsList);
+            }
         }
 
         // 将标题栏、搜索栏、内容容器、字母索引栏和导航栏添加到主容器中
@@ -9073,30 +10087,28 @@ window.XiaoxinWeChatApp = (function () {
                 var momentAuthorIdStr = String(momentAuthorId || "").trim();
 
                 // 多种匹配方式：
-                // 1. 直接匹配
+                // 1. 直接匹配（最严格）
                 // 2. contact_前缀匹配
-                // 3. 角色ID直接匹配（如果朋友圈author是纯数字，联系人的characterId也是这个数字）
+                // 3. 角色ID匹配（⚠️ 重要：只有当朋友圈author是纯数字，且联系人的characterId也是这个数字时，才匹配）
                 // 4. 如果是玩家自己，额外匹配 "player"
+                // ⚠️ 重要：使用更严格的匹配逻辑，避免纯数字ID（如101）错误匹配到所有角色ID为101的联系人
+                var momentAuthorIdBare = momentAuthorIdStr.replace(/^contact_/, "");
+                var contactIdBare = contactIdStr.replace(/^contact_/, "");
+                var contactCharacterIdBare = contactCharacterIdStr ? contactCharacterIdStr.replace(/^contact_/, "") : "";
+
                 var matched =
+                    // 1. 完整ID匹配（最严格）
                     momentAuthorIdStr === contactIdStr ||
+                    // 2. contact_前缀匹配
                     momentAuthorIdStr === "contact_" + contactIdStr ||
                     contactIdStr === "contact_" + momentAuthorIdStr ||
-                    momentAuthorIdStr.replace(/^contact_/, "") ===
-                        contactIdStr.replace(/^contact_/, "") ||
-                    // 新增：直接匹配 wechatId（尤其是玩家自己发的朋友圈 author=wechatId）
+                    // 3. ⚠️ 重要：只有当朋友圈author是纯数字，且联系人的characterId也是这个数字时，才匹配
+                    // 这样可以避免 author="101" 的朋友圈错误匹配到所有角色ID为101的联系人
+                    (/^\d+$/.test(momentAuthorIdBare) && contactCharacterIdStr && momentAuthorIdBare === contactCharacterIdBare) ||
+                    // 4. 直接匹配 wechatId（尤其是玩家自己发的朋友圈 author=wechatId）
                     (contactWechatIdStr &&
                         (momentAuthorIdStr === contactWechatIdStr ||
-                            momentAuthorIdStr.replace(/^contact_/, "") ===
-                                contactWechatIdStr.replace(/^contact_/, ""))) ||
-                    // 新增：直接匹配角色ID
-                    (contactCharacterIdStr &&
-                        momentAuthorIdStr === contactCharacterIdStr) ||
-                    (contactCharacterIdStr &&
-                        momentAuthorIdStr ===
-                            "contact_" + contactCharacterIdStr) ||
-                    (contactCharacterIdStr &&
-                        "contact_" + momentAuthorIdStr ===
-                            contactCharacterIdStr) ||
+                            momentAuthorIdBare === contactWechatIdStr.replace(/^contact_/, ""))) ||
                     // 新增：如果是玩家自己，匹配 author="player" 或 author="user" 的情况（历史朋友圈生成）
                     // 检查方式1：通过 contact.isSelf 标记
                     (contact.isSelf && (momentAuthorIdStr.toLowerCase() === "player" || momentAuthorIdStr.toLowerCase() === "user")) ||
