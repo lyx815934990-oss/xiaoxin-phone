@@ -297,6 +297,18 @@ window.XiaoxinWeChatDataHandler = (function () {
     }
 
     function addChatMessage(userId, message) {
+        /* ⚠️ [2024-07-30] DEPRECATED: 通话状态消息现在需要持久化存储
+        // 之前仅依赖 DOM 实时显示，导致微信主页消息预览无法获取到通话结束状态
+        // 现在改为持久化存储，由UI层决定是否显示
+        if (message.type === 'call_voice' || message.type === 'call_video') {
+            const state = message.callState || message.state || '';
+            if (state === 'ended' || state === 'unanswered' || state === 'rejected') {
+                console.info("[小馨手机][微信数据] [旧逻辑] 跳过持久化存储通话状态消息，仅在DOM中实时显示。消息ID:", message.id);
+                return; // 不保存到 allChats
+            }
+        }
+        */
+
         // 检查是否是语音通话文本消息，如果是则跳过（不添加到聊天记录）
         // ⚠️ 重要：红包消息不应该被过滤，即使 content 字段包含 [MSG] 标签
         if (message.type !== "redpacket") {
@@ -399,6 +411,7 @@ window.XiaoxinWeChatDataHandler = (function () {
                     }
                 }
                 _setData(DATA_KEYS.CHATS, chats);
+                _invalidateChatsCache(); // 清除缓存
                 console.info(
                     "[小馨手机][微信数据] 复用已有消息ID，覆盖更新消息内容:",
                     message.id,
@@ -540,6 +553,7 @@ window.XiaoxinWeChatDataHandler = (function () {
 
         chats[userId].push(message);
         _setData(DATA_KEYS.CHATS, chats);
+        _invalidateChatsCache(); // 清除缓存
 
         // 如果这是转账消息且接收者是玩家，更新零钱余额
         if (
@@ -737,6 +751,7 @@ window.XiaoxinWeChatDataHandler = (function () {
 
             // 保存更新后的数据
             _setData(DATA_KEYS.CHATS, chats);
+            _invalidateChatsCache(); // 清除缓存
         }
 
         // 注意：角色消息的未读数不再在这里增加
@@ -885,6 +900,7 @@ window.XiaoxinWeChatDataHandler = (function () {
 
         if (updated) {
             _setData(DATA_KEYS.CHATS, chats);
+            _invalidateChatsCache(); // 清除缓存
             return true;
         }
         return false;
@@ -908,6 +924,7 @@ window.XiaoxinWeChatDataHandler = (function () {
 
         if (updated) {
             _setData(DATA_KEYS.CHATS, chats);
+            _invalidateChatsCache(); // 清除缓存
             console.info(
                 "[小馨手机][微信数据] 标记语音消息为已读:",
                 userId,
@@ -921,6 +938,7 @@ window.XiaoxinWeChatDataHandler = (function () {
         if (chats[userId]) {
             delete chats[userId];
             _setData(DATA_KEYS.CHATS, chats);
+            _invalidateChatsCache(); // 清除缓存
         }
     }
 
@@ -947,6 +965,7 @@ window.XiaoxinWeChatDataHandler = (function () {
 
         if (changed) {
             _setData(DATA_KEYS.CHATS, chats);
+            _invalidateChatsCache(); // 清除缓存
             console.info(
                 "[小馨手机][微信数据] 根据 sourceMessageId 清理旧线上消息:",
                 sourceMessageId
@@ -954,13 +973,156 @@ window.XiaoxinWeChatDataHandler = (function () {
         }
     }
 
+    // ========== 数据缓存机制（优化性能） ==========
+    var _chatsCache = null;
+    var _chatsCacheTimestamp = 0;
+    var CACHE_TTL = 5000; // 缓存有效期：5秒
+
     function getAllChats() {
-        return _getData(DATA_KEYS.CHATS, {});
+        var now = Date.now();
+        // 如果缓存有效，直接返回缓存
+        if (_chatsCache !== null && (now - _chatsCacheTimestamp) < CACHE_TTL) {
+            return _chatsCache;
+        }
+        // 否则从存储中读取并更新缓存
+        _chatsCache = _getData(DATA_KEYS.CHATS, {});
+        _chatsCacheTimestamp = now;
+        return _chatsCache;
+    }
+
+    // 清除缓存（在数据更新后调用）
+    function _invalidateChatsCache() {
+        _chatsCache = null;
+        _chatsCacheTimestamp = 0;
     }
 
     // ========== 联系人管理 ==========
     function getContacts() {
-        return _getData(DATA_KEYS.CONTACTS, []);
+        // ⚠️ 优先从 DOM 实时读取，然后合并存储中的数据
+        var domContacts = [];
+        var domBlocks = _getDataBlocksFromDOM("wx_contact");
+
+        // 如果有解析器，解析 DOM 中的联系人数据块
+        if (
+            window.XiaoxinMessageListener &&
+            typeof window.XiaoxinMessageListener.parseContactTags ===
+                "function"
+        ) {
+            domBlocks.forEach(function (block) {
+                try {
+                    var parsed = window.XiaoxinMessageListener.parseContactTags(
+                        block.rawContent
+                    );
+                    if (parsed && Array.isArray(parsed)) {
+                        domContacts = domContacts.concat(parsed);
+                    } else if (parsed && typeof parsed === "object") {
+                        domContacts.push(parsed);
+                    }
+                } catch (e) {
+                    console.warn(
+                        "[小馨手机][微信数据] 解析 DOM 联系人数据块失败:",
+                        e
+                    );
+                }
+            });
+        }
+
+        // 从存储读取（用于历史数据）
+        var storedContacts = _getData(DATA_KEYS.CONTACTS, []);
+
+        // 合并：DOM 数据优先（实时），存储数据作为补充（历史数据）
+        // 去重：相同 ID/wechatId 的联系人只保留一条（优先保留 DOM 中的）
+        // ⚠️ 重要：但需要保留存储中的好友状态信息（isFriend、friendStatus），避免被 DOM 数据覆盖
+        var contactsMap = {};
+        var storedContactsMap = {}; // 用于快速查找存储中的联系人状态
+
+        // 先建立存储联系人的映射（用于后续查找好友状态）
+        storedContacts.forEach(function (contact) {
+            if (!contact) return;
+            var contactId =
+                String(contact.wechatId || contact.wechat_id || contact.id || "")
+                    .trim() || null;
+            if (contactId) {
+                storedContactsMap[contactId] = contact;
+            }
+        });
+
+        var allContacts = domContacts.concat(storedContacts);
+
+        allContacts.forEach(function (contact) {
+            if (!contact) return;
+
+            // 使用 wechatId 或 id 作为唯一标识
+            var contactId =
+                String(contact.wechatId || contact.wechat_id || contact.id || "")
+                    .trim() || null;
+
+            if (!contactId) {
+                // 没有ID的联系人也保留（可能是临时生成的）
+                if (!contactsMap["_no_id_"]) {
+                    contactsMap["_no_id_"] = [];
+                }
+                contactsMap["_no_id_"].push(contact);
+                return;
+            }
+
+            if (!contactsMap[contactId]) {
+                // 如果是 DOM 中的联系人，检查存储中是否有该联系人的好友状态信息
+                var storedContact = storedContactsMap[contactId];
+                if (storedContact && (storedContact.isFriend === true || storedContact.friendStatus === "friend")) {
+                    // 如果存储中的联系人是好友，保留好友状态
+                    contact.isFriend = storedContact.isFriend;
+                    contact.friendStatus = storedContact.friendStatus;
+                }
+                contactsMap[contactId] = contact;
+            } else {
+                // 如果已存在，优先保留 DOM 中的（时间戳更新的，或字段更完整的）
+                var existing = contactsMap[contactId];
+                var shouldReplace = false;
+
+                if (
+                    contact.updatedAt &&
+                    existing.updatedAt &&
+                    contact.updatedAt > existing.updatedAt
+                ) {
+                    shouldReplace = true;
+                } else if (
+                    !existing.updatedAt &&
+                    contact.updatedAt
+                ) {
+                    shouldReplace = true;
+                }
+
+                if (shouldReplace) {
+                    // 替换前，检查存储中的好友状态
+                    var storedContact = storedContactsMap[contactId];
+                    if (storedContact && (storedContact.isFriend === true || storedContact.friendStatus === "friend")) {
+                        // 如果存储中的联系人是好友，保留好友状态
+                        contact.isFriend = storedContact.isFriend;
+                        contact.friendStatus = storedContact.friendStatus;
+                    }
+                    contactsMap[contactId] = contact;
+                } else {
+                    // 不替换，但如果是存储中的联系人且是好友，确保好友状态正确
+                    if (storedContactsMap[contactId] && (storedContactsMap[contactId].isFriend === true || storedContactsMap[contactId].friendStatus === "friend")) {
+                        existing.isFriend = storedContactsMap[contactId].isFriend;
+                        existing.friendStatus = storedContactsMap[contactId].friendStatus;
+                    }
+                }
+            }
+        });
+
+        // 转换为数组
+        var result = [];
+        Object.keys(contactsMap).forEach(function (key) {
+            if (key === "_no_id_") {
+                result = result.concat(contactsMap[key]);
+            } else {
+                result.push(contactsMap[key]);
+            }
+        });
+
+        return result;
     }
 
     function addContact(contact) {
@@ -1050,6 +1212,23 @@ window.XiaoxinWeChatDataHandler = (function () {
                 "好友状态:",
                 merged.friendStatus
             );
+
+            // ⚠️ 重要：触发联系人更新事件，通知世界书同步脚本更新好友列表
+            try {
+                if (typeof window.CustomEvent !== "undefined") {
+                    var contactEvent = new CustomEvent("xiaoxin-contact-updated", {
+                        detail: {
+                            contactId: merged.id || merged.characterId || "",
+                            action: "updated",
+                            contact: merged
+                        }
+                    });
+                    window.dispatchEvent(contactEvent);
+                    console.info("[小馨手机][微信数据] 已触发联系人更新事件（更新联系人）:", merged.id || merged.characterId);
+                }
+            } catch (e) {
+                console.warn("[小馨手机][微信数据] 触发联系人更新事件失败:", e);
+            }
         }
     }
 
@@ -1059,6 +1238,46 @@ window.XiaoxinWeChatDataHandler = (function () {
             return c.id !== contactId;
         });
         _setData(DATA_KEYS.CONTACTS, contacts);
+
+        // ⚠️ 删除联系人时，同时删除该联系人的聊天记录
+        clearChatHistory(contactId);
+
+        // ⚠️ 清除该联系人的未读数
+        if (typeof setUnreadCount === "function") {
+            setUnreadCount(contactId, 0);
+        }
+
+        // ⚠️ 触发联系人删除事件，通知主页刷新聊天列表
+        try {
+            if (typeof window.CustomEvent !== "undefined") {
+                var deleteEvent = new CustomEvent("xiaoxin-contact-removed", {
+                    detail: {
+                        contactId: contactId
+                    }
+                });
+                window.dispatchEvent(deleteEvent);
+                console.info("[小馨手机][微信数据] 已触发联系人删除事件:", contactId);
+            }
+        } catch (e) {
+            console.warn("[小馨手机][微信数据] 触发联系人删除事件失败:", e);
+        }
+
+        // ⚠️ 同时触发聊天更新事件，确保主页聊天列表刷新
+        try {
+            if (typeof window.CustomEvent !== "undefined") {
+                var chatEvent = new CustomEvent("xiaoxin-chat-updated", {
+                    detail: {
+                        userId: contactId,
+                        action: "deleted"
+                    }
+                });
+                window.dispatchEvent(chatEvent);
+                console.info("[小馨手机][微信数据] 已触发聊天更新事件（删除联系人）:", contactId);
+            }
+        } catch (e) {
+            console.warn("[小馨手机][微信数据] 触发聊天更新事件失败:", e);
+        }
+
         console.info("[小馨手机][微信数据] 删除联系人:", contactId);
     }
 
@@ -1109,8 +1328,400 @@ window.XiaoxinWeChatDataHandler = (function () {
     }
 
     // ========== 朋友圈管理 ==========
+    // ========== 从 DOM 实时读取数据块（通用函数） ==========
+    // 用于从酒馆 DOM 中读取所有类型的数据块（[moments]、[moments-interactions]、[wx_contact] 等）
+    // ⚠️ 重要：只有在选择了角色卡并开始聊天后，才读取DOM数据
+    function _getDataBlocksFromDOM(blockType) {
+        var blocks = [];
+        if (!blockType || typeof blockType !== "string") {
+            return blocks;
+        }
+
+        // ⚠️ 检查是否已选择角色卡并开始聊天
+        var hasCharacterSelected = false;
+        var hasChatStarted = false;
+
+        // 方法1：检查是否有当前角色卡ID
+        try {
+            if (window.XiaoxinDataManager && typeof window.XiaoxinDataManager.getCurrentCharacterId === "function") {
+                var currentCharId = window.XiaoxinDataManager.getCurrentCharacterId();
+                if (currentCharId) {
+                    hasCharacterSelected = true;
+                }
+            }
+        } catch (e) {
+            console.warn("[小馨手机][微信数据] 检查角色卡ID失败:", e);
+        }
+
+        // 方法2：检查是否有聊天消息（通过酒馆助手接口或DOM）
+        try {
+            // 优先使用酒馆助手的 getChatMessages 接口
+            if (typeof getChatMessages === "function") {
+                var messages = getChatMessages(-1) || [];
+                if (messages.length > 0) {
+                    hasChatStarted = true;
+                }
+            }
+            // 备选：使用 SillyTavern.chat
+            else if (window.SillyTavern && Array.isArray(window.SillyTavern.chat) && window.SillyTavern.chat.length > 0) {
+                hasChatStarted = true;
+            }
+
+            // ⚠️ 如果以上方法都没有检测到消息，尝试检查DOM中是否有消息元素
+            // 这样可以处理消息还在DOM中但尚未同步到存储的情况
+            if (!hasChatStarted) {
+                try {
+                    var chatSelectors = [
+                        "#chat .mes",
+                        "#chat .message",
+                        "#chat .mes_text",
+                        "#chat .mes_block",
+                        ".chat .mes",
+                        ".chat .message",
+                        "#chatContainer .mes",
+                        "#chatContainer .message"
+                    ];
+                    for (var i = 0; i < chatSelectors.length; i++) {
+                        var $chatElements = $(chatSelectors[i]);
+                        if ($chatElements.length > 0) {
+                            hasChatStarted = true;
+                            console.info("[小馨手机][微信数据] 通过DOM检测到聊天已开始，找到", $chatElements.length, "个消息元素");
+                            break;
+                        }
+                    }
+                } catch (e) {
+                    console.warn("[小馨手机][微信数据] 检查DOM消息元素失败:", e);
+                }
+            }
+        } catch (e) {
+            console.warn("[小馨手机][微信数据] 检查聊天消息失败:", e);
+        }
+
+        // ⚠️ 只有在选择了角色卡并开始聊天后，才读取DOM数据
+        if (!hasCharacterSelected || !hasChatStarted) {
+            console.info(
+                "[小馨手机][微信数据] 未选择角色卡或未开始聊天，跳过DOM数据读取。角色卡已选择:",
+                hasCharacterSelected,
+                "聊天已开始:",
+                hasChatStarted
+            );
+            return blocks;
+        }
+
+        try {
+            // 查找所有聊天容器
+            var chatSelectors = [
+                "#chat",
+                ".chat",
+                "#chatContainer",
+                ".chat-container",
+                "[id*='chat']",
+                "[class*='chat']",
+            ];
+            var chatContainer = null;
+            for (var i = 0; i < chatSelectors.length; i++) {
+                chatContainer = document.querySelector(chatSelectors[i]);
+                if (chatContainer) break;
+            }
+
+            if (!chatContainer) {
+                return blocks;
+            }
+
+            // 查找所有消息元素
+            var messageSelectors = [".mes", ".mes_user", ".mes_assistant", ".message"];
+            var $messages = $(chatContainer).find(messageSelectors.join(", "));
+
+            // 构建正则表达式（不区分大小写）
+            var tagName = blockType.toLowerCase();
+            var openTag = "[" + tagName + "]";
+            var closeTag = "[/" + tagName + "]";
+            var regex = new RegExp(
+                "\\[" + tagName + "\\]([\\s\\S]*?)\\[/" + tagName + "\\]",
+                "gi"
+            );
+
+            $messages.each(function () {
+                var $msg = $(this);
+                // 优先使用 data-original-msg-content 属性
+                var content =
+                    $msg.attr("data-original-msg-content") ||
+                    $msg.text() ||
+                    $msg.html() ||
+                    "";
+
+                if (!content) return;
+
+                // 清理 HTML 标签和实体
+                var cleanContent = content
+                    .replace(/<br\s*\/?>/gi, "\n")
+                    .replace(/<\/?[^>]+>/g, "")
+                    .replace(/&nbsp;/g, " ")
+                    .replace(/&amp;/g, "&")
+                    .replace(/&lt;/g, "<")
+                    .replace(/&gt;/g, ">");
+
+                // 查找所有匹配的数据块
+                var matches = cleanContent.match(regex);
+                if (matches && matches.length > 0) {
+                    matches.forEach(function (match) {
+                        // 提取数据块内容
+                        var blockContent = match
+                            .replace(new RegExp("\\[" + tagName + "\\]", "gi"), "")
+                            .replace(new RegExp("\\[/" + tagName + "\\]", "gi"), "")
+                            .trim();
+
+                        if (blockContent) {
+                            blocks.push({
+                                content: blockContent,
+                                rawContent: match,
+                                sourceElement: $msg[0],
+                            });
+                        }
+                    });
+                }
+            });
+
+            console.info(
+                "[小馨手机][微信数据] 从 DOM 读取到",
+                blocks.length,
+                "个",
+                blockType,
+                "数据块"
+            );
+        } catch (e) {
+            console.warn(
+                "[小馨手机][微信数据] 从 DOM 读取数据块失败:",
+                blockType,
+                e
+            );
+        }
+
+        return blocks;
+    }
+
     function getMoments() {
-        return _getData(DATA_KEYS.MOMENTS, []);
+        // ⚠️ 优先从 DOM 实时读取，然后合并存储中的数据
+        var domMoments = [];
+        var domBlocks = _getDataBlocksFromDOM("moments");
+
+        // 如果有解析器，解析 DOM 中的朋友圈数据块
+        if (
+            window.XiaoxinMessageListener &&
+            typeof window.XiaoxinMessageListener.parseMomentsFromText ===
+                "function"
+        ) {
+            domBlocks.forEach(function (block) {
+                try {
+                    var parsed = window.XiaoxinMessageListener.parseMomentsFromText(
+                        block.rawContent
+                    );
+                    if (parsed && Array.isArray(parsed)) {
+                        domMoments = domMoments.concat(parsed);
+                    }
+                } catch (e) {
+                    console.warn(
+                        "[小馨手机][微信数据] 解析 DOM 朋友圈数据块失败:",
+                        e
+                    );
+                }
+            });
+        }
+
+        // ⚠️ 同时从 DOM 读取朋友圈互动数据（[moments-interactions]）
+        var interactionBlocks = _getDataBlocksFromDOM("moments-interactions");
+        if (
+            window.XiaoxinMessageListener &&
+            typeof window.XiaoxinMessageListener.parseMomentsInteractionsFromText ===
+                "function"
+        ) {
+            interactionBlocks.forEach(function (block) {
+                try {
+                    var interactions = window.XiaoxinMessageListener.parseMomentsInteractionsFromText(
+                        block.rawContent
+                    );
+                    if (interactions && Array.isArray(interactions) && interactions.length > 0) {
+                        // 将互动数据应用到对应的朋友圈
+                        interactions.forEach(function (interaction) {
+                            if (!interaction || !interaction.momentId) return;
+
+                            var momentId = String(interaction.momentId);
+                            // 查找对应的朋友圈
+                            var targetMoment = domMoments.find(function (m) {
+                                return m && String(m.id) === momentId;
+                            });
+
+                            if (targetMoment) {
+                                // 确保 likes 和 comments 字段存在
+                                if (!Array.isArray(targetMoment.likes)) {
+                                    targetMoment.likes = [];
+                                }
+                                if (!Array.isArray(targetMoment.comments)) {
+                                    targetMoment.comments = [];
+                                }
+
+                                // 根据互动类型添加到对应字段
+                                if (interaction.type === "like") {
+                                    // 检查是否已存在相同的点赞
+                                    var existingLike = targetMoment.likes.find(function (l) {
+                                        return l && String(l.liker || l.userId || l.user) === String(interaction.liker || interaction.userId || interaction.user);
+                                    });
+                                    if (!existingLike) {
+                                        targetMoment.likes.push({
+                                            liker: interaction.liker || interaction.userId || interaction.user,
+                                            timestamp: interaction.timestamp || Date.now()
+                                        });
+                                    }
+                                } else if (interaction.type === "comment" || interaction.type === "reply") {
+                                    // 检查是否已存在相同的评论
+                                    var existingComment = targetMoment.comments.find(function (c) {
+                                        return c && String(c.id || c.commentId) === String(interaction.id || interaction.commentId);
+                                    });
+                                    if (!existingComment) {
+                                        targetMoment.comments.push({
+                                            id: interaction.id || interaction.commentId || ("comment-" + Date.now() + "-" + Math.random().toString(36).substr(2, 8)),
+                                            author: interaction.author || interaction.commenter || interaction.userId || interaction.user,
+                                            content: interaction.content || interaction.text || "",
+                                            timestamp: interaction.timestamp || Date.now(),
+                                            replyTo: interaction.replyTo || interaction.replyToId || null
+                                        });
+                                    }
+                                }
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn(
+                        "[小馨手机][微信数据] 解析 DOM 朋友圈互动数据块失败:",
+                        e
+                    );
+                }
+            });
+        }
+
+        // 从存储读取（用于历史数据）
+        var storedMoments = _getData(DATA_KEYS.MOMENTS, []);
+
+        // 合并：DOM 数据优先（实时），存储数据作为补充（历史数据）
+        // 去重：相同 ID 的朋友圈只保留一条（优先保留 DOM 中的）
+        var momentsMap = {};
+        var allMoments = domMoments.concat(storedMoments);
+
+        allMoments.forEach(function (moment) {
+            if (!moment || !moment.id) {
+                // 没有ID的朋友圈也保留（可能是临时生成的）
+                if (!momentsMap["_no_id_"]) {
+                    momentsMap["_no_id_"] = [];
+                }
+                momentsMap["_no_id_"].push(moment);
+                return;
+            }
+
+            var momentId = String(moment.id);
+            if (!momentsMap[momentId]) {
+                // 确保 likes 和 comments 字段存在
+                if (!Array.isArray(moment.likes)) {
+                    moment.likes = moment.likes || [];
+                }
+                if (!Array.isArray(moment.comments)) {
+                    moment.comments = moment.comments || [];
+                }
+                momentsMap[momentId] = moment;
+            } else {
+                // 如果已存在，优先保留 DOM 中的（时间戳更新的）
+                var existing = momentsMap[momentId];
+                if (
+                    moment.timestamp &&
+                    existing.timestamp &&
+                    moment.timestamp > existing.timestamp
+                ) {
+                    // 合并互动数据：保留 DOM 中的互动，补充存储中的互动
+                    if (Array.isArray(moment.likes) && moment.likes.length > 0) {
+                        if (!Array.isArray(existing.likes)) {
+                            existing.likes = [];
+                        }
+                        moment.likes.forEach(function (like) {
+                            var existingLike = existing.likes.find(function (l) {
+                                return l && String(l.liker || l.userId || l.user) === String(like.liker || like.userId || like.user);
+                            });
+                            if (!existingLike) {
+                                existing.likes.push(like);
+                            }
+                        });
+                    }
+                    if (Array.isArray(moment.comments) && moment.comments.length > 0) {
+                        if (!Array.isArray(existing.comments)) {
+                            existing.comments = [];
+                        }
+                        moment.comments.forEach(function (comment) {
+                            var existingComment = existing.comments.find(function (c) {
+                                return c && String(c.id || c.commentId) === String(comment.id || comment.commentId);
+                            });
+                            if (!existingComment) {
+                                existing.comments.push(comment);
+                            }
+                        });
+                    }
+                    // 更新朋友圈数据
+                    Object.assign(existing, moment);
+                    // 确保互动数据被保留
+                    if (Array.isArray(moment.likes)) {
+                        existing.likes = moment.likes;
+                    }
+                    if (Array.isArray(moment.comments)) {
+                        existing.comments = moment.comments;
+                    }
+                    momentsMap[momentId] = existing;
+                } else {
+                    // 如果存储中的朋友圈更新，也要合并互动数据
+                    if (Array.isArray(moment.likes) && moment.likes.length > 0) {
+                        if (!Array.isArray(existing.likes)) {
+                            existing.likes = [];
+                        }
+                        moment.likes.forEach(function (like) {
+                            var existingLike = existing.likes.find(function (l) {
+                                return l && String(l.liker || l.userId || l.user) === String(like.liker || like.userId || like.user);
+                            });
+                            if (!existingLike) {
+                                existing.likes.push(like);
+                            }
+                        });
+                    }
+                    if (Array.isArray(moment.comments) && moment.comments.length > 0) {
+                        if (!Array.isArray(existing.comments)) {
+                            existing.comments = [];
+                        }
+                        moment.comments.forEach(function (comment) {
+                            var existingComment = existing.comments.find(function (c) {
+                                return c && String(c.id || c.commentId) === String(comment.id || comment.commentId);
+                            });
+                            if (!existingComment) {
+                                existing.comments.push(comment);
+                            }
+                        });
+                    }
+                }
+            }
+        });
+
+        // 转换为数组
+        var result = [];
+        Object.keys(momentsMap).forEach(function (key) {
+            if (key === "_no_id_") {
+                result = result.concat(momentsMap[key]);
+            } else {
+                result.push(momentsMap[key]);
+            }
+        });
+
+        // 按时间戳排序（最新的在前）
+        result.sort(function (a, b) {
+            var timeA = a.timestamp || a.addedAt || 0;
+            var timeB = b.timestamp || b.addedAt || 0;
+            return timeB - timeA;
+        });
+
+        return result;
     }
 
     // 获取朋友圈未读数量（类似微信私聊的未读数）
@@ -3337,6 +3948,81 @@ window.XiaoxinWeChatDataHandler = (function () {
         }
     }
 
+    // ========== 数据清理工具 ==========
+    /**
+     * 清理旧的聊天记录（保留最近N条消息）
+     * @param {string} userId - 用户ID，如果为空则清理所有用户
+     * @param {number} keepCount - 保留最近的消息数量，默认1000条
+     * @returns {object} 清理结果 { cleaned: number, kept: number }
+     */
+    function cleanOldChatMessages(userId, keepCount) {
+        keepCount = keepCount || 1000;
+        var chats = getAllChats();
+        var result = { cleaned: 0, kept: 0 };
+
+        var userIds = userId ? [userId] : Object.keys(chats);
+
+        userIds.forEach(function (uid) {
+            var messages = chats[uid] || [];
+            if (messages.length > keepCount) {
+                // 保留最近的消息
+                var kept = messages.slice(-keepCount);
+                var cleaned = messages.length - kept.length;
+                chats[uid] = kept;
+                result.cleaned += cleaned;
+                result.kept += kept.length;
+            } else {
+                result.kept += messages.length;
+            }
+        });
+
+        if (result.cleaned > 0) {
+            _setData(DATA_KEYS.CHATS, chats);
+            _invalidateChatsCache();
+            console.info(
+                "[小馨手机][微信数据] 清理旧聊天记录完成:",
+                "清理了",
+                result.cleaned,
+                "条消息，保留了",
+                result.kept,
+                "条消息"
+            );
+        }
+
+        return result;
+    }
+
+    /**
+     * 获取数据存储统计信息
+     * @returns {object} 统计信息
+     */
+    function getStorageStats() {
+        var chats = getAllChats();
+        var stats = {
+            totalChats: 0,
+            totalMessages: 0,
+            chatsByUser: {},
+            storageSize: 0
+        };
+
+        Object.keys(chats).forEach(function (userId) {
+            var messages = chats[userId] || [];
+            stats.totalChats++;
+            stats.totalMessages += messages.length;
+            stats.chatsByUser[userId] = messages.length;
+        });
+
+        // 估算存储大小（粗略计算）
+        try {
+            var jsonString = JSON.stringify(chats);
+            stats.storageSize = new Blob([jsonString]).size;
+        } catch (e) {
+            console.warn("[小馨手机][微信数据] 无法计算存储大小:", e);
+        }
+
+        return stats;
+    }
+
     return {
         // 账号管理（兼容旧接口）
         getAccount: getAccount,
@@ -3352,6 +4038,10 @@ window.XiaoxinWeChatDataHandler = (function () {
         clearMessagesBySourceMessageId: clearMessagesBySourceMessageId,
         getAllChats: getAllChats,
         getFirstPlayerMessageTime: getFirstPlayerMessageTime,
+
+        // 数据清理工具
+        cleanOldChatMessages: cleanOldChatMessages,
+        getStorageStats: getStorageStats,
 
         // 联系人
         getContacts: getContacts,
