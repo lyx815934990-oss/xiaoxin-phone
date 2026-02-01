@@ -134,6 +134,79 @@ window.XiaoxinWeChatChatUI = (function () {
 
         return callId;
     }
+
+    // ========== 根据联系人ID获取角色实名 ==========
+    function getContactRealName(toId) {
+        if (!toId) {
+            return "";
+        }
+
+        var contact = null;
+        // 尝试通过数据处理器获取联系人信息
+        if (window.XiaoxinWeChatDataHandler) {
+            // 先尝试通过 getContactById 获取
+            if (typeof window.XiaoxinWeChatDataHandler.getContactById === "function") {
+                contact = window.XiaoxinWeChatDataHandler.getContactById(toId);
+            }
+            // 如果没找到，尝试从所有联系人中查找
+            if (!contact && typeof window.XiaoxinWeChatDataHandler.getContacts === "function") {
+                var contacts = window.XiaoxinWeChatDataHandler.getContacts() || [];
+                var toIdStr = String(toId).trim();
+                contact = contacts.find(function (c) {
+                    var cId = String(c.id || "").trim();
+                    var cWechatId = String(c.wechatId || "").trim();
+                    var cCharId = String(c.characterId || "").trim();
+                    return (
+                        cId === toIdStr ||
+                        cWechatId === toIdStr ||
+                        cCharId === toIdStr ||
+                        cId === "contact_" + toIdStr ||
+                        toIdStr === "contact_" + cId
+                    );
+                });
+            }
+        }
+
+        if (!contact) {
+            return "";
+        }
+
+        // 优先从联系方式中读取实名信息（从世界书解析的字段）
+        var realName =
+            contact.realName ||
+            contact.legalName ||
+            contact.fullName ||
+            contact.real_name ||
+            contact.legal_name ||
+            contact.full_name ||
+            contact.name ||
+            contact.nickname ||
+            "";
+
+        return realName;
+    }
+
+    // ========== 生成玩家发送微信消息的 Request 指令 ==========
+    function buildRequestForUserMessage(toId) {
+        // 获取接收者的角色实名
+        var charRealName = getContactRealName(toId);
+        // 如果找不到实名，使用空字符串（SillyTavern 会自动处理 {{char}} 占位符）
+        if (!charRealName) {
+            charRealName = "{{char}}";
+        }
+
+        // 构建 Request 指令
+        var requestText =
+            "\n<Request：" +
+            "{{user}}给" +
+            charRealName +
+            "发去了微信消息，允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为" +
+            charRealName +
+            "第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>\n";
+
+        return requestText;
+    }
+
     // ========== 渲染聊天界面 ==========
     function renderChatScreen(userId, options) {
         options = options || {};
@@ -3219,10 +3292,11 @@ window.XiaoxinWeChatChatUI = (function () {
                 }
             );
 
-            // 线上消息触发器：供自动指令生成模块识别并生成“对方回复”
+            // 线上消息触发器：供自动指令生成模块识别并生成"对方回复"
             // 约定：使用 <Request：...> 作为玩家输入侧请求标记；
-            // 允许线下正文正常叙事；但若选择线上回复，则必须按真实微信第一视角输出（禁止上帝视角括号/旁白）
-            var command = `<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>
+            // 语音通话场景：要求角色以第一视角进行通话交流
+            // ⚠️ 重要：{{user}} 是酒馆宏表达式，不应该被替换成玩家的微信昵称
+            var command = `<Request：{{user}}对"${charRealName}"发起语音通话，请以"${charRealName}"第一视角的口吻与{{user}}进行通话交流（括号内只能描述和声音相关的词汇，禁止上帝视角/动作旁白/心理描写），同时允许正常线下的正文剧情推进；必须使用[MSG]格式>
 [MSG]
 id=${msgId}
 time=${rawWorldTime}
@@ -3232,7 +3306,7 @@ type=call_voice
 state=ringing
 with=${targetId}
 call_id=${callId}
-note=${playerName}对${charRealName}发起了语音通话
+note={{user}}对${charRealName}发起了语音通话
 [/MSG]
 [time]${rawWorldTime}[/time]`;
 
@@ -3477,8 +3551,9 @@ note=${playerName}对${charRealName}发起了语音通话
             };
 
             // 植入酒馆输入框的 [MSG] 指令
+            var requestText = buildRequestForUserMessage(toId);
             var packet =
-                "\n<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>\n" +
+                requestText +
                 "[MSG]\n" +
                 "id=" +
                 msgId +
@@ -3641,9 +3716,10 @@ note=${playerName}对${charRealName}发起了语音通话
             };
 
             // 构建 [MSG] 数据块 + 世界观时间 [time] 标签
-            // 与文本消息保持一致，避免 emoji 消息时间被当成“无世界观时间”而错位
+            // 与文本消息保持一致，避免 emoji 消息时间被当成"无世界观时间"而错位
+            var requestText = buildRequestForUserMessage(toId);
             var packet =
-                "\n<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>\n" +
+                requestText +
                 "[MSG]\n" +
                 "id=" +
                 msgId +
@@ -3833,8 +3909,9 @@ note=${playerName}对${charRealName}发起了语音通话
                 payload: { duration_sec: durationSec, content: text },
             };
 
+            var requestText = buildRequestForUserMessage(toId);
             var packet =
-                "\n<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>\n" +
+                requestText +
                 "[MSG]\n" +
                 "id=" +
                 msgId +
@@ -3940,6 +4017,654 @@ note=${playerName}对${charRealName}发起了语音通话
         window.XiaoxinWeChatChatUI.isMenuExpanded = isMenuExpanded;
         window.XiaoxinWeChatChatUI.toggleMenu = toggleMenu;
 
+        // ========== 从酒馆 DOM 实时读取消息（不依赖存储） ==========
+        /**
+         * 从酒馆 DOM 中实时读取与当前联系人相关的 [MSG] 消息
+         * 这样当玩家删除或重新生成消息时，手机中的消息也能实时同步
+         */
+        function getMessagesFromDOM() {
+            var messages = [];
+            var chatUserId = contact && contact.id ? contact.id : userId;
+
+            try {
+                // 查找聊天容器
+                var chatSelectors = [
+                    "#chat",
+                    ".chat",
+                    "#chatContainer",
+                    ".chat-container",
+                    "[id*='chat']",
+                    "[class*='chat']",
+                ];
+
+                var chatContainer = null;
+                for (var i = 0; i < chatSelectors.length; i++) {
+                    chatContainer = document.querySelector(chatSelectors[i]);
+                    if (chatContainer) break;
+                }
+
+                if (!chatContainer) {
+                    console.warn("[小馨手机][微信聊天UI] 未找到聊天容器，无法从 DOM 读取消息");
+                    return messages;
+                }
+
+                // 查找所有消息元素（包括用户消息和 AI 消息）
+                var messageSelectors = [
+                    ".mes",
+                    "[class*='mes']",
+                    ".message",
+                    "[class*='message']",
+                    ".mes_user",
+                    ".mes_assistant",
+                    "[class*='mes_user']",
+                    "[class*='mes_assistant']",
+                ];
+
+                var $allMessages = $();
+                for (var j = 0; j < messageSelectors.length; j++) {
+                    var $found = $(chatContainer).find(messageSelectors[j]);
+                    if ($found.length > 0) {
+                        $allMessages = $allMessages.add($found); // 合并所有找到的消息，不覆盖
+                    }
+                }
+
+                // 去重（避免同一个消息元素被添加多次）
+                $allMessages = $($allMessages.toArray().filter(function(item, index, self) {
+                    return index === self.indexOf(item);
+                }));
+
+                dInfo(
+                    "[小馨手机][微信聊天UI] 从 DOM 找到",
+                    $allMessages.length,
+                    "个消息元素"
+                );
+
+                if ($allMessages.length === 0) {
+                    return messages;
+                }
+
+                // 获取玩家微信ID（用于过滤消息）
+                var account = window.XiaoxinWeChatAccount
+                    ? window.XiaoxinWeChatAccount.getCurrentAccount()
+                    : null;
+                var playerWechatId = account
+                    ? String(account.wechatId || account.id || "0").trim()
+                    : "0";
+
+                // 遍历所有消息，查找包含 [MSG] 标签的消息
+                console.info("[小馨手机][微信聊天UI] 开始遍历", $allMessages.length, "个消息元素");
+                $allMessages.each(function (index) {
+                    var $mes = $(this);
+
+                    // ⚠️ 调试：记录每个消息元素的信息
+                    var isUserMsg = $mes.hasClass("mes_user") || $mes.hasClass("user") || $mes.hasClass("user-message");
+                    var isAIMsg = $mes.hasClass("mes_assistant") || $mes.hasClass("assistant") || $mes.hasClass("ai-message");
+                    console.info("[小馨手机][微信聊天UI] 消息元素", index + 1, ":", "isUserMsg:", isUserMsg, "isAIMsg:", isAIMsg, "classes:", $mes.attr("class"));
+
+                    // 跳过候选消息（但保留用户消息，因为玩家发送的MSG可能在用户消息中）
+                    var $swipeCheck = $mes.closest(
+                        "[class*='swipe'], [class*='draft'], [class*='temp'], [class*='candidate'], [class*='alternative']"
+                    );
+                    if ($swipeCheck.length > 0 && !isUserMsg) {
+                        console.info("[小馨手机][微信聊天UI] 跳过候选消息元素", index + 1);
+                        return;
+                    }
+
+                    // 获取消息内容（优先从 data 属性获取原始内容）
+                    var $messageText = $mes.find(
+                        ".mes_text, .mesText, .message-text, [class*='mes_text']"
+                    );
+                    if ($messageText.length === 0) {
+                        $messageText = $mes;
+                    }
+
+                    var content =
+                        $mes.attr("data-original-msg-content") ||
+                        $mes.attr("data-original-content") ||
+                        $mes.attr("data-original") ||
+                        $mes.attr("data-raw") ||
+                        $mes.attr("data-content") ||
+                        $messageText.attr("data-original-msg-content") ||
+                        $messageText.attr("data-original-content") ||
+                        $messageText.attr("data-original") ||
+                        $messageText.attr("data-raw") ||
+                        $messageText.attr("data-content") ||
+                        $mes.html() ||
+                        $messageText.html() ||
+                        $messageText.text() ||
+                        "";
+
+                    if (!content || (content.indexOf("[MSG]") === -1 && content.indexOf("[msg]") === -1)) {
+                        return;
+                    }
+
+                    // ⚠️ 调试：检查是否是用户消息
+                    var isUserMessage = $mes.hasClass("mes_user") ||
+                                       $mes.hasClass("user") ||
+                                       $mes.hasClass("user-message") ||
+                                       $mes.find(".mes_user, .user, .user-message").length > 0;
+                    console.info("[小馨手机][微信聊天UI] 找到包含[MSG]的消息元素，是否用户消息:", isUserMessage, "内容预览:", content.substring(0, 200));
+
+                    // 解析 [MSG] 标签
+                    var msgPattern = /\[MSG\]([\s\S]*?)\[\/MSG\]/gi;
+                    var match;
+                    var msgCount = 0;
+
+                    while ((match = msgPattern.exec(content)) !== null) {
+                        msgCount++;
+                        var msgContent = match[1].trim();
+                        if (!msgContent) continue;
+
+                        // 解析字段=值格式
+                        // ⚠️ 重要：先清理 HTML 标签（如 <br>），然后解析
+                        var cleanContent = msgContent
+                            .replace(/<br\s*\/?>/gi, "\n")  // 将 <br> 替换为换行符
+                            .replace(/<\/?[^>]+>/g, "")      // 移除所有其他 HTML 标签
+                            .replace(/&nbsp;/g, " ")         // 替换 &nbsp;
+                            .replace(/&amp;/g, "&")           // 替换 &amp;
+                            .replace(/&lt;/g, "<")            // 替换 &lt;
+                            .replace(/&gt;/g, ">");          // 替换 &gt;
+
+                        var msgObj = {};
+                        var lines = cleanContent.split(/\r?\n/);
+                        for (var k = 0; k < lines.length; k++) {
+                            var line = lines[k].trim();
+                            if (!line) continue;
+
+                            var equalIndex = line.indexOf("=");
+                            if (equalIndex === -1) continue;
+
+                            var key = line.substring(0, equalIndex).trim().toLowerCase();
+                            var value = line.substring(equalIndex + 1).trim();
+
+                            if (key && value) {
+                                msgObj[key] = value;
+                            }
+                        }
+
+                        // ⚠️ 调试：如果解析后 msgObj 为空，记录原始内容
+                        if (Object.keys(msgObj).length === 0) {
+                            console.warn("[小馨手机][微信聊天UI] MSG解析失败，原始内容:", msgContent.substring(0, 500));
+                            console.warn("[小馨手机][微信聊天UI] 清理后内容:", cleanContent.substring(0, 500));
+                        }
+
+                        console.info("[小馨手机][微信聊天UI] 解析到第", msgCount, "条MSG消息:", "from=" + (msgObj.from || ""), "to=" + (msgObj.to || ""), "type=" + (msgObj.type || ""));
+
+                        // 检查消息是否与当前联系人相关
+                        var msgTo = String(msgObj.to || "").trim();
+                        var msgFrom = String(msgObj.from || "").trim();
+                        var isToPlayer =
+                            msgTo === playerWechatId ||
+                            msgTo.toLowerCase() === "player" ||
+                            msgTo.toLowerCase() === "user";
+                        var isFromPlayer =
+                            msgFrom === playerWechatId ||
+                            msgFrom.toLowerCase() === "player" ||
+                            msgFrom.toLowerCase() === "user";
+                        var isToContact = msgTo === chatUserId || msgTo === String(userId);
+                        var isFromContact = msgFrom === chatUserId || msgFrom === String(userId);
+
+                        // ⚠️ 放宽过滤条件：如果联系人的 wechatId 存在，也尝试匹配
+                        var contactWechatId = contact && contact.wechatId ? String(contact.wechatId) : null;
+                        if (contactWechatId) {
+                            if (msgTo === contactWechatId) isToContact = true;
+                            if (msgFrom === contactWechatId) isFromContact = true;
+                        }
+
+                        // ⚠️ 重要：支持多种ID格式匹配（处理 contact_202 和 202 的匹配）
+                        // 如果 chatUserId 是 contact_202 格式，msgFrom/msgTo 可能是 202
+                        // 如果 msgFrom/msgTo 是 contact_202 格式，chatUserId 可能是 202
+                        if (chatUserId && String(chatUserId).indexOf("contact_") === 0) {
+                            var contactNum = String(chatUserId).replace("contact_", "");
+                            if (msgTo === contactNum || String(msgTo) === contactNum) {
+                                isToContact = true;
+                            }
+                            if (msgFrom === contactNum || String(msgFrom) === contactNum) {
+                                isFromContact = true;
+                            }
+                        }
+                        if (msgTo && String(msgTo).indexOf("contact_") === 0) {
+                            var msgToNum = String(msgTo).replace("contact_", "");
+                            if (chatUserId === msgToNum || String(chatUserId) === msgToNum || String(userId) === msgToNum) {
+                                isToContact = true;
+                            }
+                        }
+                        if (msgFrom && String(msgFrom).indexOf("contact_") === 0) {
+                            var msgFromNum = String(msgFrom).replace("contact_", "");
+                            if (chatUserId === msgFromNum || String(chatUserId) === msgFromNum || String(userId) === msgFromNum) {
+                                isFromContact = true;
+                            }
+                        }
+
+                        // ⚠️ 额外支持：匹配联系人的 characterId
+                        if (contact && contact.characterId) {
+                            var contactCharId = String(contact.characterId);
+                            if (msgTo === contactCharId || String(msgTo) === contactCharId) {
+                                isToContact = true;
+                            }
+                            if (msgFrom === contactCharId || String(msgFrom) === contactCharId) {
+                                isFromContact = true;
+                            }
+                        }
+
+                        // ⚠️ 调试日志：记录消息过滤过程
+                        dInfo(
+                            "[小馨手机][微信聊天UI] DOM消息过滤检查:",
+                            "msgFrom:", msgFrom,
+                            "msgTo:", msgTo,
+                            "chatUserId:", chatUserId,
+                            "userId:", userId,
+                            "contactWechatId:", contactWechatId,
+                            "isFromPlayer:", isFromPlayer,
+                            "isToContact:", isToContact,
+                            "isFromContact:", isFromContact,
+                            "isToPlayer:", isToPlayer
+                        );
+
+                        // ⚠️ 重要：根据 to 字段判断消息应该显示在哪个联系人的聊天页
+                        // 如果 to=user/player，说明是玩家给自己发的消息，不应该显示在任何联系人的聊天页
+                        // 如果 to=联系人ID，说明是发给该联系人的消息，只应该显示在该联系人的聊天页
+                        var shouldInclude = false;
+
+                        // 情况1：玩家发送给特定联系人（from=user/player, to=联系人ID）
+                        // ⚠️ 关键：必须检查 to 是否匹配当前联系人，避免玩家给自己发的消息（to=user/player）显示到其他角色
+                        if (isFromPlayer && msgTo && !isToPlayer) {
+                            // ⚠️ 重要：使用严格匹配，确保只有完全匹配的联系人ID才会显示消息
+                            var msgToStr = String(msgTo).trim();
+                            var chatUserIdStr = String(chatUserId || "").trim();
+                            var userIdStr = String(userId || "").trim();
+
+                            // 提取 msgTo 的基础ID（去掉 contact_ 前缀）
+                            var msgToBase = msgToStr.replace(/^contact_/, "");
+
+                            // 精确匹配：完全相同的ID
+                            if (msgToStr === chatUserIdStr || msgToStr === userIdStr) {
+                                shouldInclude = true;
+                                console.info("[小馨手机][微信聊天UI] 包含消息：玩家发送给联系人（精确匹配）", msgFrom, "->", msgTo);
+                            }
+                            // 处理 contact_ 前缀的匹配
+                            else if (msgToStr.indexOf("contact_") === 0) {
+                                // msgTo 是 contact_202 格式
+                                var msgToNum = msgToStr.replace("contact_", "");
+                                // 检查 chatUserId 或 userId 是否匹配（支持 "202" 和 "contact_202"）
+                                if ((chatUserIdStr === msgToNum || chatUserIdStr === "contact_" + msgToNum) ||
+                                    (userIdStr === msgToNum || userIdStr === "contact_" + msgToNum)) {
+                                    shouldInclude = true;
+                                    console.info("[小馨手机][微信聊天UI] 包含消息：玩家发送给联系人（contact_格式匹配）", msgFrom, "->", msgTo);
+                                }
+                            }
+                            // 处理 chatUserId 或 userId 是 contact_ 格式的情况
+                            else if (chatUserIdStr.indexOf("contact_") === 0 || userIdStr.indexOf("contact_") === 0) {
+                                var contactIdBase = chatUserIdStr.replace(/^contact_/, "") || userIdStr.replace(/^contact_/, "");
+                                // 检查 msgTo 是否匹配（支持 "202" 和 "contact_202"）
+                                if (msgToStr === contactIdBase || msgToStr === "contact_" + contactIdBase) {
+                                    shouldInclude = true;
+                                    console.info("[小馨手机][微信聊天UI] 包含消息：玩家发送给联系人（contact_格式匹配2）", msgFrom, "->", msgTo);
+                                }
+                            }
+                            // 尝试匹配联系人的其他ID字段（wechatId, id, characterId）
+                            else {
+                                var contactIdBase = msgToBase;
+                                if (contactWechatId && (contactWechatId === msgToStr || contactWechatId === "contact_" + contactIdBase)) {
+                                    shouldInclude = true;
+                                    console.info("[小馨手机][微信聊天UI] 包含消息：玩家发送给联系人（wechatId匹配）", msgFrom, "->", msgTo);
+                                } else if (contact && contact.id) {
+                                    var contactIdStr = String(contact.id).trim();
+                                    var contactIdBase2 = contactIdStr.replace(/^contact_/, "");
+                                    if (contactIdStr === msgToStr || contactIdStr === "contact_" + contactIdBase ||
+                                        msgToStr === "contact_" + contactIdBase2 || msgToBase === contactIdBase2) {
+                                        shouldInclude = true;
+                                        console.info("[小馨手机][微信聊天UI] 包含消息：玩家发送给联系人（contact.id匹配）", msgFrom, "->", msgTo);
+                                    }
+                                } else if (contact && contact.characterId) {
+                                    var contactCharIdStr = String(contact.characterId).trim();
+                                    if (contactCharIdStr === msgToStr || contactCharIdStr === msgToBase) {
+                                        shouldInclude = true;
+                                        console.info("[小馨手机][微信聊天UI] 包含消息：玩家发送给联系人（characterId匹配）", msgFrom, "->", msgTo);
+                                    }
+                                }
+                            }
+                        }
+                        // 情况2：联系人发送给玩家（from=联系人ID，to=player/user）
+                        else if (isFromContact && isToPlayer) {
+                            shouldInclude = true;
+                            console.info("[小馨手机][微信聊天UI] 包含消息：联系人发送给玩家", msgFrom, "->", msgTo);
+                        }
+                        // ⚠️ 情况3：玩家给自己发的消息（from=user/player, to=user/player），不应该显示在任何联系人的聊天页
+                        // 这种情况会被过滤掉（shouldInclude 保持为 false）
+
+                        if (!shouldInclude) {
+                            console.warn(
+                                "[小馨手机][微信聊天UI] 消息被过滤掉:",
+                                "from:", msgFrom,
+                                "to:", msgTo,
+                                "chatUserId:", chatUserId,
+                                "userId:", userId,
+                                "contactWechatId:", contactWechatId,
+                                "isFromPlayer:", isFromPlayer,
+                                "isToPlayer:", isToPlayer
+                            );
+                        }
+
+                        if (shouldInclude) {
+                            // ⚠️ 重要：过滤掉 call_voice_text 类型的消息，这些消息应该由通话界面处理，不显示在聊天页面
+                            var msgType = String(msgObj.type || "").trim().toLowerCase();
+                            if (msgType === "call_voice_text") {
+                                console.info(
+                                    "[小馨手机][微信聊天UI] 跳过 call_voice_text 消息，不显示在聊天页面，消息ID:",
+                                    msgObj.id
+                                );
+                                continue; // 跳过这条消息，不显示在聊天页面
+                            }
+
+                            // 判断是否是玩家消息（用于设置 isOutgoing）
+                            var isPlayerMessage = isFromPlayer;
+
+                            // 转换消息格式为聊天 UI 需要的格式
+                            var convertedMsg = {
+                                id: msgObj.id || ("dom-msg-" + Date.now() + "-" + Math.random().toString(36).substr(2, 8)),
+                                time: msgObj.time || "",
+                                from: msgFrom,
+                                to: msgTo,
+                                type: msgObj.type || "text",
+                                content: msgObj.content || "",
+                                timestamp: 0,
+                                rawTime: msgObj.time || "",
+                                sourceMessageId: null, // 标记为从 DOM 读取
+                                isHistorical: false,
+                                isOutgoing: isPlayerMessage // ⚠️ 重要：设置 isOutgoing 字段，用于判断消息显示在左侧还是右侧
+                            };
+
+                            // 解析时间戳
+                            // 优先使用 time= 字段
+                            if (msgObj.time) {
+                                try {
+                                    var timeStr = String(msgObj.time).trim();
+                                    var normalizedTimeStr = timeStr
+                                        .replace(/-/g, "/")
+                                        .replace(/年/g, "/")
+                                        .replace(/月/g, "/")
+                                        .replace(/日/g, " ")
+                                        .replace(/星期[一二三四五六日]/g, "")
+                                        .trim()
+                                        .replace(/\s+/g, " ");
+                                    var parsed = Date.parse(normalizedTimeStr);
+                                    if (!isNaN(parsed)) {
+                                        convertedMsg.timestamp = parsed;
+                                    }
+                                } catch (e) {
+                                    // 忽略时间解析错误
+                                }
+                            }
+
+                            // 备选：如果 time= 字段不存在，尝试从 [MSG] 内部解析 [TIME] 标签
+                            if (!convertedMsg.timestamp) {
+                                try {
+                                    const timeMatch = msgContent.match(/\[TIME:([^\]]+)\]/i);
+                                    if (timeMatch && timeMatch[1]) {
+                                        var timeStr = String(timeMatch[1]).trim();
+                                        var normalizedTimeStr = timeStr
+                                            .replace(/-/g, "/")
+                                            .replace(/年/g, "/")
+                                            .replace(/月/g, "/")
+                                            .replace(/日/g, " ")
+                                            .replace(/星期[一二三四五六日]/g, "")
+                                            .trim()
+                                            .replace(/\s+/g, " ");
+                                        var parsed = Date.parse(normalizedTimeStr);
+                                        if (!isNaN(parsed)) {
+                                            convertedMsg.timestamp = parsed;
+                                            convertedMsg.rawTime = timeStr; // 同时更新 rawTime
+                                        }
+                                    }
+                                } catch (e) {
+                                    // 忽略时间解析错误
+                                }
+                            }
+
+                            // 处理其他字段
+                            if (msgObj.amount) {
+                                convertedMsg.amount = parseFloat(msgObj.amount) || 0;
+                            }
+                            if (msgObj.note) {
+                                convertedMsg.note = String(msgObj.note);
+                            }
+                            if (msgObj.duration_sec || msgObj.duration) {
+                                convertedMsg.duration_sec = parseFloat(msgObj.duration_sec || msgObj.duration) || 0;
+                                convertedMsg.duration = convertedMsg.duration_sec;
+                            }
+                            if (msgObj.redpacket_id) {
+                                convertedMsg.redpacket_id = String(msgObj.redpacket_id);
+                            }
+                            // ⚠️ 重要：处理通话消息的 state 和 call_id 字段
+                            if (msgObj.state) {
+                                convertedMsg.state = String(msgObj.state);
+                                convertedMsg.callState = String(msgObj.state); // 兼容两种字段名
+                            }
+                            if (msgObj.callState) {
+                                convertedMsg.callState = String(msgObj.callState);
+                                if (!convertedMsg.state) {
+                                    convertedMsg.state = String(msgObj.callState); // 兼容两种字段名
+                                }
+                            }
+                            if (msgObj.call_id || msgObj.callId) {
+                                convertedMsg.call_id = String(msgObj.call_id || msgObj.callId);
+                                convertedMsg.callId = String(msgObj.call_id || msgObj.callId); // 兼容两种字段名
+                            }
+
+                            messages.push(convertedMsg);
+                        }
+                    }
+                });
+
+                // ⚠️ 重要：消息去重 - 相同ID的消息只保留一条
+                // 对于红包消息，还需要基于 redpacket_id 或指纹（amount+note+timestamp）进行去重
+                var messageIdMap = {}; // key: messageId, value: message
+                var redpacketIdMap = {}; // key: redpacket_id, value: message（用于红包消息去重）
+                var redpacketFingerprintMap = {}; // key: fingerprint, value: message（用于红包消息去重，当redpacket_id为空时）
+                var deduplicatedMessages = [];
+
+                for (var d = 0; d < messages.length; d++) {
+                    var msg = messages[d];
+                    if (!msg) {
+                        continue;
+                    }
+
+                    // 红包消息特殊去重处理
+                    if (msg.type === "redpacket") {
+                        var isDuplicate = false;
+                        var duplicateReason = "";
+
+                        // 方法1：基于 redpacket_id 去重
+                        if (msg.redpacket_id && msg.redpacket_id.trim() !== "") {
+                            var redpacketId = String(msg.redpacket_id).trim();
+                            if (redpacketIdMap[redpacketId]) {
+                                isDuplicate = true;
+                                duplicateReason = "redpacket_id已存在: " + redpacketId;
+                                var existingRedpacket = redpacketIdMap[redpacketId];
+                                // 保留时间戳更早的
+                                if (msg.timestamp && existingRedpacket.timestamp && msg.timestamp < existingRedpacket.timestamp) {
+                                    // 替换为时间戳更早的消息
+                                    var existingIndex = deduplicatedMessages.indexOf(existingRedpacket);
+                                    if (existingIndex !== -1) {
+                                        deduplicatedMessages[existingIndex] = msg;
+                                    }
+                                    redpacketIdMap[redpacketId] = msg;
+                                    console.info("[小馨手机][微信聊天UI] 红包消息去重：替换重复redpacket_id", redpacketId, "保留时间戳更早的");
+                                } else {
+                                    console.info("[小馨手机][微信聊天UI] 红包消息去重：跳过重复redpacket_id", redpacketId);
+                                }
+                            } else {
+                                redpacketIdMap[redpacketId] = msg;
+                            }
+                        } else {
+                            // 方法2：基于指纹去重（amount+note+timestamp）
+                            var fingerprint = String(msg.amount || 0) + "|" +
+                                             String(msg.note || "") + "|" +
+                                             String(msg.timestamp || 0);
+                            if (redpacketFingerprintMap[fingerprint]) {
+                                isDuplicate = true;
+                                duplicateReason = "红包指纹已存在: " + fingerprint;
+                                var existingRedpacket = redpacketFingerprintMap[fingerprint];
+                                // 保留时间戳更早的
+                                if (msg.timestamp && existingRedpacket.timestamp && msg.timestamp < existingRedpacket.timestamp) {
+                                    // 替换为时间戳更早的消息
+                                    var existingIndex = deduplicatedMessages.indexOf(existingRedpacket);
+                                    if (existingIndex !== -1) {
+                                        deduplicatedMessages[existingIndex] = msg;
+                                    }
+                                    redpacketFingerprintMap[fingerprint] = msg;
+                                    console.info("[小馨手机][微信聊天UI] 红包消息去重：替换重复指纹", fingerprint, "保留时间戳更早的");
+                                } else {
+                                    console.info("[小馨手机][微信聊天UI] 红包消息去重：跳过重复指纹", fingerprint);
+                                }
+                            } else {
+                                redpacketFingerprintMap[fingerprint] = msg;
+                            }
+                        }
+
+                        if (isDuplicate) {
+                            console.warn("[小馨手机][微信聊天UI] 红包消息重复，跳过:", duplicateReason, "消息ID:", msg.id || "(无)");
+                            continue; // 跳过重复的红包消息
+                        }
+                    }
+
+                    // 普通消息去重（基于消息ID）
+                    if (!msg.id) {
+                        // 没有ID的消息也保留（可能是临时生成的），但如果是红包消息且已通过去重检查，则添加
+                        deduplicatedMessages.push(msg);
+                        continue;
+                    }
+
+                    var msgId = String(msg.id);
+                    // 如果这个ID已经存在，需要判断是保留旧消息还是新消息
+                    // ⚠️ 重要：对于重新生成的消息，应该保留时间戳更新的消息（新生成的消息）
+                    // 对于历史消息，保留时间戳更早的消息（原始消息）
+                    if (messageIdMap[msgId]) {
+                        var existingMsg = messageIdMap[msgId];
+                        var shouldReplace = false;
+                        var replaceReason = "";
+
+                        // ⚠️ 重要：对于 call_voice/call_video 消息（state=ended/rejected/unanswered），
+                        // 即使时间戳相同，也要确保至少有一条消息被保留
+                        // 优先保留状态更完整或时间戳更新的消息
+                        var isCallMessage = (msg.type === "call_voice" || msg.type === "call_video") &&
+                            (existingMsg.type === "call_voice" || existingMsg.type === "call_video");
+                        var msgCallState = msg.callState || msg.state || "";
+                        var existingCallState = existingMsg.callState || existingMsg.state || "";
+                        var isEndedCallMessage = isCallMessage && (
+                            msgCallState === "ended" || msgCallState === "rejected" || msgCallState === "unanswered"
+                        );
+                        var isExistingEndedCallMessage = isCallMessage && (
+                            existingCallState === "ended" || existingCallState === "rejected" || existingCallState === "unanswered"
+                        );
+
+                        // 判断是否应该替换：优先保留时间戳更新的消息（重新生成的消息）
+                        if (msg.timestamp && existingMsg.timestamp) {
+                            // 如果新消息的时间戳更新（更大），说明是重新生成的消息，应该替换
+                            if (msg.timestamp > existingMsg.timestamp) {
+                                shouldReplace = true;
+                                replaceReason = "新消息时间戳更新（重新生成）";
+                            } else if (msg.timestamp < existingMsg.timestamp) {
+                                // 如果新消息的时间戳更早，说明是历史消息，保留旧消息
+                                shouldReplace = false;
+                                replaceReason = "旧消息时间戳更新";
+                            } else {
+                                // 时间戳相同
+                                if (isEndedCallMessage || isExistingEndedCallMessage) {
+                                    // 对于通话结束消息，即使时间戳相同，也优先保留新消息（确保状态完整）
+                                    // 因为新消息可能从DOM实时读取，状态更完整
+                                    shouldReplace = true;
+                                    replaceReason = "通话结束消息，时间戳相同但保留新消息以确保状态完整";
+                                } else {
+                                    // 其他消息，时间戳相同，保留旧消息（避免重复替换）
+                                    shouldReplace = false;
+                                    replaceReason = "时间戳相同";
+                                }
+                            }
+                        } else if (msg.timestamp && !existingMsg.timestamp) {
+                            // 新消息有时间戳，旧消息没有，替换
+                            shouldReplace = true;
+                            replaceReason = "新消息有时间戳";
+                        } else if (!msg.timestamp && existingMsg.timestamp) {
+                            // 新消息没有时间戳，旧消息有，保留旧消息
+                            shouldReplace = false;
+                            replaceReason = "旧消息有时间戳";
+                        } else {
+                            // 都没有时间戳
+                            if (isEndedCallMessage || isExistingEndedCallMessage) {
+                                // 对于通话结束消息，即使都没有时间戳，也保留新消息（确保能显示）
+                                shouldReplace = true;
+                                replaceReason = "通话结束消息，都没有时间戳但保留新消息以确保显示";
+                            } else {
+                                // 其他消息，都没有时间戳，保留旧消息
+                                shouldReplace = false;
+                                replaceReason = "都没有时间戳";
+                            }
+                        }
+
+                        if (shouldReplace) {
+                            // 替换为时间戳更新的消息（重新生成的消息）
+                            var existingIndex = deduplicatedMessages.indexOf(existingMsg);
+                            if (existingIndex !== -1) {
+                                deduplicatedMessages[existingIndex] = msg;
+                            } else {
+                                // 旧消息不在列表中，添加新消息（确保消息不会丢失）
+                                deduplicatedMessages.push(msg);
+                                console.info("[小馨手机][微信聊天UI] 消息去重：旧消息不在列表中，添加新消息", msgId);
+                            }
+                            messageIdMap[msgId] = msg;
+                            console.info("[小馨手机][微信聊天UI] 消息去重：替换重复消息ID", msgId, replaceReason, "新时间戳:", msg.timestamp, "旧时间戳:", existingMsg.timestamp);
+                        } else {
+                            console.info("[小馨手机][微信聊天UI] 消息去重：跳过重复消息ID", msgId, replaceReason, "保留旧消息，新时间戳:", msg.timestamp, "旧时间戳:", existingMsg.timestamp);
+                        }
+                    } else {
+                        // 新消息，添加
+                        messageIdMap[msgId] = msg;
+                        deduplicatedMessages.push(msg);
+                    }
+                }
+
+                messages = deduplicatedMessages;
+
+                // 按时间戳排序
+                messages.sort(function (a, b) {
+                    return (a.timestamp || 0) - (b.timestamp || 0);
+                });
+
+                console.info(
+                    "[小馨手机][微信聊天UI] 从 DOM 读取到",
+                    messages.length,
+                    "条消息（去重后，联系人ID:",
+                    chatUserId,
+                    "）"
+                );
+            } catch (e) {
+                console.warn("[小馨手机][微信聊天UI] 从 DOM 读取消息失败:", e);
+            }
+
+            return messages;
+        }
+
+        // 监听消息删除事件，实时刷新消息列表
+        if (typeof eventOn === "function" && typeof tavern_events !== "undefined" && tavern_events.MESSAGE_DELETED) {
+            try {
+                eventOn(tavern_events.MESSAGE_DELETED, function (messageId) {
+                    console.info(
+                        "[小馨手机][微信聊天UI] 收到消息删除事件，消息ID:",
+                        messageId,
+                        "，刷新消息列表"
+                    );
+                    // 延迟一点刷新，确保 DOM 已更新
+                    setTimeout(function () {
+                        refreshMessageList();
+                    }, 100);
+                });
+            } catch (e) {
+                console.warn("[小馨手机][微信聊天UI] 监听消息删除事件失败:", e);
+            }
+        }
+
         // 重新渲染整个消息列表（包括已有的和预览的）
         function refreshMessageList(options) {
             options = options || {};
@@ -3958,14 +4683,19 @@ note=${playerName}对${charRealName}发起了语音通话
             // 统一使用联系人的 id 作为聊天对象的ID
             var chatUserId = contact && contact.id ? contact.id : userId;
             var confirmedMessages = [];
+
+            // ====== 优先从 DOM 实时读取消息（实时渲染模式） ======
+            // 这样当玩家删除或重新生成消息时，手机中的消息也能实时同步
+            var domMessages = getMessagesFromDOM();
+            var storageMessages = [];
+
+            // 同时从存储读取消息（用于获取系统消息、打招呼消息等不在 DOM 中的消息）
             if (window.XiaoxinWeChatDataHandler) {
                 var allChats = window.XiaoxinWeChatDataHandler.getAllChats();
-
-                // 优先使用联系人的 id
-                confirmedMessages = allChats[chatUserId] || [];
+                storageMessages = allChats[chatUserId] || [];
 
                 // 如果没找到，尝试其他可能的ID格式（兼容旧数据）
-                if (confirmedMessages.length === 0) {
+                if (storageMessages.length === 0) {
                     var possibleIds = [userId];
                     if (
                         contact &&
@@ -3982,43 +4712,125 @@ note=${playerName}对${charRealName}发起了语音通话
                     for (var i = 0; i < possibleIds.length; i++) {
                         var testId = possibleIds[i];
                         if (allChats[testId] && allChats[testId].length > 0) {
-                            confirmedMessages = allChats[testId];
-                            console.info(
-                                "[小馨手机][微信聊天UI] 使用兼容ID获取消息:",
-                                testId,
-                                "消息数量:",
-                                confirmedMessages.length
-                            );
-                            // 将消息迁移到正确的ID（统一使用联系人的id）
-                            if (
-                                chatUserId !== testId &&
-                                confirmedMessages.length > 0
-                            ) {
-                                allChats[chatUserId] = confirmedMessages;
-                                delete allChats[testId];
-                                window.XiaoxinWeChatDataHandler._setData(
-                                    window.XiaoxinWeChatDataHandler.DATA_KEYS
-                                        .CHATS,
-                                    allChats
-                                );
-                                console.info(
-                                    "[小馨手机][微信聊天UI] 已将消息从",
-                                    testId,
-                                    "迁移到",
-                                    chatUserId
-                                );
-                            }
+                            storageMessages = allChats[testId];
                             break;
                         }
                     }
                 }
+            }
 
-                dInfo(
-                    "[小馨手机][微信聊天UI] 获取到消息数量:",
-                    confirmedMessages.length,
-                    "使用ID:",
-                    chatUserId
+            if (domMessages && domMessages.length > 0) {
+                // ⚠️ 重要：合并 DOM 消息和存储消息
+                // DOM 消息优先（实时），但存储中的系统消息、打招呼消息等也要显示
+                var domMessageIds = new Set();
+                domMessages.forEach(function(m) {
+                    if (m && m.id) {
+                        domMessageIds.add(String(m.id));
+                    }
+                });
+
+                // 从存储消息中筛选出不在 DOM 中的消息（系统消息、打招呼消息等）
+                var additionalMessages = [];
+                storageMessages.forEach(function(m) {
+                    if (!m) return;
+
+                    // 如果没有ID，也检查是否是系统消息或打招呼消息
+                    var msgId = m.id ? String(m.id) : null;
+                    var isInDom = msgId && domMessageIds.has(msgId);
+
+                    if (!isInDom) {
+                        // 系统消息应该显示
+                        if (m.type === "system") {
+                            // 确保系统消息有正确的字段
+                            if (!m.isOutgoing) m.isOutgoing = false;
+                            additionalMessages.push(m);
+                            console.info("[小馨手机][微信聊天UI] 从存储添加系统消息:", m.content);
+                        }
+                        // 打招呼消息（玩家发送的文本消息，sender=player）
+                        else if (m.type === "text" && (m.sender === "player" || m.from === "player" || m.from === "user")) {
+                            // 确保打招呼消息有正确的字段
+                            if (!m.isOutgoing) m.isOutgoing = true;
+                            if (!m.from) m.from = "player";
+                            additionalMessages.push(m);
+                            console.info("[小馨手机][微信聊天UI] 从存储添加打招呼消息:", m.content);
+                        }
+                    }
+                });
+
+                // 合并消息：DOM 消息 + 存储中的系统消息/打招呼消息
+                confirmedMessages = domMessages.concat(additionalMessages);
+
+                console.info(
+                    "[小馨手机][微信聊天UI] 使用实时 DOM 模式，从酒馆 DOM 读取到",
+                    domMessages.length,
+                    "条消息，从存储补充",
+                    additionalMessages.length,
+                    "条系统/打招呼消息"
                 );
+            } else {
+                // 如果 DOM 中没有消息，回退到从存储读取（兼容历史消息）
+                if (window.XiaoxinWeChatDataHandler) {
+                    var allChats = window.XiaoxinWeChatDataHandler.getAllChats();
+
+                    // 优先使用联系人的 id
+                    confirmedMessages = allChats[chatUserId] || [];
+
+                    // 如果没找到，尝试其他可能的ID格式（兼容旧数据）
+                    if (confirmedMessages.length === 0) {
+                        var possibleIds = [userId];
+                        if (
+                            contact &&
+                            contact.wechatId &&
+                            contact.wechatId !== userId &&
+                            contact.wechatId !== chatUserId
+                        ) {
+                            possibleIds.push(contact.wechatId);
+                        }
+                        if (userId && userId.indexOf("contact_") === -1) {
+                            possibleIds.push("contact_" + userId);
+                        }
+
+                        for (var i = 0; i < possibleIds.length; i++) {
+                            var testId = possibleIds[i];
+                            if (allChats[testId] && allChats[testId].length > 0) {
+                                confirmedMessages = allChats[testId];
+                                console.info(
+                                    "[小馨手机][微信聊天UI] 使用兼容ID获取消息:",
+                                    testId,
+                                    "消息数量:",
+                                    confirmedMessages.length
+                                );
+                                // 将消息迁移到正确的ID（统一使用联系人的id）
+                                if (
+                                    chatUserId !== testId &&
+                                    confirmedMessages.length > 0
+                                ) {
+                                    allChats[chatUserId] = confirmedMessages;
+                                    delete allChats[testId];
+                                    window.XiaoxinWeChatDataHandler._setData(
+                                        window.XiaoxinWeChatDataHandler.DATA_KEYS
+                                            .CHATS,
+                                        allChats
+                                    );
+                                    console.info(
+                                        "[小馨手机][微信聊天UI] 已将消息从",
+                                        testId,
+                                        "迁移到",
+                                        chatUserId
+                                    );
+                                }
+                                break;
+                            }
+                        }
+                    }
+
+                    dInfo(
+                        "[小馨手机][微信聊天UI] 从存储获取到消息数量:",
+                        confirmedMessages.length,
+                        "使用ID:",
+                        chatUserId
+                    );
+                }
             }
 
             // ====== 长列表性能：默认只渲染最近 N 条，避免页面卡死 ======
@@ -4190,14 +5002,69 @@ note=${playerName}对${charRealName}发起了语音通话
             });
 
             // 4. 合并预览消息（去重处理）
+            // ⚠️ 重要：先对 confirmedMessages 本身去重，避免重复消息
+            // 对于红包消息，还需要基于 redpacket_id 或指纹进行去重
+            var confirmedMessagesDeduped = [];
+            var confirmedMessageIdSet = new Set(); // 用于普通消息去重（基于消息ID）
+            var confirmedRedpacketIdSet = new Set(); // 用于红包消息去重（基于redpacket_id）
+            var confirmedRedpacketFingerprintSet = new Set(); // 用于红包消息去重（基于指纹）
+
+            confirmedMessages.forEach(function (m) {
+                if (!m) return;
+
+                // 红包消息特殊去重处理
+                if (m.type === "redpacket") {
+                    var isDuplicate = false;
+
+                    // 方法1：基于 redpacket_id 去重
+                    if (m.redpacket_id && m.redpacket_id.trim() !== "") {
+                        var redpacketId = String(m.redpacket_id).trim();
+                        if (confirmedRedpacketIdSet.has(redpacketId)) {
+                            isDuplicate = true;
+                            console.warn("[小馨手机][微信聊天UI] confirmedMessages去重：跳过重复红包消息（redpacket_id）:", redpacketId);
+                        } else {
+                            confirmedRedpacketIdSet.add(redpacketId);
+                        }
+                    } else {
+                        // 方法2：基于指纹去重（amount+note+timestamp）
+                        var fingerprint = String(m.amount || 0) + "|" +
+                                         String(m.note || "") + "|" +
+                                         String(m.timestamp || 0);
+                        if (confirmedRedpacketFingerprintSet.has(fingerprint)) {
+                            isDuplicate = true;
+                            console.warn("[小馨手机][微信聊天UI] confirmedMessages去重：跳过重复红包消息（指纹）:", fingerprint);
+                        } else {
+                            confirmedRedpacketFingerprintSet.add(fingerprint);
+                        }
+                    }
+
+                    if (isDuplicate) {
+                        return; // 跳过重复的红包消息
+                    }
+                }
+
+                // 普通消息去重（基于消息ID）
+                if (m.id) {
+                    var msgId = String(m.id);
+                    if (confirmedMessageIdSet.has(msgId)) {
+                        console.info("[小馨手机][微信聊天UI] 跳过重复的已确认消息ID:", msgId);
+                        return; // 跳过重复的消息
+                    }
+                    confirmedMessageIdSet.add(msgId);
+                }
+
+                confirmedMessagesDeduped.push(m);
+            });
+            confirmedMessages = confirmedMessagesDeduped;
+
             var allDisplayMessages = [...confirmedMessages];
             var messageIdSet = new Set(); // 用于去重（基于消息ID）
             var redpacketIdSet = new Set(); // 用于红包去重（基于redpacket_id）
             var redpacketFingerprintSet = new Set(); // 用于红包去重（当redpacket_id为空时，基于amount+note+timestamp）
 
             confirmedMessages.forEach(function (m) {
-                if (m.id) {
-                    messageIdSet.add(m.id);
+                if (m && m.id) {
+                    messageIdSet.add(String(m.id));
                 }
                 // 红包消息特殊去重：基于redpacket_id或指纹
                 if (m.type === "redpacket") {
@@ -4815,6 +5682,28 @@ note=${playerName}对${charRealName}发起了语音通话
                     if (isHistorical) {
                         // 历史消息直接显示，不检查队列状态（调试阶段的详细日志已移除，避免刷屏）
                         return true;
+                    }
+
+                    // ⚠️ 重要：对于 call_voice/call_video 消息（state=ended/rejected/unanswered），直接显示
+                    // 这些消息表示通话已结束，不需要经过队列管理器，应该立即显示在聊天页中
+                    // 无论是玩家发送的还是角色发送的，都需要直接显示
+                    if (message.type === "call_voice" || message.type === "call_video") {
+                        var callState = message.callState || message.state || "";
+                        if (
+                            callState === "ended" ||
+                            callState === "rejected" ||
+                            callState === "unanswered"
+                        ) {
+                            dInfo(
+                                "[小馨手机][微信聊天UI] call_voice 消息（state=" +
+                                    callState +
+                                    ", isOutgoing=" +
+                                    message.isOutgoing +
+                                    "）直接显示，不检查队列状态，消息ID:",
+                                message.id
+                            );
+                            return true; // 直接显示，不检查队列状态
+                        }
                     }
 
                     // 检查消息队列管理器是否存在
@@ -5578,15 +6467,15 @@ note=${playerName}对${charRealName}发起了语音通话
 
                     if (!isCurrentChat) {
                         // 不是当前聊天的消息，跳过
-                        console.info(
-                            "[小馨手机][微信聊天UI] 消息目标用户不匹配，跳过:",
-                            {
-                                targetUserId: targetUserId,
-                                chatUserId: chatUserId,
-                                userId: userId,
-                                contactId: contact ? contact.id : null,
-                            }
-                        );
+                        // console.info(
+                        //     "[小馨手机][微信聊天UI] 消息目标用户不匹配，跳过:",
+                        //     {
+                        //         targetUserId: targetUserId,
+                        //         chatUserId: chatUserId,
+                        //         userId: userId,
+                        //         contactId: contact ? contact.id : null,
+                        //     }
+                        // );
                         continue;
                     }
 
@@ -5999,8 +6888,9 @@ note=${playerName}对${charRealName}发起了语音通话
                     payload: { content: text },
                 };
                 // 使用简洁的 字段=值 格式，去掉花括号
+                var requestText = buildRequestForUserMessage(toId);
                 var packet =
-                    "\n<Request：允许正常线下正文回复；若需要进行线上微信消息的回复行为，请输出线上消息。线上消息必须使用[MSG]格式，且气泡内容必须为发送者第一视角的真实聊天口吻（禁止括号内上帝视角/动作旁白/心理描写）>\n" +
+                    requestText +
                     "[MSG]\n" +
                     "id=" +
                     msgId +
@@ -11130,3 +12020,4 @@ note=${playerName}对${charRealName}发起了语音通话
         refreshChatScreen: refreshChatScreen,
     };
 })();
+
