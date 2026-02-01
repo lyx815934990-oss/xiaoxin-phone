@@ -11,8 +11,14 @@ window.XiaoxinSettingsApp = (function () {
         var AUTO_ONLINE_CONFIG_KEY = "xiaoxin_auto_online_config";
         var defaultAutoOnlineConfig = {
             enabled: false,
-            thresholdRounds: 6, // 对话达到多少“轮”（user+assistant 配对）触发一次
+            thresholdRounds: 6, // 对话达到多少"轮"（user+assistant 配对）触发一次
             contextLookbackFloors: 24, // 参考剧情楼层（监听上下文的楼层数）
+            // 动作类型比例配置（总和应为100，但允许不严格等于100，系统会自动归一化）
+            actionRatios: {
+                privateMessage: 50, // 私聊消息比例（%）
+                momentsPost: 30, // 朋友圈发帖比例（%）
+                momentsInteraction: 20, // 朋友圈互动比例（%）
+            },
         };
 
         function _safeParseJson(str) {
@@ -52,6 +58,32 @@ window.XiaoxinSettingsApp = (function () {
                 }
             }
             cfg = cfg && typeof cfg === "object" ? cfg : {};
+            
+            // 加载动作比例配置（兼容旧配置）
+            var actionRatios = cfg.actionRatios || {};
+            var privateMsgRatio = Number.isFinite(Number(actionRatios.privateMessage)) && Number(actionRatios.privateMessage) >= 0
+                ? Number(actionRatios.privateMessage)
+                : defaultAutoOnlineConfig.actionRatios.privateMessage;
+            var momentsPostRatio = Number.isFinite(Number(actionRatios.momentsPost)) && Number(actionRatios.momentsPost) >= 0
+                ? Number(actionRatios.momentsPost)
+                : defaultAutoOnlineConfig.actionRatios.momentsPost;
+            var momentsInteractionRatio = Number.isFinite(Number(actionRatios.momentsInteraction)) && Number(actionRatios.momentsInteraction) >= 0
+                ? Number(actionRatios.momentsInteraction)
+                : defaultAutoOnlineConfig.actionRatios.momentsInteraction;
+            
+            // 归一化比例（确保总和为100）
+            var total = privateMsgRatio + momentsPostRatio + momentsInteractionRatio;
+            if (total > 0) {
+                privateMsgRatio = Math.round((privateMsgRatio / total) * 100);
+                momentsPostRatio = Math.round((momentsPostRatio / total) * 100);
+                momentsInteractionRatio = 100 - privateMsgRatio - momentsPostRatio; // 确保总和为100
+            } else {
+                // 如果都是0或无效，使用默认值
+                privateMsgRatio = defaultAutoOnlineConfig.actionRatios.privateMessage;
+                momentsPostRatio = defaultAutoOnlineConfig.actionRatios.momentsPost;
+                momentsInteractionRatio = defaultAutoOnlineConfig.actionRatios.momentsInteraction;
+            }
+            
             return {
                 enabled: !!cfg.enabled,
                 thresholdRounds:
@@ -64,10 +96,38 @@ window.XiaoxinSettingsApp = (function () {
                     Number(cfg.contextLookbackFloors) > 0
                         ? Number(cfg.contextLookbackFloors)
                         : defaultAutoOnlineConfig.contextLookbackFloors,
+                actionRatios: {
+                    privateMessage: privateMsgRatio,
+                    momentsPost: momentsPostRatio,
+                    momentsInteraction: momentsInteractionRatio,
+                },
             };
         }
 
         function saveAutoOnlineConfig(cfg) {
+            // 处理动作比例配置
+            var privateMsgRatio = Number.isFinite(Number(cfg.actionRatios?.privateMessage)) && Number(cfg.actionRatios.privateMessage) >= 0
+                ? Math.max(0, Math.min(100, Number(cfg.actionRatios.privateMessage)))
+                : defaultAutoOnlineConfig.actionRatios.privateMessage;
+            var momentsPostRatio = Number.isFinite(Number(cfg.actionRatios?.momentsPost)) && Number(cfg.actionRatios.momentsPost) >= 0
+                ? Math.max(0, Math.min(100, Number(cfg.actionRatios.momentsPost)))
+                : defaultAutoOnlineConfig.actionRatios.momentsPost;
+            var momentsInteractionRatio = Number.isFinite(Number(cfg.actionRatios?.momentsInteraction)) && Number(cfg.actionRatios.momentsInteraction) >= 0
+                ? Math.max(0, Math.min(100, Number(cfg.actionRatios.momentsInteraction)))
+                : defaultAutoOnlineConfig.actionRatios.momentsInteraction;
+            
+            // 归一化比例（确保总和为100）
+            var total = privateMsgRatio + momentsPostRatio + momentsInteractionRatio;
+            if (total > 0) {
+                privateMsgRatio = Math.round((privateMsgRatio / total) * 100);
+                momentsPostRatio = Math.round((momentsPostRatio / total) * 100);
+                momentsInteractionRatio = 100 - privateMsgRatio - momentsPostRatio;
+            } else {
+                privateMsgRatio = defaultAutoOnlineConfig.actionRatios.privateMessage;
+                momentsPostRatio = defaultAutoOnlineConfig.actionRatios.momentsPost;
+                momentsInteractionRatio = defaultAutoOnlineConfig.actionRatios.momentsInteraction;
+            }
+            
             var safeCfg = {
                 enabled: !!cfg.enabled,
                 thresholdRounds: Math.max(
@@ -80,6 +140,11 @@ window.XiaoxinSettingsApp = (function () {
                     parseInt(cfg.contextLookbackFloors, 10) ||
                         defaultAutoOnlineConfig.contextLookbackFloors
                 ),
+                actionRatios: {
+                    privateMessage: privateMsgRatio,
+                    momentsPost: momentsPostRatio,
+                    momentsInteraction: momentsInteractionRatio,
+                },
             };
             // 保存到酒馆全局变量（优先）
             if (
@@ -268,6 +333,51 @@ window.XiaoxinSettingsApp = (function () {
         $autoOnlineLookbackControl.append($autoOnlineLookbackInput);
         $autoOnlineRowLookback.append($autoOnlineLookbackControl);
 
+        // 动作类型比例配置
+        var $autoOnlineRowRatioTitle = $('<div class="xiaoxin-settings-row" style="font-weight:bold;padding-top:16px;border-top:1px solid #e5e5ea;margin-top:8px;"></div>');
+        $autoOnlineRowRatioTitle.append(
+            '<div class="xiaoxin-settings-row-label">动作类型比例（总和应为100%）</div>'
+        );
+
+        var $autoOnlineRowPrivateMsg = $('<div class="xiaoxin-settings-row"></div>');
+        $autoOnlineRowPrivateMsg.append(
+            '<div class="xiaoxin-settings-row-label">私聊消息比例（%）</div>'
+        );
+        var $autoOnlinePrivateMsgControl = $(
+            '<div class="xiaoxin-settings-row-control"></div>'
+        );
+        var $autoOnlinePrivateMsgInput = $(
+            '<input type="number" min="0" max="100" step="1" placeholder="例如：50">'
+        );
+        $autoOnlinePrivateMsgControl.append($autoOnlinePrivateMsgInput);
+        $autoOnlineRowPrivateMsg.append($autoOnlinePrivateMsgControl);
+
+        var $autoOnlineRowMomentsPost = $('<div class="xiaoxin-settings-row"></div>');
+        $autoOnlineRowMomentsPost.append(
+            '<div class="xiaoxin-settings-row-label">朋友圈发帖比例（%）</div>'
+        );
+        var $autoOnlineMomentsPostControl = $(
+            '<div class="xiaoxin-settings-row-control"></div>'
+        );
+        var $autoOnlineMomentsPostInput = $(
+            '<input type="number" min="0" max="100" step="1" placeholder="例如：30">'
+        );
+        $autoOnlineMomentsPostControl.append($autoOnlineMomentsPostInput);
+        $autoOnlineRowMomentsPost.append($autoOnlineMomentsPostControl);
+
+        var $autoOnlineRowMomentsInteraction = $('<div class="xiaoxin-settings-row"></div>');
+        $autoOnlineRowMomentsInteraction.append(
+            '<div class="xiaoxin-settings-row-label">朋友圈互动比例（%）</div>'
+        );
+        var $autoOnlineMomentsInteractionControl = $(
+            '<div class="xiaoxin-settings-row-control"></div>'
+        );
+        var $autoOnlineMomentsInteractionInput = $(
+            '<input type="number" min="0" max="100" step="1" placeholder="例如：20">'
+        );
+        $autoOnlineMomentsInteractionControl.append($autoOnlineMomentsInteractionInput);
+        $autoOnlineRowMomentsInteraction.append($autoOnlineMomentsInteractionControl);
+
         var $autoOnlineRowSave = $('<div class="xiaoxin-settings-row"></div>');
         $autoOnlineRowSave.append(
             '<div class="xiaoxin-settings-row-label">保存配置</div>'
@@ -289,6 +399,10 @@ window.XiaoxinSettingsApp = (function () {
             $autoOnlineRowEnable,
             $autoOnlineRowThreshold,
             $autoOnlineRowLookback,
+            $autoOnlineRowRatioTitle,
+            $autoOnlineRowPrivateMsg,
+            $autoOnlineRowMomentsPost,
+            $autoOnlineRowMomentsInteraction,
             $autoOnlineRowSave
         );
 
@@ -967,6 +1081,9 @@ window.XiaoxinSettingsApp = (function () {
             $autoOnlineEnableSwitch.prop("checked", !!autoOnlineCfg.enabled);
             $autoOnlineThresholdInput.val(autoOnlineCfg.thresholdRounds);
             $autoOnlineLookbackInput.val(autoOnlineCfg.contextLookbackFloors);
+            $autoOnlinePrivateMsgInput.val(autoOnlineCfg.actionRatios.privateMessage);
+            $autoOnlineMomentsPostInput.val(autoOnlineCfg.actionRatios.momentsPost);
+            $autoOnlineMomentsInteractionInput.val(autoOnlineCfg.actionRatios.momentsInteraction);
         } catch (e_cfg) {
             console.warn("[小馨手机-设置] 初始化主动发送线上消息配置失败:", e_cfg);
         }
@@ -976,6 +1093,11 @@ window.XiaoxinSettingsApp = (function () {
                 enabled: !!$autoOnlineEnableSwitch.prop("checked"),
                 thresholdRounds: parseInt($autoOnlineThresholdInput.val(), 10),
                 contextLookbackFloors: parseInt($autoOnlineLookbackInput.val(), 10),
+                actionRatios: {
+                    privateMessage: parseInt($autoOnlinePrivateMsgInput.val(), 10),
+                    momentsPost: parseInt($autoOnlineMomentsPostInput.val(), 10),
+                    momentsInteraction: parseInt($autoOnlineMomentsInteractionInput.val(), 10),
+                },
             };
         }
 
@@ -985,6 +1107,9 @@ window.XiaoxinSettingsApp = (function () {
             $autoOnlineEnableSwitch.prop("checked", !!saved.enabled);
             $autoOnlineThresholdInput.val(saved.thresholdRounds);
             $autoOnlineLookbackInput.val(saved.contextLookbackFloors);
+            $autoOnlinePrivateMsgInput.val(saved.actionRatios.privateMessage);
+            $autoOnlineMomentsPostInput.val(saved.actionRatios.momentsPost);
+            $autoOnlineMomentsInteractionInput.val(saved.actionRatios.momentsInteraction);
             showToast("已保存主动发送线上消息配置");
         });
 
