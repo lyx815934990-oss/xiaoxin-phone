@@ -141,21 +141,44 @@ window.XiaoxinMessageListener = (function () {
                 window.XiaoxinWeChatDataHandler.getAllChats() || {};
             var activeIds = _collectActiveMsgSourceIds();
 
-            // 如果当前聊天中根本没有任何 [MSG] 楼层，则不做清理（避免误删其它数据）
-            if (!activeIds || activeIds.size === 0) {
-                return;
-            }
-
             var changed = false;
+            var totalBefore = 0;
+            var totalAfter = 0;
 
             Object.keys(allChats).forEach(function (userId) {
                 var list = allChats[userId] || [];
-                var filtered = list.filter(function (msg) {
+                totalBefore += list.length;
+
+                // ⚠️ 重要：先进行消息去重，确保相同ID的消息只保留一条（保留最新的）
+                var messageMap = {}; // id -> message
+                list.forEach(function (msg) {
+                    if (!msg || !msg.id) return;
+                    var msgId = String(msg.id);
+                    if (!messageMap[msgId]) {
+                        messageMap[msgId] = msg;
+                    } else {
+                        // 如果已存在，比较时间戳，保留更新的
+                        var existingTime = messageMap[msgId].timestamp || 0;
+                        var newTime = msg.timestamp || 0;
+                        if (newTime > existingTime) {
+                            messageMap[msgId] = msg;
+                        }
+                    }
+                });
+                var deduplicatedList = Object.values(messageMap);
+
+                // 然后过滤：只保留当前可见楼层对应的消息或明确标记为历史的消息
+                var filtered = deduplicatedList.filter(function (msg) {
                     if (!msg) return false;
 
                     // 对于新版消息：只有当 sourceMessageId 仍然存在于当前聊天楼层集合中时才保留
                     if (msg.sourceMessageId) {
-                        return activeIds.has(String(msg.sourceMessageId));
+                        // 如果当前聊天中有 [MSG] 楼层，只保留对应的消息
+                        if (activeIds && activeIds.size > 0) {
+                            return activeIds.has(String(msg.sourceMessageId));
+                        }
+                        // 如果当前聊天中没有任何 [MSG] 楼层，清理所有带 sourceMessageId 的消息（避免残留）
+                        return false;
                     }
 
                     // 旧版/历史消息：仅保留明确标记为 isHistorical 的，其他视为旧的线上消息，统一清理
@@ -166,12 +189,22 @@ window.XiaoxinMessageListener = (function () {
                         return true;
                     }
 
+                    // 其他消息：如果没有 sourceMessageId 且不是历史消息，视为旧的线上消息，统一清理
                     return false;
                 });
+
+                totalAfter += filtered.length;
 
                 if (filtered.length !== list.length) {
                     allChats[userId] = filtered;
                     changed = true;
+                    console.info(
+                        "[小馨手机][消息监听] 清理联系人", userId, "的消息:",
+                        "清理前:", list.length, "条",
+                        "去重后:", deduplicatedList.length, "条",
+                        "过滤后:", filtered.length, "条",
+                        "清理了:", list.length - filtered.length, "条"
+                    );
                 }
             });
 
@@ -187,7 +220,10 @@ window.XiaoxinMessageListener = (function () {
                     window.XiaoxinWeChatDataHandler.setAllChats(allChats);
                 }
                 console.info(
-                    "[小馨手机][消息监听] 已根据当前聊天正文中的 [MSG] 楼层，清理旧线上消息，只保留仍然存在的楼层对应的记录和历史聊天记录"
+                    "[小馨手机][消息监听] 已根据当前聊天正文中的 [MSG] 楼层，清理旧线上消息，只保留仍然存在的楼层对应的记录和历史聊天记录",
+                    "清理前总计:", totalBefore, "条",
+                    "清理后总计:", totalAfter, "条",
+                    "清理了:", totalBefore - totalAfter, "条"
                 );
             }
         } catch (e_outer) {
@@ -3237,6 +3273,30 @@ window.XiaoxinMessageListener = (function () {
             $mes = $(messageElement);
         }
 
+        // ⚠️ 重要：检查楼层是否可见，只处理可见楼层的消息
+        // 不可见楼层的消息不应该被缓存保存
+        var isVisible = $mes.is(":visible");
+        if (!$mes.length || !isVisible) {
+            // 检查是否真的不可见（可能是display:none或visibility:hidden）
+            var mesElement = $mes[0];
+            if (mesElement) {
+                var computedStyle = window.getComputedStyle(mesElement);
+                var isDisplayNone = computedStyle.display === "none";
+                var isVisibilityHidden = computedStyle.visibility === "hidden";
+                var isOpacityZero = parseFloat(computedStyle.opacity) === 0;
+
+                if (isDisplayNone || isVisibilityHidden || isOpacityZero) {
+                    console.info(
+                        "[小馨手机][消息监听] processMessage: 楼层不可见，跳过处理（不缓存保存）",
+                        "display:", computedStyle.display,
+                        "visibility:", computedStyle.visibility,
+                        "opacity:", computedStyle.opacity
+                    );
+                    return;
+                }
+            }
+        }
+
         // 先自动隐藏 [MSG] 标签和朋友圈标签（在读取之前，但会先保存原始内容）
         hideMsgTagsInDom(messageElement);
         hideMomentsTagsInDom(messageElement);
@@ -5103,6 +5163,11 @@ window.XiaoxinMessageListener = (function () {
                         messageBlocks.forEach(function (blockContent) {
                             var msgObj = parseKeyValueFormat(blockContent);
 
+                            // ⚠️ 调试：打印解析到的消息content
+                            if (msgObj.type === 'text' && msgObj.id) {
+                                console.log(`[小馨手机][消息监听] 解析消息块: id=${msgObj.id}, content="${msgObj.content || '(无)'}", from=${msgObj.from || '(无)'}, to=${msgObj.to || '(无)'}`);
+                            }
+
                             // 分类消息：先处理 call_voice（状态），再处理 call_voice_text（文本）
                             if (
                                 msgObj.type === "call_voice" ||
@@ -6554,16 +6619,13 @@ window.XiaoxinMessageListener = (function () {
                         var chats =
                             window.XiaoxinWeChatDataHandler.getAllChats();
                         var existingChat = chats[contactId] || [];
-                        var messageExists = existingChat.some(function (msg) {
+                        var existingMessage = existingChat.find(function (msg) {
                             return msg.id === msgObj.id;
                         });
+                        var messageExists = !!existingMessage;
 
                         if (messageExists) {
                             // 检查已存在的消息是否已处理过（对于历史消息）
-                            var existingMessage = existingChat.find(function (msg) {
-                                return msg.id === msgObj.id;
-                            });
-
                             // 如果是历史消息且已处理过，直接跳过
                             if (existingMessage && existingMessage.isHistorical && existingMessage._processed) {
                                 console.info(
@@ -6573,9 +6635,48 @@ window.XiaoxinMessageListener = (function () {
                                 return;
                             }
 
+                            // ⚠️ 重要：如果消息已存在但content不同，说明消息被重新生成了，应该更新content
+                            var newContent = sanitizeContent(
+                                (msgObj.payload && msgObj.payload.content)
+                                    ? msgObj.payload.content
+                                    : (msgObj.content || "")
+                            );
+                            var existingContent = existingMessage ? (existingMessage.content || "") : "";
+
+                            // ⚠️ 关键修复：即使content相同，也要检查是否需要更新（因为可能有其他字段变化）
+                            // 但更重要的是：如果content不同，必须更新，确保使用最新的content
+                            if (newContent !== existingContent) {
+                                if (newContent) {
+                                    console.info(
+                                        "[小馨手机][消息监听] 消息已存在但content不同，更新content:",
+                                        "消息ID:", msgObj.id,
+                                        "旧content:", existingContent.substring(0, 50),
+                                        "新content:", newContent.substring(0, 50)
+                                    );
+                                    // 更新已存在消息的content
+                                    if (window.XiaoxinWeChatDataHandler && typeof window.XiaoxinWeChatDataHandler.updateChatMessage === "function") {
+                                        window.XiaoxinWeChatDataHandler.updateChatMessage(contactId, msgObj.id, {
+                                            content: newContent
+                                        });
+                                    }
+                                    // 更新本地变量，确保后续使用新content
+                                    if (existingMessage) {
+                                        existingMessage.content = newContent;
+                                    }
+                                } else if (existingContent) {
+                                    // 如果新content为空但旧content不为空，说明可能是解析错误，不更新
+                                    console.warn(
+                                        "[小馨手机][消息监听] 消息已存在，新content为空但旧content不为空，保持旧content:",
+                                        "消息ID:", msgObj.id,
+                                        "旧content:", existingContent.substring(0, 50)
+                                    );
+                                }
+                            }
+
                             console.info(
                                 "[小馨手机][消息监听] 消息已存在，跳过:",
-                                msgObj.id
+                                msgObj.id,
+                                "content:", existingMessage ? (existingMessage.content || "").substring(0, 50) : "(无)"
                             );
                             return;
                         }
@@ -6771,16 +6872,20 @@ window.XiaoxinMessageListener = (function () {
                             );
                         }
 
+                        // ⚠️ 调试：打印解析到的消息content
+                        var rawContent = (msgObj.payload && msgObj.payload.content)
+                            ? msgObj.payload.content
+                            : (msgObj.content || "");
+                        if (msgObj.type === 'text' && msgObj.id) {
+                            console.log(`[小馨手机][消息监听] 解析到text消息: id=${msgObj.id}, content="${rawContent}", from=${msgObj.from || '(无)'}, to=${msgObj.to || '(无)'}`);
+                        }
+
                         // 玩家发送的消息，from 字段统一设置为 "user"（不暴露玩家微信号）
                         var chatMessage = {
                             id: msgObj.id,
                             type: msgObj.type,
                             from: isPlayerMessage ? "user" : msgObj.from,
-                            content: sanitizeContent(
-                                msgObj.payload && msgObj.payload.content
-                                    ? msgObj.payload.content
-                                    : ""
-                            ),
+                            content: sanitizeContent(rawContent),
                             sender: msgObj.from,
                             timestamp: msgTimestamp,
                             rawTime: msgRawTime, // 原始世界观时间字符串
@@ -10239,6 +10344,9 @@ window.XiaoxinMessageListener = (function () {
             "跳过:",
             skippedCount
         );
+
+        // ⚠️ 重要：扫描完成后，清理已删除楼层的消息，确保只保留可见楼层的消息
+        _cleanupOrphanSourceMessages();
 
         // 额外：直接从DOM中查找所有包含朋友圈标签的内容，强制处理
         console.info("[小馨手机][消息监听] 开始强制扫描DOM中的朋友圈标签...");
