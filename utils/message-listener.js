@@ -28,7 +28,11 @@ window.XiaoxinMessageListener = (function () {
         };
     }
     // 用于避免重复处理的已处理消息ID集合
+    // ⚠️ 重要：这个集合会在每次 scanRetainedMessages 时清理并重建，只保留当前可见楼层中的消息ID
     var processedMessages = new Set();
+
+    // 记录每个消息ID对应的楼层ID和内容哈希，用于检测楼层重新生成
+    var messageSourceMap = new Map(); // messageId -> { sourceId, contentHash }
 
     // ========== 工具：同步“已删除楼层”的线上消息 ==========
     /**
@@ -1789,6 +1793,32 @@ window.XiaoxinMessageListener = (function () {
             return [];
         }
 
+        // ⚠️ 自动修正格式：将尖括号转换为方括号
+        // 修正所有朋友圈相关的标签：<moments> → [moments], <moment> → [moment], </moments> → [/moments], </moment> → [/moment]
+        messageContent = messageContent
+            .replace(/<moments>/gi, "[moments]")
+            .replace(/<\/moments>/gi, "[/moments]")
+            .replace(/<moment([^>]*)>/gi, "[moment$1]")
+            .replace(/<\/moment>/gi, "[/moment]")
+            .replace(/<id>/gi, "[id]")
+            .replace(/<\/id>/gi, "[/id]")
+            .replace(/<author>/gi, "[author]")
+            .replace(/<\/author>/gi, "[/author]")
+            .replace(/<type>/gi, "[type]")
+            .replace(/<\/type>/gi, "[/type]")
+            .replace(/<content>/gi, "[content]")
+            .replace(/<\/content>/gi, "[/content]")
+            .replace(/<images>/gi, "[images]")
+            .replace(/<\/images>/gi, "[/images]")
+            .replace(/<image>/gi, "[image]")
+            .replace(/<\/image>/gi, "[/image]")
+            .replace(/<location>/gi, "[location]")
+            .replace(/<\/location>/gi, "[/location]")
+            .replace(/<music>/gi, "[music]")
+            .replace(/<\/music>/gi, "[/music]")
+            .replace(/<timestamp>/gi, "[timestamp]")
+            .replace(/<\/timestamp>/gi, "[/timestamp]");
+
         var moments = [];
 
         try {
@@ -2163,15 +2193,12 @@ window.XiaoxinMessageListener = (function () {
         var interactions = [];
 
         try {
-            // 0. 先解码HTML实体并清理HTML标签
+            // 0. 先解码HTML实体（将 &lt; 和 &gt; 转换为 < 和 >）
             // 创建一个临时DOM元素来解码HTML实体
             var tempDiv = document.createElement("div");
             tempDiv.innerHTML = messageContent;
             var decodedContent =
                 tempDiv.textContent || tempDiv.innerText || messageContent;
-
-            // 移除HTML标签（如 <br>, <q>, <p> 等）
-            decodedContent = decodedContent.replace(/<[^>]+>/g, "");
 
             // 如果解码后内容为空，尝试手动解码常见实体
             if (
@@ -2182,9 +2209,40 @@ window.XiaoxinMessageListener = (function () {
                     .replace(/&lt;/g, "<")
                     .replace(/&gt;/g, ">")
                     .replace(/&quot;/g, '"')
-                    .replace(/&amp;/g, "&")
-                    .replace(/<[^>]+>/g, ""); // 移除HTML标签
+                    .replace(/&amp;/g, "&");
             }
+
+            // ⚠️ 自动修正格式：将尖括号转换为方括号（在HTML解码之后进行）
+            // 修正所有朋友圈互动相关的标签：<moments-interactions> → [moments-interactions], <interaction> → [interaction] 等
+            decodedContent = decodedContent
+                .replace(/<moments-interactions>/gi, "[moments-interactions]")
+                .replace(/<\/moments-interactions>/gi, "[/moments-interactions]")
+                .replace(/<interaction([^>]*)>/gi, "[interaction$1]")
+                .replace(/<\/interaction>/gi, "[/interaction]")
+                .replace(/<like([^>]*)>/gi, "[like$1]")
+                .replace(/<\/like>/gi, "[/like]")
+                .replace(/<comment([^>]*)>/gi, "[comment$1]")
+                .replace(/<\/comment>/gi, "[/comment]")
+                .replace(/<reply([^>]*)>/gi, "[reply$1]")
+                .replace(/<\/reply>/gi, "[/reply]")
+                .replace(/<momentId>/gi, "[momentId]")
+                .replace(/<\/momentId>/gi, "[/momentId]")
+                .replace(/<liker>/gi, "[liker]")
+                .replace(/<\/liker>/gi, "[/liker]")
+                .replace(/<commenter>/gi, "[commenter]")
+                .replace(/<\/commenter>/gi, "[/commenter]")
+                .replace(/<replier>/gi, "[replier]")
+                .replace(/<\/replier>/gi, "[/replier]")
+                .replace(/<replyTo>/gi, "[replyTo]")
+                .replace(/<\/replyTo>/gi, "[/replyTo]")
+                .replace(/<content>/gi, "[content]")
+                .replace(/<\/content>/gi, "[/content]")
+                .replace(/<timestamp>/gi, "[timestamp]")
+                .replace(/<\/timestamp>/gi, "[/timestamp]");
+
+            // 移除其他HTML标签（如 <br>, <q>, <p> 等），但保留已修正的方括号标签
+            // ⚠️ 注意：这里只移除真正的HTML标签，不移除我们修正后的方括号标签
+            decodedContent = decodedContent.replace(/<(?![a-z]+[\[\]])[^>]+>/gi, "");
 
             console.info(
                 "[小馨手机][消息监听] parseMomentsInteractionsFromText: 原始内容长度:",
@@ -3440,8 +3498,18 @@ window.XiaoxinMessageListener = (function () {
                 "_" +
                 content.length;
 
+        // 计算内容哈希，用于检测楼层重新生成
+        var contentHash = 0;
+        if (content) {
+            for (var i = 0; i < content.length; i++) {
+                contentHash = (contentHash << 5) - contentHash + content.charCodeAt(i);
+                contentHash = contentHash & contentHash;
+            }
+            contentHash = Math.abs(contentHash);
+        }
+
         // 如果包含结构化标签（如 [MSG]/[moments]），用内容哈希附加一段，
-        // 避免同一条“外层消息ID”（例如同一楼层被重生成/覆盖）导致重复跳过解析
+        // 避免同一条"外层消息ID"（例如同一楼层被重生成/覆盖）导致重复跳过解析
         if (
             content &&
             (/\[MSG\]/i.test(content) ||
@@ -3450,22 +3518,51 @@ window.XiaoxinMessageListener = (function () {
                 content.indexOf("[moments-interactions]") !== -1 ||
                 content.indexOf("[/moments-interactions]") !== -1)
         ) {
-            var msgHash = 0;
-            for (var i = 0; i < content.length; i++) {
-                msgHash = (msgHash << 5) - msgHash + content.charCodeAt(i);
-                msgHash = msgHash & msgHash;
-            }
-            messageId = messageId + "|tag|" + Math.abs(msgHash);
+            messageId = messageId + "|tag|" + contentHash;
         }
 
-        // 检查是否已处理过
+        // ⚠️ 重要：检查消息是否已处理过，但需要考虑楼层重新生成的情况
+        // 如果消息ID已存在，但内容哈希或sourceMessageId不同，说明楼层已重新生成，应该重新处理
         if (processedMessages.has(messageId)) {
-            console.info(
-                "[小馨手机][消息监听] processMessage: 消息已处理过，跳过，ID:",
-                messageId
-            );
-            return;
+            var existingSource = messageSourceMap.get(messageId);
+            if (existingSource) {
+                // 如果内容哈希或sourceMessageId不同，说明楼层已重新生成，应该重新处理
+                if (existingSource.contentHash !== contentHash ||
+                    existingSource.sourceId !== sourceMessageId) {
+                    console.info(
+                        "[小馨手机][消息监听] processMessage: 检测到楼层重新生成，清除旧记录并重新处理，消息ID:",
+                        messageId,
+                        "旧内容哈希:",
+                        existingSource.contentHash,
+                        "新内容哈希:",
+                        contentHash
+                    );
+                    // 不返回，继续处理
+                } else {
+                    // 内容和sourceMessageId都相同，说明是重复处理，跳过
+                    console.info(
+                        "[小馨手机][消息监听] processMessage: 消息已处理过（内容和sourceMessageId相同），跳过，ID:",
+                        messageId
+                    );
+                    return;
+                }
+            } else {
+                // 如果没有source记录，说明是旧的处理方式，直接跳过
+                console.info(
+                    "[小馨手机][消息监听] processMessage: 消息已处理过（旧记录），跳过，ID:",
+                    messageId
+                );
+                return;
+            }
         }
+
+        // ⚠️ 重要：在处理消息之前，先记录消息ID和相关信息，用于检测楼层重新生成
+        // 这样即使消息处理失败，也能正确检测到楼层重新生成
+        processedMessages.add(messageId);
+        messageSourceMap.set(messageId, {
+            sourceId: sourceMessageId,
+            contentHash: contentHash
+        });
 
         // 是否包含联系方式标签（支持 [wx_contact] 格式）
         var hasContactTag =
@@ -3486,12 +3583,16 @@ window.XiaoxinMessageListener = (function () {
         var hasChatMessageTag =
             /\[MSG\]/i.test(content) || /\[\/MSG\]/i.test(content);
 
-        // 是否包含朋友圈标签
+        // 是否包含朋友圈标签（支持方括号和尖括号格式）
         var hasMomentsTag =
             content.indexOf("[moments]") !== -1 ||
             content.indexOf("[/moments]") !== -1 ||
             content.indexOf("[moments-interactions]") !== -1 ||
-            content.indexOf("[/moments-interactions]") !== -1;
+            content.indexOf("[/moments-interactions]") !== -1 ||
+            content.indexOf("<moments>") !== -1 ||
+            content.indexOf("</moments>") !== -1 ||
+            content.indexOf("<moments-interactions>") !== -1 ||
+            content.indexOf("</moments-interactions>") !== -1;
 
         // 如果没有任何数据块标签，直接返回
         if (
@@ -3659,8 +3760,9 @@ window.XiaoxinMessageListener = (function () {
                 }
 
                 // 额外解析本条消息中的互动数据 [moments-interactions]
+                // ⚠️ 使用已修正格式的内容（将尖括号转换为方括号）
                 var interactions =
-                    parseMomentsInteractionsFromText(content) || [];
+                    parseMomentsInteractionsFromText(normalizedContent) || [];
                 if (interactions.length > 0) {
                     console.info(
                         "[小馨手机][消息监听] processMessage: 本次消息解析到朋友圈互动数量:",
@@ -7478,28 +7580,34 @@ window.XiaoxinMessageListener = (function () {
                                 chatMessage.claimed_by
                             );
                         } else if (
-                            (msgObj.type === "call_voice" ||
-                                msgObj.type === "call_video") &&
-                            msgObj.payload
+                            msgObj.type === "call_voice" ||
+                            msgObj.type === "call_video"
                         ) {
                             // 处理语音/视频通话消息
-                            chatMessage.callState =
-                                msgObj.payload.state || "ringing";
-                            chatMessage.callWith =
-                                msgObj.payload.with || msgObj.from;
+                            // ⚠️ 重要：call_voice 消息可能没有 payload 字段，直接从 msgObj 中读取字段
+                            var callState = msgObj.payload ? msgObj.payload.state : (msgObj.state || "ringing");
+                            var callWith = msgObj.payload ? msgObj.payload.with : (msgObj.with || msgObj.from);
+                            var callNote = msgObj.payload ? msgObj.payload.note : (msgObj.note || "");
+
+                            chatMessage.callState = callState;
+                            chatMessage.callWith = callWith;
+                            chatMessage.note = callNote;
+
                             // 支持 duration 和 duration_sec 两种字段名
                             // 确保转换为数字类型（秒），优先使用 duration_sec
-                            var durationValue =
-                                msgObj.payload.duration_sec ||
-                                msgObj.payload.duration ||
-                                0;
+                            var durationValue = 0;
+                            if (msgObj.payload) {
+                                durationValue = msgObj.payload.duration_sec || msgObj.payload.duration || 0;
+                            } else {
+                                durationValue = msgObj.duration_sec || msgObj.duration || 0;
+                            }
                             chatMessage.duration =
                                 typeof durationValue === "string"
                                     ? parseInt(durationValue, 10) || 0
                                     : typeof durationValue === "number"
                                     ? durationValue
                                     : 0;
-                            chatMessage.note = msgObj.payload.note || "";
+
                             // 存储 call_id，用于匹配同一条通话的消息
                             var callIdFromMsg =
                                 msgObj.call_id || msgObj.callId || "";
@@ -7507,6 +7615,22 @@ window.XiaoxinMessageListener = (function () {
                                 chatMessage.call_id = callIdFromMsg;
                                 chatMessage.callId = callIdFromMsg;
                             }
+
+                            console.info(
+                                "[小馨手机][消息监听] 处理 call_voice/call_video 消息:",
+                                "type:",
+                                msgObj.type,
+                                "state:",
+                                callState,
+                                "call_id:",
+                                callIdFromMsg,
+                                "from:",
+                                msgObj.from,
+                                "to:",
+                                msgObj.to,
+                                "有payload:",
+                                !!msgObj.payload
+                            );
 
                             // 如果是角色响应玩家发起的通话，监听角色对通话的处理状态
                             // 判断条件：消息的 from 是角色ID，to 是玩家，且包含 call_id 字段
@@ -7550,10 +7674,11 @@ window.XiaoxinMessageListener = (function () {
                                     playerWechatId || ""
                                 ).trim();
 
-                                // 判断 to 是否是玩家：可能是 "player" 字符串，也可能是实际的玩家ID
+                                // 判断 to 是否是玩家：可能是 "player"、"user" 字符串，也可能是实际的玩家ID
                                 var isToPlayer =
                                     msgToStr === playerWechatIdStr ||
-                                    msgToStr.toLowerCase() === "player";
+                                    msgToStr.toLowerCase() === "player" ||
+                                    msgToStr.toLowerCase() === "user";
 
                                 console.info(
                                     "[小馨手机][消息监听] 判断是否是角色响应玩家的通话:",
@@ -9839,6 +9964,12 @@ window.XiaoxinMessageListener = (function () {
     function scanRetainedMessages() {
         console.info("[小馨手机][消息监听] 开始扫描已保留的消息...");
 
+        // ⚠️ 重要：每次扫描前，先清理已处理消息记录，只保留当前可见楼层中的消息
+        // 这样可以确保当用户在同一楼层重新生成时，新生成的消息不会被旧记录跳过
+        processedMessages.clear();
+        messageSourceMap.clear();
+        console.info("[小馨手机][消息监听] 已清理旧的已处理消息记录，准备重新扫描当前可见楼层");
+
         var chatSelectors = [
             "#chat",
             ".chat",
@@ -10156,8 +10287,10 @@ window.XiaoxinMessageListener = (function () {
                         "[小馨手机][消息监听] 未找到消息元素，直接解析内容"
                     );
                     try {
+                        // ⚠️ 先使用 normalizeDataBlockText 修正格式（将尖括号转换为方括号）
+                        var normalizedContent = normalizeDataBlockText(content);
                         // 解析朋友圈数据
-                        var parsedMoments = parseMomentsFromText(content) || [];
+                        var parsedMoments = parseMomentsFromText(normalizedContent) || [];
                         if (parsedMoments.length > 0) {
                             console.info(
                                 "[小馨手机][消息监听] 直接解析到朋友圈数量:",
@@ -10184,8 +10317,9 @@ window.XiaoxinMessageListener = (function () {
                         }
 
                         // 解析互动数据 [moments-interactions]
+                        // ⚠️ 使用已修正格式的内容（将尖括号转换为方括号）
                         var parsedInteractions =
-                            parseMomentsInteractionsFromText(content) || [];
+                            parseMomentsInteractionsFromText(normalizedContent) || [];
                         if (parsedInteractions.length > 0) {
                             console.info(
                                 "[小馨手机][消息监听] 直接解析到朋友圈互动数量:",
@@ -10641,10 +10775,12 @@ window.XiaoxinMessageListener = (function () {
                                             );
 
                                             try {
+                                                // ⚠️ 先使用 normalizeDataBlockText 修正格式（将尖括号转换为方括号）
+                                                var normalizedFieldValue = normalizeDataBlockText(fieldValue);
                                                 // 解析朋友圈数据
                                                 var parsedMoments =
                                                     parseMomentsFromText(
-                                                        fieldValue
+                                                        normalizedFieldValue
                                                     ) || [];
                                                 console.info(
                                                     "[小馨手机][消息监听] 解析到朋友圈数量:",
@@ -10804,9 +10940,10 @@ window.XiaoxinMessageListener = (function () {
                                                 }
 
                                                 // 解析互动数据
+                                                // ⚠️ 使用已修正格式的内容（将尖括号转换为方括号）
                                                 var interactions =
                                                     parseMomentsInteractionsFromText(
-                                                        fieldValue
+                                                        normalizedFieldValue
                                                     ) || [];
                                                 console.info(
                                                     "[小馨手机][消息监听] 解析到互动数量:",
@@ -11273,8 +11410,10 @@ window.XiaoxinMessageListener = (function () {
                                 "[小馨手机][消息监听] 在data属性中找到朋友圈标签"
                             );
                             try {
+                                // ⚠️ 先使用 normalizeDataBlockText 修正格式（将尖括号转换为方括号）
+                                var normalizedContent = normalizeDataBlockText(content);
                                 var parsedMoments =
-                                    parseMomentsFromText(content) || [];
+                                    parseMomentsFromText(normalizedContent) || [];
                                 if (parsedMoments.length > 0) {
                                     var existing =
                                         window.XiaoxinWeChatDataHandler.getMoments() ||
@@ -11337,8 +11476,10 @@ window.XiaoxinMessageListener = (function () {
                         );
 
                         try {
+                            // ⚠️ 先使用 normalizeDataBlockText 修正格式（将尖括号转换为方括号）
+                            var normalizedMomentsContent = normalizeDataBlockText(momentsContent);
                             var parsedMoments =
-                                parseMomentsFromText(momentsContent) || [];
+                                parseMomentsFromText(normalizedMomentsContent) || [];
                             if (parsedMoments.length > 0) {
                                 var existing =
                                     window.XiaoxinWeChatDataHandler.getMoments() ||
@@ -11397,9 +11538,11 @@ window.XiaoxinMessageListener = (function () {
                         );
 
                         try {
+                            // ⚠️ 先使用 normalizeDataBlockText 修正格式（将尖括号转换为方括号）
+                            var normalizedInteractionsContent = normalizeDataBlockText(interactionsContent);
                             var interactions =
                                 parseMomentsInteractionsFromText(
-                                    interactionsContent
+                                    normalizedInteractionsContent
                                 ) || [];
                             console.info(
                                 "[小馨手机][消息监听] 从HTML解析到互动数量:",
