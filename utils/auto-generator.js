@@ -190,30 +190,70 @@
         return "";
     }
 
-    function loadAutoOnlineConfig() {
-        const defaults = { enabled: false, thresholdRounds: 6, contextLookbackFloors: 24 };
-        let cfg = null;
-        try {
-            if (typeof getVariables === "function") {
-                const gd = getVariables({ type: "global" }) || {};
-                if (gd && gd[AUTO_ONLINE_CONFIG_KEY]) cfg = gd[AUTO_ONLINE_CONFIG_KEY];
-            }
-        } catch (e) { /* ignore */ }
-        if (!cfg) {
+        function loadAutoOnlineConfig() {
+            const defaults = {
+                enabled: false,
+                thresholdRounds: 6,
+                contextLookbackFloors: 24,
+                actionRatios: {
+                    privateMessage: 50,
+                    momentsPost: 30,
+                    momentsInteraction: 20,
+                },
+            };
+            let cfg = null;
             try {
-                const raw = localStorage.getItem(AUTO_ONLINE_CONFIG_KEY);
-                if (raw) cfg = safeParseJson(raw);
-            } catch (e2) { /* ignore */ }
+                if (typeof getVariables === "function") {
+                    const gd = getVariables({ type: "global" }) || {};
+                    if (gd && gd[AUTO_ONLINE_CONFIG_KEY]) cfg = gd[AUTO_ONLINE_CONFIG_KEY];
+                }
+            } catch (e) { /* ignore */ }
+            if (!cfg) {
+                try {
+                    const raw = localStorage.getItem(AUTO_ONLINE_CONFIG_KEY);
+                    if (raw) cfg = safeParseJson(raw);
+                } catch (e2) { /* ignore */ }
+            }
+            cfg = (cfg && typeof cfg === "object") ? cfg : {};
+            const threshold = parseInt(cfg.thresholdRounds, 10);
+            const lookback = parseInt(cfg.contextLookbackFloors, 10);
+
+            // 加载动作比例配置（兼容旧配置）
+            const actionRatios = cfg.actionRatios || {};
+            let privateMsgRatio = Number.isFinite(Number(actionRatios.privateMessage)) && Number(actionRatios.privateMessage) >= 0
+                ? Number(actionRatios.privateMessage)
+                : defaults.actionRatios.privateMessage;
+            let momentsPostRatio = Number.isFinite(Number(actionRatios.momentsPost)) && Number(actionRatios.momentsPost) >= 0
+                ? Number(actionRatios.momentsPost)
+                : defaults.actionRatios.momentsPost;
+            let momentsInteractionRatio = Number.isFinite(Number(actionRatios.momentsInteraction)) && Number(actionRatios.momentsInteraction) >= 0
+                ? Number(actionRatios.momentsInteraction)
+                : defaults.actionRatios.momentsInteraction;
+
+            // 归一化比例（确保总和为100）
+            const total = privateMsgRatio + momentsPostRatio + momentsInteractionRatio;
+            if (total > 0) {
+                privateMsgRatio = Math.round((privateMsgRatio / total) * 100);
+                momentsPostRatio = Math.round((momentsPostRatio / total) * 100);
+                momentsInteractionRatio = 100 - privateMsgRatio - momentsPostRatio; // 确保总和为100
+            } else {
+                // 如果都是0或无效，使用默认值
+                privateMsgRatio = defaults.actionRatios.privateMessage;
+                momentsPostRatio = defaults.actionRatios.momentsPost;
+                momentsInteractionRatio = defaults.actionRatios.momentsInteraction;
+            }
+
+            return {
+                enabled: !!cfg.enabled,
+                thresholdRounds: Number.isFinite(threshold) && threshold > 0 ? threshold : defaults.thresholdRounds,
+                contextLookbackFloors: Number.isFinite(lookback) && lookback > 0 ? lookback : defaults.contextLookbackFloors,
+                actionRatios: {
+                    privateMessage: privateMsgRatio,
+                    momentsPost: momentsPostRatio,
+                    momentsInteraction: momentsInteractionRatio,
+                },
+            };
         }
-        cfg = (cfg && typeof cfg === "object") ? cfg : {};
-        const threshold = parseInt(cfg.thresholdRounds, 10);
-        const lookback = parseInt(cfg.contextLookbackFloors, 10);
-        return {
-            enabled: !!cfg.enabled,
-            thresholdRounds: Number.isFinite(threshold) && threshold > 0 ? threshold : defaults.thresholdRounds,
-            contextLookbackFloors: Number.isFinite(lookback) && lookback > 0 ? lookback : defaults.contextLookbackFloors,
-        };
-    }
 
     // ========= 世界观时间 & [time] 标签工具 =========
     function getWorldTimestampFallback() {
@@ -571,7 +611,7 @@
         return out;
     }
 
-    // 检测玩家输入消息中的“线上回复请求”触发器（你写的 <Request：...>）
+    // 检测玩家输入消息中的"线上回复请求"触发器（你写的 <Request：...>）
     function findLatestPlayerPhoneRequest(lookback) {
         const n = typeof lookback === "number" ? lookback : 8;
         const requestRe = /<\s*request\s*[:：]/i;
@@ -581,6 +621,9 @@
             if (!chat || !chat.length) return null;
             for (let i = chat.length - 1; i >= 0 && i >= chat.length - n; i--) {
                 const msg = chat[i];
+                // ⚠️ 重要：只检查用户消息（is_user === true），避免误判AI回复
+                const isUser = msg?.is_user === true || msg?.role === "user" || (msg?.is_user !== false && !msg?.role);
+                if (!isUser) continue; // 跳过非用户消息
                 const text = String(msg?.mes || msg?.message || msg?.content || "").trim();
                 if (!text) continue;
                 if (!requestRe.test(text)) continue;
@@ -1008,13 +1051,71 @@
                [/moments-interactions]
                END_XIAOXIN_PHONE
 
-            6. 你必须根据最新剧情内容自己判断：要不要发私聊/朋友圈/互动，数量多少、内容是什么，尽量像真实人在用手机。
-               - 发送者可以是角色卡中的主要角色，也可以是通讯录中已经存在的 NPC/联系人，但必须符合各自的人设、关系和说话习惯。
+            6. ⚠️ 重要：随机选择动作类型和联系人
+               - 你必须根据配置的比例随机选择动作类型：
+                 * 私聊消息：随机选择一个联系人（from=联系人ID, to=player），发送 1-3 条消息
+                 * 朋友圈发帖：随机选择一个联系人（author=联系人ID），发布 1 条朋友圈动态
+                 * 朋友圈互动：随机选择一个联系人（liker/commenter=联系人ID），对已有的朋友圈进行点赞或评论
+               - 发送者/作者/互动者必须从通讯录中随机选择，不要总是选择同一个联系人
+               - 每次生成只选择一种动作类型（私聊、发帖、互动三选一），不要同时生成多种类型
+               - 必须符合各自的人设、关系和说话习惯
         `);
 
+        // 根据配置的比例随机选择动作类型
+        function selectActionTypeByRatio(ratios) {
+            const rand = Math.random() * 100;
+            if (rand < ratios.privateMessage) {
+                return "privateMessage";
+            } else if (rand < ratios.privateMessage + ratios.momentsPost) {
+                return "momentsPost";
+            } else {
+                return "momentsInteraction";
+            }
+        }
+
+        const selectedActionType = selectActionTypeByRatio(autoCfg.actionRatios);
+        logInfo("根据配置比例随机选择动作类型:", selectedActionType, "比例配置:", autoCfg.actionRatios);
+
+        // 获取联系人列表（用于随机选择）
+        let availableContacts = [];
+        try {
+            if (window.XiaoxinWeChatDataHandler && typeof window.XiaoxinWeChatDataHandler.getContacts === "function") {
+                availableContacts = window.XiaoxinWeChatDataHandler.getContacts() || [];
+            }
+        } catch (e) {
+            logWarn("获取联系人列表失败:", e);
+        }
+
+        // 过滤掉玩家自己的联系人记录（如果有的话）
+        availableContacts = availableContacts.filter(function(c) {
+            return c && c.id && String(c.id).trim() !== "player" && String(c.id).trim() !== "user";
+        });
+
+        if (availableContacts.length === 0) {
+            logWarn("没有可用的联系人，跳过自动生成");
+            return;
+        }
+
+        // 随机选择一个联系人
+        const randomContact = availableContacts[Math.floor(Math.random() * availableContacts.length)];
+        const contactId = String(randomContact.id || randomContact.characterId || "").trim();
+        logInfo("随机选择的联系人:", contactId, "联系人名称:", randomContact.name || randomContact.realName || "(无)");
+
+        // 根据选择的动作类型，构建不同的用户输入提示
+        let actionTypeHint = "";
+        if (selectedActionType === "privateMessage") {
+            actionTypeHint = `\n\n⚠️ 本次必须生成：私聊消息\n- 必须生成 [MSG] 消息，from=${contactId}, to=player\n- 可以生成 1-3 条消息，内容要符合该联系人的人设和当前剧情\n- 不要生成朋友圈或朋友圈互动`;
+        } else if (selectedActionType === "momentsPost") {
+            actionTypeHint = `\n\n⚠️ 本次必须生成：朋友圈发帖\n- 必须生成 [moments] 容器，包含至少 1 条 [moment]，author=${contactId}\n- 不要生成私聊消息或朋友圈互动`;
+        } else if (selectedActionType === "momentsInteraction") {
+            actionTypeHint = `\n\n⚠️ 本次必须生成：朋友圈互动\n- 必须生成 [moments-interactions] 容器，包含 [like] 或 [comment]，liker/commenter=${contactId}\n- 必须指定 momentId=已有的朋友圈动态ID（从剧情中推断或使用合理的ID）\n- 不要生成私聊消息或朋友圈发帖`;
+        }
+
         const userInput = dedent(`
-            根据下面的“参考剧情”（最近 ${autoCfg.contextLookbackFloors} 楼），决定是否要在小馨手机的世界里做线上动作（微信消息、联系人卡片、朋友圈、朋友圈互动、系统通知等）。
+            根据下面的"参考剧情"（最近 ${autoCfg.contextLookbackFloors} 楼），决定是否要在小馨手机的世界里做线上动作。
             你只负责生成手机指令文本，不负责正文叙事。若不适合任何线上动作，输出空白。
+
+            ${actionTypeHint}
 
             参考剧情：
             ${extractRecentChatForPrompt(autoCfg.contextLookbackFloors)}
@@ -1118,6 +1219,8 @@
                     logWarn("[MSG] to 字段必须为 player，已丢弃该次生成。");
                     return "";
                 }
+                // ⚠️ 对于私聊消息，不强制要求 from 必须是某个特定联系人ID
+                // 因为我们已经通过 prompt 引导模型随机选择联系人，这里只做基本格式校验
             }
 
             // ========= 强校验 2：朋友圈/互动属性式标签 =========
@@ -1551,7 +1654,17 @@
         }
 
         const fields = parseFirstMsgFields(trigger.text) || {};
-        // 玩家发出的线上消息里，to 通常是对方联系人ID（微信号/角色ID），我们要让“对方”来回
+
+        // ⚠️ 重要：语音通话请求（type=call_voice 且 state=ringing）应该交给酒馆处理，不触发插件内部自动生成
+        const msgType = String(fields["type"] || "").trim().toLowerCase();
+        const msgState = String(fields["state"] || "").trim().toLowerCase();
+        if (msgType === "call_voice" && msgState === "ringing") {
+            logInfo("检测到玩家语音通话请求（call_voice + ringing），交给酒馆处理，跳过插件内部自动生成");
+            markPlayerReqProcessed(sig);
+            return;
+        }
+
+        // 玩家发出的线上消息里，to 通常是对方联系人ID（微信号/角色ID），我们要让"对方"来回
         const targetId = String(fields["to"] || "").trim();
         const rawTime = String(fields["time"] || "").trim();
         if (!targetId) {
@@ -1678,7 +1791,10 @@
         }
 
         // 校验 MSG：必须 to=player 且 from=targetId
-        // 额外：线上气泡内容必须像“真实聊天第一视角”，禁止出现上帝视角括号/旁白
+        // ⚠️ 注意：这里校验的是"生成出来的角色回复消息"，不是玩家发送的消息
+        // 玩家发送的消息格式：from=player, to=角色ID（这是正确的，不应该被校验）
+        // 生成出来的角色回复格式：from=角色ID, to=player（这是我们要校验的）
+        // 额外：线上气泡内容必须像"真实聊天第一视角"，禁止出现上帝视角括号/旁白
         const msgBlocks = joined.match(/\[\s*MSG\b[^\]]*\][\s\S]*?\[\s*\/\s*MSG\s*\]/gi) || [];
         if (!msgBlocks.length) return;
         for (let i = 0; i < msgBlocks.length; i++) {
@@ -1687,20 +1803,21 @@
             const need = ["id=", "time=", "from=", "to=", "type="];
             const ok = need.every(k => lower.indexOf(k) !== -1);
             if (!ok) {
-                logWarn("玩家线上回复 [MSG] 缺字段，已丢弃。");
+                logWarn("生成的角色回复 [MSG] 缺字段，已丢弃。");
                 try {
                     localStorage.removeItem(_getScopedKey(LAST_PLAYER_PHONE_REQ_KEY));
                 } catch (e2) {}
                 return;
             }
+            // ⚠️ 校验：生成出来的角色回复消息必须是 from=角色ID, to=player
             if (!/\nto=player\s*[\r\n]/i.test("\n" + mb + "\n")) {
-                logWarn("玩家线上回复 [MSG] to 必须为 player，已丢弃。");
+                logWarn("生成的角色回复 [MSG] to 必须为 player（这是角色发给玩家的消息），已丢弃。");
                 return;
             }
             const esc = targetId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             const fromOk = new RegExp("\\nfrom=" + esc + "\\s*[\\r\\n]", "i");
             if (!fromOk.test("\n" + mb + "\n")) {
-                logWarn("玩家线上回复 [MSG] from 必须为目标联系人ID，已丢弃。");
+                logWarn("生成的角色回复 [MSG] from 必须为目标联系人ID（" + targetId + "），已丢弃。");
                 return;
             }
 
@@ -1843,7 +1960,8 @@
 
             // 玩家发送：只针对"线上回复请求"做 stop + 内部生成；历史类指令完全交给世界书处理
             const onPlayerSent = function () {
-                const trPlayerReq = findLatestPlayerPhoneRequest(3);
+                // ⚠️ 重要：只检查最后一条用户消息，避免误判之前的MSG消息
+                const trPlayerReq = findLatestPlayerPhoneRequest(1);
 
                 // ⚠️ 重要：检查是否是历史类指令（[historychat] / [char_historymoments] / [playerhistorymoments]）
                 // 这些指令应该完全交给世界书处理，插件不应该停止生成
@@ -1857,6 +1975,16 @@
                     if (isHistoryCommand) {
                         // 历史类指令：完全交给世界书处理，不停止生成，不触发内部生成
                         logInfo("检测到历史类指令，交给世界书处理，不停止生成");
+                        return;
+                    }
+
+                    // ⚠️ 重要：检查是否是语音通话请求（type=call_voice 且 state=ringing）
+                    // 语音通话请求应该交给酒馆处理，不停止生成，不触发内部生成
+                    const fields = parseFirstMsgFields(trPlayerReq.text) || {};
+                    const msgType = String(fields["type"] || "").trim().toLowerCase();
+                    const msgState = String(fields["state"] || "").trim().toLowerCase();
+                    if (msgType === "call_voice" && msgState === "ringing") {
+                        logInfo("检测到玩家语音通话请求（call_voice + ringing），交给酒馆处理，不停止生成");
                         return;
                     }
                 }
@@ -1889,10 +2017,10 @@
             };
 
             // 生成开始：仅用于在"pendingStop 窗口"里补一次 stop（不再触发 tryAutoGenerate，避免循环）
-            // ⚠️ 重要：如果当前消息是历史类指令，不应该停止生成
+            // ⚠️ 重要：如果当前消息是历史类指令或语音通话请求，不应该停止生成
             const onGenerationStarted = function () {
                 if (pendingStopGenerationUntil && Date.now() <= pendingStopGenerationUntil) {
-                    // 检查当前消息是否是历史类指令
+                    // 检查当前消息是否是历史类指令或语音通话请求
                     try {
                         const ctx = getStContext();
                         const chat = ctx && Array.isArray(ctx.chat) ? ctx.chat : (Array.isArray(window.chat) ? window.chat : null);
@@ -1906,6 +2034,15 @@
 
                             if (isHistoryCommand) {
                                 // 历史类指令：不停止生成，交给世界书处理
+                                return;
+                            }
+
+                            // 检查是否是语音通话请求（type=call_voice 且 state=ringing）
+                            const fields = parseFirstMsgFields(text) || {};
+                            const msgType = String(fields["type"] || "").trim().toLowerCase();
+                            const msgState = String(fields["state"] || "").trim().toLowerCase();
+                            if (msgType === "call_voice" && msgState === "ringing") {
+                                // 语音通话请求：不停止生成，交给酒馆处理
                                 return;
                             }
                         }
@@ -1976,5 +2113,7 @@
         logWarn("自动指令模块初始化失败:", e);
     }
 })();
+
+
 
 
