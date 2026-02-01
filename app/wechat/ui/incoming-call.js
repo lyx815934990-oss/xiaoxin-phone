@@ -3256,7 +3256,7 @@ note=已拒绝
             "_" +
             Math.random().toString(36).substr(2, 9);
 
-        // 获取世界观时间
+        // 获取世界观时间（用于计算基准时间戳）
         var worldTime = Date.now();
         var rawTime = "";
         if (window.XiaoxinWorldClock) {
@@ -3267,31 +3267,123 @@ note=已拒绝
                 "";
         }
 
-        // 格式化时间
+        // 计算基准时间戳（用于字数动态时间推进）
+        // 1. 获取最后一条消息的时间戳
+        var lastMessageTimestamp = 0;
+        var contactId = contact.id || contact.wechatId || characterId;
+        if (window.XiaoxinWeChatDataHandler && contactId) {
+            try {
+                var chatMessages = window.XiaoxinWeChatDataHandler.getChatMessages(contactId);
+                if (chatMessages && chatMessages.length > 0) {
+                    // 找到最后一条消息（按时间戳排序）
+                    var sortedMessages = chatMessages.slice().sort(function(a, b) {
+                        return (b.timestamp || 0) - (a.timestamp || 0);
+                    });
+                    if (sortedMessages[0] && sortedMessages[0].timestamp) {
+                        lastMessageTimestamp = sortedMessages[0].timestamp;
+                    }
+                }
+            } catch (e) {
+                console.warn("[小馨手机][通话中] 获取最后一条消息时间戳失败:", e);
+            }
+        }
+
+        // 2. 从输入框中获取最后一个 [time] 标签时间（若存在）
+        var inputTimeTimestamp = null;
+        try {
+            var tavernInputForTime = document.getElementById("send_textarea");
+            if (!tavernInputForTime) {
+                var inputSelectors = [
+                    "#send_textarea textarea",
+                    "textarea#send_textarea",
+                    "#send_textarea_mobile",
+                    ".send_textarea",
+                    "#message_in",
+                    "#user-input",
+                ];
+                for (var i = 0; i < inputSelectors.length; i++) {
+                    tavernInputForTime = document.querySelector(inputSelectors[i]);
+                    if (tavernInputForTime) break;
+                }
+            }
+            if (tavernInputForTime && tavernInputForTime.value) {
+                var inputText = String(tavernInputForTime.value);
+                var timeRe = /\[time\]([\s\S]*?)\[\/time\]/gi;
+                var matchTime;
+                var lastTimeStr = "";
+                while ((matchTime = timeRe.exec(inputText)) !== null) {
+                    lastTimeStr = matchTime[1] || "";
+                }
+                if (lastTimeStr) {
+                    var normalizedInputTimeStr = lastTimeStr
+                        .replace(/-/g, "/")
+                        .replace(/年/g, "/")
+                        .replace(/月/g, "/")
+                        .replace(/日/g, " ")
+                        .replace(/星期[一二三四五六日]/g, "")
+                        .trim();
+                    var parsedInputTs = Date.parse(normalizedInputTimeStr);
+                    if (!isNaN(parsedInputTs)) {
+                        inputTimeTimestamp = parsedInputTs;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn("[小馨手机][通话中] 从输入框解析 [time] 标签失败:", e);
+        }
+
+        // 3. 计算基准时间戳（取最大值）
+        var baseTimestamp = worldTime;
+        if (lastMessageTimestamp > baseTimestamp) {
+            baseTimestamp = lastMessageTimestamp;
+        }
+        if (inputTimeTimestamp && inputTimeTimestamp > baseTimestamp) {
+            baseTimestamp = inputTimeTimestamp;
+        }
+
+        // 4. 按字数动态追加时间：参考 100 字/分钟 ≈ 每字符 0.6 秒
+        var charsPerMinute = 100;
+        var chars = text.trim().length;
+        var estimatedMs = Math.round((chars / charsPerMinute) * 60000);
+        // 设定上下限：至少 5 秒，最多 5 分钟，避免极端值
+        var minMs = 5000;
+        var maxMs = 5 * 60 * 1000;
+        if (estimatedMs < minMs) estimatedMs = minMs;
+        if (estimatedMs > maxMs) estimatedMs = maxMs;
+
+        var nextTimestamp = baseTimestamp + estimatedMs;
+        var nextDate = new Date(nextTimestamp);
+
+        // 5. 格式化时间字符串
         var timeStr = "";
         if (rawTime) {
-            timeStr = rawTime;
+            // 如果有世界观时间，需要根据时间推进量更新它
+            // 这里简化处理：直接使用计算出的时间戳格式化
+            var year = nextDate.getFullYear();
+            var month = String(nextDate.getMonth() + 1).padStart(2, "0");
+            var day = String(nextDate.getDate()).padStart(2, "0");
+            var hours = String(nextDate.getHours()).padStart(2, "0");
+            var minutes = String(nextDate.getMinutes()).padStart(2, "0");
+            var seconds = String(nextDate.getSeconds()).padStart(2, "0");
+            timeStr = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;
         } else {
-            var date = new Date(worldTime);
-            var year = date.getFullYear();
-            var month = String(date.getMonth() + 1).padStart(2, "0");
-            var day = String(date.getDate()).padStart(2, "0");
-            var hours = String(date.getHours()).padStart(2, "0");
-            var minutes = String(date.getMinutes()).padStart(2, "0");
-            var seconds = String(date.getSeconds()).padStart(2, "0");
-            timeStr =
-                year +
-                "-" +
-                month +
-                "-" +
-                day +
-                " " +
-                hours +
-                ":" +
-                minutes +
-                ":" +
-                seconds;
+            var year = nextDate.getFullYear();
+            var month = String(nextDate.getMonth() + 1).padStart(2, "0");
+            var day = String(nextDate.getDate()).padStart(2, "0");
+            var hours = String(nextDate.getHours()).padStart(2, "0");
+            var minutes = String(nextDate.getMinutes()).padStart(2, "0");
+            var seconds = String(nextDate.getSeconds()).padStart(2, "0");
+            timeStr = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;
         }
+
+        console.info(
+            "[小馨手机][通话中] 语音通话文本消息时间推进:",
+            "文本长度:", chars,
+            "基准时间戳:", baseTimestamp,
+            "推进时间(ms):", estimatedMs,
+            "最终时间戳:", nextTimestamp,
+            "时间字符串:", timeStr
+        );
 
         // 获取玩家信息
         var playerId = "player";
@@ -3308,14 +3400,14 @@ note=已拒绝
                 currentAccount.nickname || currentAccount.name || "玩家";
         }
 
-        // 构建消息对象（待发送状态）
+            // 构建消息对象（待发送状态）
         var pendingMessage = {
             id: voiceTextId,
             type: "call_voice_text",
             content: text.trim(),
             text: text.trim(),
-            timestamp: worldTime,
-            rawTime: rawTime,
+            timestamp: nextTimestamp, // 使用计算出的时间戳
+            rawTime: timeStr, // 使用计算出的时间字符串
             sender: playerNickname,
             isOutgoing: true,
             isPending: true, // 标记为待发送状态
@@ -3329,16 +3421,17 @@ note=已拒绝
         displayCallVoiceTextMessage(pendingMessage, characterId, callId);
 
         // 构建指令格式
-        // 玩家在通话中发送语音转写文本：使用最新世界观时间，避免排序到历史位置
+        // 玩家在通话中发送语音转写文本：使用字数动态时间推进后的时间
         var command = `[MSG]
 id=${voiceTextId}
-time=${getBestWorldRawTime()}
+time=${timeStr}
 from=user
 to=${characterId}
 type=call_voice_text
 call_id=${callId}
 text=${text.trim()}
-[/MSG]`;
+[/MSG]
+[time]${timeStr}[/time]`;
 
         // 插入到酒馆输入框（不自动发送，和角色主动来电的发送消息逻辑一样）
         // 使用和 chat.js 中 appendCommandToInput 一样的逻辑，只插入不发送
@@ -3628,6 +3721,7 @@ text=${text.trim()}
                     if (tavernInput) {
                         var currentText = tavernInput.value || "";
 
+                        // ⚠️ 重要：挂断指令应该输入到最后一步（在所有语音通话文本内容之后）
                         // 检查输入框中是否已有相同 call_id 的挂断指令
                         // 使用正则表达式匹配 [MSG]...call_id=callId...[/MSG] 块
                         var callIdPattern = new RegExp(
@@ -3644,8 +3738,8 @@ text=${text.trim()}
                         if (matches) {
                             for (var j = 0; j < matches.length; j++) {
                                 var msgBlock = matches[j];
-                                // 检查是否包含相同的 call_id
-                                if (callIdPattern.test(msgBlock)) {
+                                // 检查是否包含相同的 call_id 且是挂断指令（state=ended）
+                                if (callIdPattern.test(msgBlock) && msgBlock.indexOf("state=ended") !== -1) {
                                     // 替换这个块为新的挂断指令
                                     newText = newText.replace(
                                         msgBlock,
@@ -3662,15 +3756,29 @@ text=${text.trim()}
                             }
                         }
 
-                        // 如果没有找到已有的指令，则追加
+                        // 如果没有找到已有的挂断指令，则追加到最后（确保在所有语音通话文本内容之后）
                         if (!hasExistingCommand) {
-                            if (currentText.trim()) {
-                                newText = currentText + "\n" + hangupCommand;
+                            // 移除所有已有的相同 call_id 的挂断指令（如果有的话，避免重复）
+                            var allMsgBlocks = currentText.match(msgBlockPattern);
+                            if (allMsgBlocks) {
+                                for (var k = 0; k < allMsgBlocks.length; k++) {
+                                    var msgBlock = allMsgBlocks[k];
+                                    if (callIdPattern.test(msgBlock) && msgBlock.indexOf("state=ended") !== -1) {
+                                        newText = newText.replace(msgBlock, "");
+                                    }
+                                }
+                            }
+                            
+                            // 追加挂断指令到最后
+                            if (newText.trim()) {
+                                newText = newText.trim() + "\n" + hangupCommand;
                             } else {
                                 newText = hangupCommand;
                             }
                             console.info(
-                                "[小馨手机][通话中] 未找到已有的挂断指令，已追加新指令"
+                                "[小馨手机][通话中] 挂断指令已追加到最后（在所有语音通话文本内容之后）",
+                                "call_id:",
+                                callId
                             );
                         }
 
@@ -3775,6 +3883,8 @@ text=${text.trim()}
     var callMessageListenerInterval = null;
     var lastProcessedMessageIds = {}; // 记录已处理的消息ID，避免重复显示
     var lastProcessedMessageContents = {}; // 记录已处理的消息内容（基于文本内容），避免重复显示
+    // ⚠️ 重要：记录每个消息ID对应的内容哈希和sourceMessageId，用于检测楼层重新生成
+    var messageSourceInfo = {}; // callId -> Map(messageId -> { contentHash, sourceId })
     var callMessageQueue = {}; // 消息队列，按通话ID分组，逐条显示
     // 记录已计入通话时长的消息ID，避免刷新/重复解析导致累计时长膨胀
     var durationCountedMessageIds = {}; // callId -> Set(message.id)
@@ -4064,6 +4174,27 @@ text=${text.trim()}
             // 延迟处理，给消息监听器时间先处理并保存原始内容到 data 属性
             setTimeout(function () {
                 try {
+                    // ⚠️ 重要：每次处理消息前，先清理已处理消息记录，只保留当前可见楼层中的消息
+                    // 这样可以确保当用户在同一楼层重新生成时，新生成的消息不会被旧记录跳过
+                    // 注意：需要清理所有通话ID的缓存，因为可能在不同通话间切换
+                    Object.keys(lastProcessedMessageIds).forEach(function(key) {
+                        if (lastProcessedMessageIds[key]) {
+                            lastProcessedMessageIds[key].clear();
+                        }
+                    });
+                    Object.keys(lastProcessedMessageContents).forEach(function(key) {
+                        if (lastProcessedMessageContents[key]) {
+                            lastProcessedMessageContents[key].clear();
+                        }
+                    });
+                    Object.keys(messageSourceInfo).forEach(function(key) {
+                        if (messageSourceInfo[key]) {
+                            messageSourceInfo[key].clear();
+                        }
+                    });
+
+                    console.info("[小馨手机][通话中] 已清理所有已处理消息记录，准备重新扫描当前可见楼层");
+
                     // 获取所有消息元素
                     var $messages = $messageArea.find(".mes");
                     var foundMessages = [];
@@ -4262,7 +4393,7 @@ text=${text.trim()}
     }
 
     // 解析语音通话文本消息
-    function parseCallVoiceTextMessage(content, characterId, callId) {
+    function parseCallVoiceTextMessage(content, characterId, callId, sourceMessageId) {
         if (!content || !characterId || !callId) {
             return;
         }
@@ -4276,6 +4407,14 @@ text=${text.trim()}
 
             var msgContent = msgMatch[1];
             var lines = msgContent.split("\n");
+
+            // ⚠️ 重要：获取消息的 sourceMessageId（楼层ID），用于检测楼层重新生成
+            // 如果没有传入 sourceMessageId，尝试从消息元素中获取
+            if (!sourceMessageId) {
+                // 尝试从当前正在处理的消息元素中获取 sourceMessageId
+                // 注意：这里需要从调用处传递 sourceMessageId，暂时先设为 null
+                sourceMessageId = null;
+            }
 
             // 解析每条消息
             var currentMessage = {};
@@ -4358,31 +4497,115 @@ text=${text.trim()}
                         lastProcessedMessageContents[messageCallIdForParse] = new Set();
                     }
 
-                    // 检查消息ID是否已处理过
-                    if (lastProcessedMessageIds[messageCallIdForParse].has(currentMessage.id)) {
-                        console.info(
-                            "[小馨手机][通话中] 解析消息时发现消息已处理过（基于ID），跳过:",
-                            "消息ID:",
-                            currentMessage.id,
-                            "call_id:",
-                            messageCallIdForParse
-                        );
-                        return; // 已处理过，跳过
+                    // ⚠️ 重要：检查消息是否已处理过，但需要考虑楼层重新生成的情况
+                    // 计算内容哈希，用于检测内容变化
+                    var contentHash = 0;
+                    if (messageTextForParse) {
+                        for (var i = 0; i < messageTextForParse.length; i++) {
+                            contentHash = (contentHash << 5) - contentHash + messageTextForParse.charCodeAt(i);
+                            contentHash = contentHash & contentHash;
+                        }
+                        contentHash = Math.abs(contentHash);
                     }
 
-                    // 检查消息内容是否已处理过
-                    if (messageTextForParse && lastProcessedMessageContents[messageCallIdForParse].has(messageTextForParse)) {
-                        console.info(
-                            "[小馨手机][通话中] 解析消息时发现消息内容已处理过（基于内容），跳过:",
-                            "消息ID:",
-                            currentMessage.id,
-                            "消息内容:",
-                            messageTextForParse.substring(0, 50) + (messageTextForParse.length > 50 ? "..." : ""),
-                            "call_id:",
-                            messageCallIdForParse
-                        );
-                        return; // 相同内容已处理过，跳过
+                    // 初始化消息来源信息记录
+                    if (!messageSourceInfo[messageCallIdForParse]) {
+                        messageSourceInfo[messageCallIdForParse] = new Map();
                     }
+
+                    var existingSourceInfo = messageSourceInfo[messageCallIdForParse].get(currentMessage.id);
+
+                    // ⚠️ 重要：获取消息的 sourceMessageId（楼层ID），用于检测楼层重新生成
+                    var messageSourceId = null;
+                    try {
+                        if (window.XiaoxinMessageListener && window.XiaoxinMessageListener.currentSourceMessageId) {
+                            messageSourceId = window.XiaoxinMessageListener.currentSourceMessageId;
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+
+                    // 检查消息ID是否已处理过
+                    if (lastProcessedMessageIds[messageCallIdForParse].has(currentMessage.id)) {
+                        // 如果消息ID已存在，检查内容哈希和 sourceMessageId 是否相同
+                        var isSameSource = existingSourceInfo &&
+                                         existingSourceInfo.sourceId === messageSourceId &&
+                                         existingSourceInfo.contentHash === contentHash;
+
+                        if (isSameSource) {
+                            // 内容哈希和 sourceMessageId 都相同，说明是重复处理，跳过
+                            console.info(
+                                "[小馨手机][通话中] 解析消息时发现消息已处理过（内容和sourceMessageId相同），跳过:",
+                                "消息ID:",
+                                currentMessage.id,
+                                "sourceMessageId:",
+                                messageSourceId,
+                                "call_id:",
+                                messageCallIdForParse
+                            );
+                            return; // 已处理过，跳过
+                        } else {
+                            // 内容哈希或 sourceMessageId 不同，说明楼层已重新生成，清除旧记录并重新处理
+                            console.info(
+                                "[小馨手机][通话中] 检测到楼层重新生成，清除旧记录并重新处理:",
+                                "消息ID:",
+                                currentMessage.id,
+                                "旧sourceMessageId:",
+                                existingSourceInfo ? existingSourceInfo.sourceId : "无",
+                                "新sourceMessageId:",
+                                messageSourceId,
+                                "旧内容哈希:",
+                                existingSourceInfo ? existingSourceInfo.contentHash : "无",
+                                "新内容哈希:",
+                                contentHash,
+                                "call_id:",
+                                messageCallIdForParse
+                            );
+                            // 不返回，继续处理
+                        }
+                    }
+
+                    // 检查消息内容是否已处理过（但允许内容变化时重新处理）
+                    if (messageTextForParse && lastProcessedMessageContents[messageCallIdForParse].has(messageTextForParse)) {
+                        // 如果内容相同，检查是否来自同一楼层（通过 sourceMessageId 和内容哈希）
+                        var isSameSource = existingSourceInfo &&
+                                         existingSourceInfo.sourceId === messageSourceId &&
+                                         existingSourceInfo.contentHash === contentHash;
+
+                        if (isSameSource) {
+                            console.info(
+                                "[小馨手机][通话中] 解析消息时发现消息内容已处理过（内容和sourceMessageId相同），跳过:",
+                                "消息ID:",
+                                currentMessage.id,
+                                "消息内容:",
+                                messageTextForParse.substring(0, 50) + (messageTextForParse.length > 50 ? "..." : ""),
+                                "sourceMessageId:",
+                                messageSourceId,
+                                "call_id:",
+                                messageCallIdForParse
+                            );
+                            return; // 相同内容已处理过，跳过
+                        } else {
+                            // 内容相同但 sourceMessageId 或哈希不同，说明可能是楼层重新生成，允许处理
+                            console.info(
+                                "[小馨手机][通话中] 消息内容相同但sourceMessageId或哈希不同，可能是楼层重新生成，允许处理:",
+                                "消息ID:",
+                                currentMessage.id,
+                                "旧sourceMessageId:",
+                                existingSourceInfo ? existingSourceInfo.sourceId : "无",
+                                "新sourceMessageId:",
+                                messageSourceId,
+                                "call_id:",
+                                messageCallIdForParse
+                            );
+                        }
+                    }
+
+                    // 记录消息来源信息（包括 sourceMessageId 和内容哈希）
+                    messageSourceInfo[messageCallIdForParse].set(currentMessage.id, {
+                        contentHash: contentHash,
+                        sourceId: messageSourceId
+                    });
                 }
 
                 // 检查是否是待发送消息的确认（从酒馆正文中发送的消息）
@@ -4469,50 +4692,195 @@ text=${text.trim()}
             }
         }
 
-        // 如果DOM中已有消息，直接跳过（刷新后最可靠的检查）
+        // ⚠️ 重要：如果DOM中已有消息，需要检查是否是楼层重新生成
+        // 如果 sourceMessageId 不同，说明是楼层重新生成，应该清除旧消息并重新显示
         if (!isPending && isMessageInDOM) {
-            console.info(
-                "[小馨手机][通话中] 消息已在DOM中显示（刷新后检查），跳过显示:",
-                "消息ID:",
-                message.id,
-                "消息内容:",
-                messageText ? (messageText.substring(0, 50) + (messageText.length > 50 ? "..." : "")) : "",
-                "call_id:",
-                messageCallIdForCheck
-            );
-            // 同时更新去重记录，避免后续重复检查
-            lastProcessedMessageIds[messageCallIdForCheck].add(message.id);
-            if (messageText) {
-                lastProcessedMessageContents[messageCallIdForCheck].add(messageText);
+            // 检查是否是楼层重新生成
+            var existingSourceInfo = messageSourceInfo[messageCallIdForCheck] ?
+                                    messageSourceInfo[messageCallIdForCheck].get(message.id) : null;
+            var isSameSource = existingSourceInfo &&
+                             existingSourceInfo.sourceId === messageSourceId &&
+                             existingSourceInfo.contentHash === contentHash;
+
+            if (isSameSource) {
+                // sourceMessageId 和内容哈希都相同，说明是重复处理，跳过
+                console.info(
+                    "[小馨手机][通话中] 消息已在DOM中显示且sourceMessageId相同，跳过显示:",
+                    "消息ID:",
+                    message.id,
+                    "sourceMessageId:",
+                    messageSourceId,
+                    "call_id:",
+                    messageCallIdForCheck
+                );
+                // 同时更新去重记录，避免后续重复检查
+                lastProcessedMessageIds[messageCallIdForCheck].add(message.id);
+                if (messageText) {
+                    lastProcessedMessageContents[messageCallIdForCheck].add(messageText);
+                }
+                return; // DOM中已有且sourceMessageId相同，跳过
+            } else {
+                // sourceMessageId 或内容哈希不同，说明是楼层重新生成，清除旧消息并重新显示
+                console.info(
+                    "[小馨手机][通话中] 检测到楼层重新生成，清除DOM中的旧消息并重新显示:",
+                    "消息ID:",
+                    message.id,
+                    "旧sourceMessageId:",
+                    existingSourceInfo ? existingSourceInfo.sourceId : "无",
+                    "新sourceMessageId:",
+                    messageSourceId,
+                    "call_id:",
+                    messageCallIdForCheck
+                );
+                // 清除DOM中的旧消息
+                if ($activeCallScreen && $activeCallScreen.hasClass("show")) {
+                    var $messagesContainer = $activeCallScreen.find(
+                        ".xiaoxin-active-call-messages"
+                    );
+                    if ($messagesContainer && $messagesContainer.length > 0) {
+                        var $existingMessage = $messagesContainer.find(
+                            '[data-message-id="' + message.id + '"]'
+                        );
+                        if ($existingMessage.length > 0) {
+                            $existingMessage.remove();
+                            console.info(
+                                "[小馨手机][通话中] 已清除DOM中的旧消息:",
+                                message.id
+                            );
+                        }
+                    }
+                }
+                // 不返回，继续处理
             }
-            return; // DOM中已有，跳过
         }
+
+        // ⚠️ 重要：检查消息是否已处理过，但需要考虑楼层重新生成的情况
+        // 计算内容哈希，用于检测内容变化
+        var contentHash = 0;
+        if (messageText) {
+            for (var i = 0; i < messageText.length; i++) {
+                contentHash = (contentHash << 5) - contentHash + messageText.charCodeAt(i);
+                contentHash = contentHash & contentHash;
+            }
+            contentHash = Math.abs(contentHash);
+        }
+
+        // ⚠️ 重要：获取消息的 sourceMessageId（楼层ID），用于检测楼层重新生成
+        var messageSourceId = null;
+        try {
+            if (window.XiaoxinMessageListener && window.XiaoxinMessageListener.currentSourceMessageId) {
+                messageSourceId = window.XiaoxinMessageListener.currentSourceMessageId;
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        // 初始化消息来源信息记录
+        if (!messageSourceInfo[messageCallIdForCheck]) {
+            messageSourceInfo[messageCallIdForCheck] = new Map();
+        }
+
+        var existingSourceInfo = messageSourceInfo[messageCallIdForCheck].get(message.id);
 
         // 检查消息ID是否已处理过（内存中的去重记录）
         if (!isPending && lastProcessedMessageIds[messageCallIdForCheck].has(message.id)) {
-            console.info(
-                "[小馨手机][通话中] 消息已处理过（基于ID），跳过显示:",
-                "消息ID:",
-                message.id,
-                "call_id:",
-                messageCallIdForCheck
-            );
-            return; // 已处理过且不是待发送状态，跳过
+            // 如果消息ID已存在，检查内容哈希和 sourceMessageId 是否相同
+            var isSameSource = existingSourceInfo &&
+                             existingSourceInfo.sourceId === messageSourceId &&
+                             existingSourceInfo.contentHash === contentHash;
+
+            if (isSameSource) {
+                // 内容哈希和 sourceMessageId 都相同，说明是重复处理，跳过
+                console.info(
+                    "[小馨手机][通话中] 消息已处理过（内容和sourceMessageId相同），跳过显示:",
+                    "消息ID:",
+                    message.id,
+                    "sourceMessageId:",
+                    messageSourceId,
+                    "call_id:",
+                    messageCallIdForCheck
+                );
+                return; // 已处理过且不是待发送状态，跳过
+            } else {
+                // 内容哈希或 sourceMessageId 不同，说明楼层已重新生成，清除旧记录并重新处理
+                console.info(
+                    "[小馨手机][通话中] 检测到楼层重新生成，清除旧记录并重新处理:",
+                    "消息ID:",
+                    message.id,
+                    "旧sourceMessageId:",
+                    existingSourceInfo ? existingSourceInfo.sourceId : "无",
+                    "新sourceMessageId:",
+                    messageSourceId,
+                    "旧内容哈希:",
+                    existingSourceInfo ? existingSourceInfo.contentHash : "无",
+                    "新内容哈希:",
+                    contentHash,
+                    "call_id:",
+                    messageCallIdForCheck
+                );
+                // 清除DOM中的旧消息（如果存在）
+                if ($activeCallScreen && $activeCallScreen.hasClass("show")) {
+                    var $messagesContainer = $activeCallScreen.find(
+                        ".xiaoxin-active-call-messages"
+                    );
+                    if ($messagesContainer && $messagesContainer.length > 0) {
+                        var $existingMessage = $messagesContainer.find(
+                            '[data-message-id="' + message.id + '"]'
+                        );
+                        if ($existingMessage.length > 0) {
+                            $existingMessage.remove();
+                            console.info(
+                                "[小馨手机][通话中] 已清除DOM中的旧消息:",
+                                message.id
+                            );
+                        }
+                    }
+                }
+                // 不返回，继续处理
+            }
         }
 
-        // 检查消息内容是否已处理过（基于内容去重，防止相同内容重复显示）
+        // 检查消息内容是否已处理过（但允许内容变化时重新处理）
         if (!isPending && messageText && lastProcessedMessageContents[messageCallIdForCheck].has(messageText)) {
-            console.info(
-                "[小馨手机][通话中] 消息内容已处理过（基于内容），跳过显示:",
-                "消息ID:",
-                message.id,
-                "消息内容:",
-                messageText.substring(0, 50) + (messageText.length > 50 ? "..." : ""),
-                "call_id:",
-                messageCallIdForCheck
-            );
-            return; // 相同内容已处理过，跳过
+            // 如果内容相同，检查是否来自同一楼层（通过 sourceMessageId 和内容哈希）
+            var isSameSource = existingSourceInfo &&
+                             existingSourceInfo.sourceId === messageSourceId &&
+                             existingSourceInfo.contentHash === contentHash;
+
+            if (isSameSource) {
+                console.info(
+                    "[小馨手机][通话中] 消息内容已处理过（内容和sourceMessageId相同），跳过显示:",
+                    "消息ID:",
+                    message.id,
+                    "消息内容:",
+                    messageText.substring(0, 50) + (messageText.length > 50 ? "..." : ""),
+                    "sourceMessageId:",
+                    messageSourceId,
+                    "call_id:",
+                    messageCallIdForCheck
+                );
+                return; // 相同内容已处理过，跳过
+            } else {
+                // 内容相同但 sourceMessageId 或哈希不同，说明可能是楼层重新生成，允许处理
+                console.info(
+                    "[小馨手机][通话中] 消息内容相同但sourceMessageId或哈希不同，可能是楼层重新生成，允许处理:",
+                    "消息ID:",
+                    message.id,
+                    "旧sourceMessageId:",
+                    existingSourceInfo ? existingSourceInfo.sourceId : "无",
+                    "新sourceMessageId:",
+                    messageSourceId,
+                    "call_id:",
+                    messageCallIdForCheck
+                );
+            }
         }
+
+        // 记录消息来源信息（包括 sourceMessageId 和内容哈希）
+        messageSourceInfo[messageCallIdForCheck].set(message.id, {
+            contentHash: contentHash,
+            sourceId: messageSourceId
+        });
 
         // 检查通话ID是否匹配（支持 call_id 和 callId 两种字段名）
         var messageCallId = message.call_id || message.callId || "";
