@@ -2908,6 +2908,10 @@ window.XiaoxinWeChatApp = (function () {
                             console.log(`[小馨手机][微信主页][DOM解析] 解析到通话消息: type=${msgObj.type}, state=${msgObj.state || '(无)'}, call_id=${msgObj.call_id || msgObj.callId || '(无)'}, from=${msgObj.from || '(无)'}, to=${msgObj.to || '(无)'}`);
                             console.log(`[小馨手机][微信主页][DOM解析] 原始内容预览:`, cleanContent.substring(0, 200));
                         }
+                        // ⚠️ 调试：打印解析到的text消息的content字段
+                        if (msgObj.type === 'text' && msgObj.content) {
+                            console.log(`[小馨手机][微信主页][DOM解析] 解析到text消息的content: "${msgObj.content}", 消息ID: ${msgObj.id || '(无)'}`);
+                        }
 
                         var msgTo = String(msgObj.to || "").trim();
                         var msgFrom = String(msgObj.from || "").trim();
@@ -3079,7 +3083,7 @@ window.XiaoxinWeChatApp = (function () {
                     // ⚠️ 调试：打印所有消息的详细信息
                     console.log(`[小馨手机][微信主页] 联系人 ${userId} 从 DOM 读取到的所有消息:`);
                     messages.forEach(function(m, i) {
-                        console.log(`  [${i}] id=${m.id}, type=${m.type}, state=${m.state || m.callState || '(无)'}, call_id=${m.call_id || m.callId || '(无)'}, timestamp=${m.timestamp}`);
+                        console.log(`  [${i}] id=${m.id}, type=${m.type}, content="${(m.content || '').substring(0, 50)}", state=${m.state || m.callState || '(无)'}, call_id=${m.call_id || m.callId || '(无)'}, timestamp=${m.timestamp}`);
                     });
 
                     // 按时间戳排序
@@ -3089,7 +3093,7 @@ window.XiaoxinWeChatApp = (function () {
 
                     // 获取最后一条消息
                     var lastMessage = messages[messages.length - 1];
-                    console.log(`[小馨手机][微信主页] 联系人 ${userId} 的最后一条消息: type=${lastMessage.type}, state=${lastMessage.state || lastMessage.callState || '(无)'}, call_id=${lastMessage.call_id || lastMessage.callId || '(无)'}`);
+                    console.log(`[小馨手机][微信主页] 联系人 ${userId} 的最后一条消息: type=${lastMessage.type}, content="${(lastMessage.content || '').substring(0, 50)}", state=${lastMessage.state || lastMessage.callState || '(无)'}, call_id=${lastMessage.call_id || lastMessage.callId || '(无)'}`);
                     lastMessagesMap[userId] = lastMessage;
                 });
 
@@ -3135,6 +3139,12 @@ window.XiaoxinWeChatApp = (function () {
 
                 // 过滤消息：只显示已通过队列显示的角色消息
                 console.log("[小馨手机][微信主页] 开始过滤消息，总数:", messages.length, "联系人ID:", userId);
+                // ⚠️ 调试：打印数据处理器中存储的所有消息的content
+                messages.forEach(function(m, i) {
+                    if (m.id === 'wxid-XJYMsg001' || (m.content && m.content.indexOf('您有事') !== -1)) {
+                        console.log(`[小馨手机][微信主页] 数据处理器消息[${i}]: id=${m.id}, content="${(m.content || '').substring(0, 50)}", type=${m.type}`);
+                    }
+                });
                 messages.forEach(function(m, i) {
                     if (m.type === 'call_voice' || m.type === 'call_video') {
                         console.log(`[小馨手机][微信主页] 待过滤消息[${i}]: id=${m.id}, type=${m.type}, state=${m.state || m.callState}, isOutgoing=${m.isOutgoing}`);
@@ -3255,16 +3265,10 @@ window.XiaoxinWeChatApp = (function () {
 
                 // 获取最后一条消息
                 // ⚠️ 重要：消息预览必须跟随队列显示进度，只显示已通过队列显示的消息
+                // ⚠️ 关键修复：优先使用DOM中读取的最后一条可见消息，而不是数据处理器中的消息
                 var lastMessage = null;
 
-                // 优先从已过滤的消息中选择最后一条（已过滤的消息都是已显示的）
-                if (filteredMessages.length > 0) {
-                    lastMessage = filteredMessages[filteredMessages.length - 1];
-                    console.info("[小馨手机][微信主页] 使用已过滤消息列表的最后一条（已显示），联系人ID:", userId, "消息类型:", lastMessage.type, "state:", lastMessage.state || lastMessage.callState || "(无)");
-                }
-
-                // 如果从 DOM 读取的最后一条消息存在，需要检查它是否已显示
-                // 只有已显示的消息才能作为预览消息，否则使用 filteredMessages 中的最后一条
+                // ⚠️ 优先使用DOM中读取的最后一条消息（这是当前可见的消息）
                 if (domLastMessages[userId]) {
                     var domLastMsg = domLastMessages[userId];
                     var shouldUseDomMessage = false;
@@ -3292,9 +3296,9 @@ window.XiaoxinWeChatApp = (function () {
                             );
                             if (isDisplayed) {
                                 shouldUseDomMessage = true;
-                                console.info("[小馨手机][微信主页] DOM 最后一条消息已显示，可以使用，消息ID:", domLastMsg.id);
+                                console.info("[小馨手机][微信主页] DOM 最后一条消息已显示，优先使用DOM消息，消息ID:", domLastMsg.id, "content:", domLastMsg.content ? domLastMsg.content.substring(0, 50) : "(无)");
                             } else {
-                                console.info("[小馨手机][微信主页] DOM 最后一条消息未显示（在队列中），使用已过滤消息列表的最后一条，消息ID:", domLastMsg.id);
+                                console.info("[小馨手机][微信主页] DOM 最后一条消息未显示（在队列中），将使用已过滤消息列表的最后一条，消息ID:", domLastMsg.id);
                             }
                         } else {
                             // 如果消息队列管理器不存在，直接使用（兼容旧逻辑）
@@ -3305,52 +3309,61 @@ window.XiaoxinWeChatApp = (function () {
                         shouldUseDomMessage = true;
                     }
 
-                    // 如果 DOM 消息已显示，且时间更新，则使用 DOM 消息
+                    // ⚠️ 关键修复：如果DOM消息已显示，直接使用DOM消息，不再比较时间戳
                     if (shouldUseDomMessage) {
-                        // 比较时间戳，选择更新的消息
-                        var domTime = domLastMsg.timestamp || 0;
-                        var filteredTime = lastMessage ? (lastMessage.timestamp || 0) : 0;
-
-                        // 如果没有 timestamp，尝试从 rawTime 解析
-                        if (!domTime && domLastMsg.rawTime) {
-                            try {
-                                var domTimeStr = String(domLastMsg.rawTime).trim();
-                                var parsedDom = Date.parse(
-                                    domTimeStr
-                                        .replace(/-/g, "/")
-                                        .replace(/年|月|日|星期[一二三四五六日]/g, " ")
-                                );
-                                if (!isNaN(parsedDom)) {
-                                    domTime = parsedDom;
+                        // ⚠️ 重要：从数据处理器中查找对应的消息，使用处理后的 content，而不是 DOM 中的原始 content
+                        var domMsgId = domLastMsg.id;
+                        var processedMsg = null;
+                        if (domMsgId && messages && messages.length > 0) {
+                            // 在消息列表中查找相同 ID 的消息
+                            for (var m = messages.length - 1; m >= 0; m--) {
+                                if (messages[m].id === domMsgId) {
+                                    processedMsg = messages[m];
+                                    break;
                                 }
-                            } catch (e) {
-                                // 解析失败，使用 0
-                            }
-                        }
-                        if (!filteredTime && lastMessage && lastMessage.rawTime) {
-                            try {
-                                var filteredTimeStr = String(lastMessage.rawTime).trim();
-                                var parsedFiltered = Date.parse(
-                                    filteredTimeStr
-                                        .replace(/-/g, "/")
-                                        .replace(/年|月|日|星期[一二三四五六日]/g, " ")
-                                );
-                                if (!isNaN(parsedFiltered)) {
-                                    filteredTime = parsedFiltered;
-                                }
-                            } catch (e) {
-                                // 解析失败，使用 0
                             }
                         }
 
-                        // 如果 DOM 消息时间更新，使用 DOM 消息
-                        if (domTime > filteredTime) {
+                        if (processedMsg) {
+                            // 使用数据处理器中的消息（包含处理后的 content），但保留 DOM 消息的时间戳（可能更新）
+                            lastMessage = Object.assign({}, processedMsg, {
+                                timestamp: domLastMsg.timestamp || processedMsg.timestamp,
+                                rawTime: domLastMsg.rawTime || processedMsg.rawTime
+                            });
+                            console.info("[小馨手机][微信主页] 优先使用DOM消息（已显示），从数据处理器获取处理后的content，联系人ID:", userId, "消息类型:", lastMessage.type, "content:", lastMessage.content ? lastMessage.content.substring(0, 50) : "(无)", "消息ID:", lastMessage.id);
+                        } else {
+                            // 如果找不到对应的消息，使用 DOM 消息（兜底）
                             lastMessage = domLastMsg;
-                            console.info("[小馨手机][微信主页] 使用 DOM 实时读取的最后一条消息（已显示且时间更新），联系人ID:", userId, "消息类型:", lastMessage.type, "state:", lastMessage.state || lastMessage.callState || "(无)");
-                        } else if (lastMessage) {
-                            console.info("[小馨手机][微信主页] 已过滤消息列表的最后一条时间更新，使用它，联系人ID:", userId);
+                            console.info("[小馨手机][微信主页] 优先使用DOM消息（已显示，但未找到对应的处理消息），联系人ID:", userId, "消息类型:", lastMessage.type, "content:", lastMessage.content ? lastMessage.content.substring(0, 50) : "(无)", "消息ID:", lastMessage.id);
                         }
                     }
+                }
+
+                // 如果DOM消息不可用或未显示，才使用已过滤的消息列表
+                if (!lastMessage && filteredMessages.length > 0) {
+                    // 按时间戳排序，确保使用最后一条消息
+                    var sortedFiltered = filteredMessages.slice().sort(function(a, b) {
+                        var aTime = a.timestamp || 0;
+                        var bTime = b.timestamp || 0;
+                        // 如果没有timestamp，尝试从rawTime解析
+                        if (!aTime && a.rawTime) {
+                            try {
+                                var aTimeStr = String(a.rawTime).trim();
+                                var parsedA = Date.parse(aTimeStr.replace(/-/g, "/").replace(/年|月|日|星期[一二三四五六日]/g, " "));
+                                if (!isNaN(parsedA)) aTime = parsedA;
+                            } catch(e) {}
+                        }
+                        if (!bTime && b.rawTime) {
+                            try {
+                                var bTimeStr = String(b.rawTime).trim();
+                                var parsedB = Date.parse(bTimeStr.replace(/-/g, "/").replace(/年|月|日|星期[一二三四五六日]/g, " "));
+                                if (!isNaN(parsedB)) bTime = parsedB;
+                            } catch(e) {}
+                        }
+                        return aTime - bTime; // 升序排序，时间最早的在前，最新的在后
+                    });
+                    lastMessage = sortedFiltered[sortedFiltered.length - 1];
+                    console.info("[小馨手机][微信主页] DOM消息不可用，使用已过滤消息列表的最后一条（已显示，按时间排序），联系人ID:", userId, "消息类型:", lastMessage.type, "content:", lastMessage.content ? lastMessage.content.substring(0, 50) : "(无)", "state:", lastMessage.state || lastMessage.callState || "(无)", "消息ID:", lastMessage.id);
                 }
 
                 // ⚠️ 重要：如果最后一条消息是 call_voice_text，需要在原始消息列表和 filteredMessages 中查找同 call_id 的 call_voice 消息（state=ended/rejected/unanswered），
