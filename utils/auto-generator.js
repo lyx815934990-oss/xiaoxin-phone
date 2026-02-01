@@ -1679,6 +1679,13 @@
             你正在处理"玩家输入后的线上微信消息回复"请求。
             你必须同时输出线下剧情和线上消息格式，在同一轮输出中完成。
 
+            ⚠️⚠️⚠️ 微信隐私性规则（最高优先级，必须严格遵守）：
+            - 聊天记录隐私：{{char}} 完全无法看到 {{user}} 与其他{{char}}的聊天记录。{{char}} 完全无法知道 {{user}} 与其他{{char}}聊了什么、什么时候聊的。
+            - 微信消息页面隐私：{{char}} 完全无法看到 {{user}} 的微信消息页面、聊天列表、正在和谁聊天，除非在剧情正文中明确提到{{char}}偷看、窥视{{user}}的手机屏幕。
+            - 通话隐私：{{char}} 完全无法看到 {{user}} 正在和谁通话、通话状态，除非在剧情正文中明确提到{{char}}偷看、偷听或{{user}}主动分享。
+            - 绝对禁止：{{char}} 在正文回复中提及、暗示或描述{{user}}与其他{{char}}的聊天内容，除非剧情明确描述{{char}}通过合理方式（如偷看手机、{{user}}主动分享）获得了这些信息。
+            - 如果玩家给角色A发消息，角色B在正文回复中绝对不能提及玩家和角色A的聊天内容，除非剧情明确描述角色B看到了相关信息。
+
             输出结构（必须严格遵守）：
             1. 先输出线下剧情（正文叙事/对白/动作描写等），描述角色收到消息后的反应、动作、心理活动等
             2. 然后输出线上消息格式指令块
@@ -1687,6 +1694,7 @@
             - 必须描述角色收到玩家消息后的反应、动作、心理活动等
             - 可以是叙事、对白、动作描写等，要符合角色人设和当前剧情
             - 长度适中，不要过长或过短
+            - ⚠️ 严格遵守隐私规则：角色只能知道玩家发给自己的消息，不能知道玩家与其他角色的聊天内容
 
             线上消息格式要求：
             - 输出 [MSG]...[/MSG]（可以多条）以及一个结尾的 [time]...[/time]
@@ -1725,12 +1733,21 @@
             // ⚠️ 重要：玩家线上回复请求需要同时生成线下剧情，所以不使用静默模式
             result = await callGenerator(sysPrompt, userInput, { shouldSilence: false });
         } catch (e) {
-            logWarn("玩家线上回复生成失败:", e);
-            // 回滚：允许下次重试
-            try {
-                localStorage.removeItem(_getScopedKey(LAST_PLAYER_PHONE_REQ_KEY));
-            } catch (e2) {
-                // ignore
+            const errorMsg = String(e || "").toLowerCase();
+            const isUserStopped = errorMsg.includes("stop") || errorMsg.includes("停止") || errorMsg.includes("clicked stop");
+
+            if (isUserStopped) {
+                // 用户主动停止：保留去重标记，避免轮询立即重试
+                // 但设置一个短期标记，允许用户稍后手动重试（通过发送新消息）
+                logWarn("玩家线上回复生成失败: 用户主动停止生成");
+            } else {
+                logWarn("玩家线上回复生成失败:", e);
+                // 其他错误：回滚标记，允许下次重试
+                try {
+                    localStorage.removeItem(_getScopedKey(LAST_PLAYER_PHONE_REQ_KEY));
+                } catch (e2) {
+                    // ignore
+                }
             }
             return;
         }
@@ -2073,7 +2090,11 @@
             setInterval(function () {
                 const trReq = findLatestPlayerPhoneRequest(5);
                 if (trReq) {
-                    runAutoGenOnce("poll", true);
+                    const sig = "req:" + getTriggerSig(trReq.text);
+                    // ⚠️ 重要：轮询时也检查去重标记，避免重复触发
+                    if (!hasProcessedPlayerReq(sig)) {
+                        runAutoGenOnce("poll", true);
+                    }
                 }
             }, 2000);
             logInfo("已启用触发器轮询兜底（2s）");
